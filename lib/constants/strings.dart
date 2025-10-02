@@ -1,0 +1,30 @@
+class AppStrings {
+  static const studentsTitle = 'Gestion des Élèves';
+  static const addStudent = 'Ajouter un Élève';
+  static const addClass = 'Ajouter une Classe';
+  static const cancel = 'Annuler';
+  static const add = 'Ajouter';
+  static const required = 'Requis';
+  static const classFilter = 'Classe';
+  static const genderFilter = 'Sexe';
+  static const yearFilter = 'Année Scolaire';
+  static const classDistributionTitle = 'Répartition par Classe';
+  static const academicYearTitle = 'Répartition par Année Scolaire';
+  static const total = 'Total';
+  static const classLabel = 'Classe';
+  static const totalStudentsLabel = 'Total Élèves';
+  static const boysLabel = 'Garçons';
+  static const girlsLabel = 'Filles';
+  static const academicYearLabel = 'Année Scolaire';
+  static const actionsLabel = 'Actions';
+  static const viewDetails = 'Voir Détails';
+  static const editStudent = 'Modifier l\'élève';
+  static const classDetailsTitle = 'Détails de la classe';
+  static const firstName = 'Prénom';
+  static const lastName = 'Nom';
+  static const className = 'Classe (ex: 6ème A)';
+  static const gender = 'Sexe (M/F)';
+  static const enrollmentYear = 'Année d\'Inscription (ex: 2023-2024)';
+  static const classNameDialog = 'Nom de la Classe (ex: 6ème A)';
+  static const academicYearDialog = 'Année Scolaire (ex: 2023-2024)';
+}

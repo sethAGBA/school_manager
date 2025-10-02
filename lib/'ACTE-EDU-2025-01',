@@ -1,0 +1,68 @@
+ 'ACTE-EDU-2025-01',
+    29    +    'ACTE-EDU-2025-02',
+    30    +    'ACTE-EDU-2025-03',
+    31    +    'ACTE-EDU-2025-04',
+    32    +    'ACTE-EDU-2025-05',
+    33    +    'ACTE-EDU-2025-06',
+    34    +    'ACTE-EDU-2025-07',
+    35    +    'ACTE-EDU-2025-08',
+    36    +    'ACTE-EDU-2025-09',
+    37    +    'ACTE-EDU-2025-10',
+    38    +    'ACTE-EDU-2025-11',
+    39    +    'ACTE-EDU-2025-12',
+
+
+
+    27    +    'Z7KJ-3PMQ-XA49-NE2T',
+    28    +    'Q5HL-UD93-RBKN-17ZX',
+    29    +    'T9MW-2GQF-LA58-Y3RD',
+    30    +    'P6VN-X4JE-8KQT-5H2C',
+    31    +    'H4DQ-RT2N-9SVE-M7K1',
+    32    +    'B2YM-5ZQ8-CLN7-J4TX',
+    33    +    'N8KF-3RJL-7Q2P-VD65',
+    34    +    'R1TE-6H9M-PQ47-X2LB',
+    35    +    'C7PX-M2Q8-9LRT-HE54',
+    36    +    'J5QN-7K2V-U8RD-3XLP',
+    37    +    'L9HT-4MVE-2QX7-BK13',
+    38    +    'V3ZP-8Q1N-R6JL-D5TC',
+
+
+    - Licence de test 3 mois
+    - Clé spéciale: ACTE-TEST-3M-ALPHA
+    - Valide 3 mois à compter de l’enregistrement.
+    - Utilisable une fois (comme les autres), mais ne compte pas dans le quota des 12 licences standard.
+    - Entrée acceptée avec ou sans tirets et insensible à la casse.
+
+
+
+  - SupAdmin fixe
+      - Mot de passe SupAdmin défini au build (non modifiable dans l’app).
+      - Valeur par défaut: ACTE#SupAdmin2025!
+      - Vous pouvez le surcharger de manière sécurisée à la compilation via: --dart-define=SUPADMIN_PASSWORD=VotreSecret
+  - Vérification uniquement
+      - Toute tentative d’affichage de la clé (statut ou champ de saisie) demande le mot de passe SupAdmin.
+      - Plus aucune logique de création/édition du mot de passe en UI.
+
+  Détails techniques
+
+  - lib/services/license_service.dart
+      - SupAdmin: String.fromEnvironment('SUPADMIN_PASSWORD', defaultValue: 'ACTE#SupAdmin2025!').
+      - verifySupAdmin(password) compare au secret build-time.
+      - Suppression de hasSupAdminPassword() / setSupAdminPassword().
+  - lib/screens/license_page.dart
+      - _ensureSupAdmin() ne fait plus de création; demande toujours le mot de passe et vérifie via LicenseService.verifySupAdmin().
+      - L’icône œil (affichage de la clé ou du champ de saisie) exige SupAdmin avant de révéler.
+  - lib/screens/settings_page.dart (modale “Voir la licence”)
+      - Icône œil sur l’affichage de la clé et sur le champ de saisie: demande SupAdmin avant révélation.
+      - Plus de création de SupAdmin.
+
+  Rappel build sécurisé
+
+  - Pour changer le SupAdmin sans modifier le code:
+      - flutter run --dart-define=SUPADMIN_PASSWORD=MonSecretFort
+      - flutter build ... --dart-define=SUPADMIN_PASSWORD=MonSecretFort
+
+
+
+
+ACTELIFE2025
