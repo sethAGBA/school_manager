@@ -2212,8 +2212,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         TextCellValue('N°'),
         TextCellValue('ID'),
         TextCellValue('Matricule'),
-        TextCellValue('Nom'),
         TextCellValue('Prénom'),
+        TextCellValue('Nom'),
         TextCellValue('Sexe'),
         TextCellValue('Statut'),
         TextCellValue('Classe'),
@@ -2241,15 +2241,16 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         final student = studentsList[i]['student'] as Student;
         final classe = studentsList[i]['classe'];
         final names = student.name.split(' ');
-        final prenom = names.length > 1 ? names.sublist(1).join(' ') : '';
-        final nom = names.isNotEmpty ? names[0] : '';
+        // Dans le formulaire, le prénom est saisi en premier, donc c'est le premier élément
+        final prenom = names.isNotEmpty ? names[0] : '';
+        final nom = names.length > 1 ? names.sublist(1).join(' ') : '';
         
         sheet.appendRow([
           IntCellValue(i + 1),
           TextCellValue(student.id),
           TextCellValue(student.matricule ?? ''),
-          TextCellValue(nom),
           TextCellValue(prenom),
+          TextCellValue(nom),
           TextCellValue(student.gender == 'M' ? 'Garçon' : 'Fille'),
           TextCellValue(student.status),
           TextCellValue(student.className),
