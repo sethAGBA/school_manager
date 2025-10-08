@@ -96,6 +96,88 @@ class PdfService {
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                 children: [
+                  // En-tête administratif (Ministère / République / Devise + Inspection / Direction)
+                  if (schoolInfo != null) ...[
+                    pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Expanded(
+                          child: ((schoolInfo.ministry ?? '').isNotEmpty)
+                              ? pw.Text(
+                                  (schoolInfo.ministry ?? '').toUpperCase(),
+                                  style: pw.TextStyle(
+                                    font: timesBold,
+                                    fontSize: 10,
+                                    color: PdfColors.blueGrey800,
+                                  ),
+                                )
+                              : pw.SizedBox(),
+                        ),
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.end,
+                            children: [
+                              pw.Text(
+                                ((schoolInfo.republic ?? 'RÉPUBLIQUE').toUpperCase()),
+                                style: pw.TextStyle(
+                                  font: timesBold,
+                                  fontSize: 10,
+                                  color: PdfColors.blueGrey800,
+                                ),
+                              ),
+                              if ((schoolInfo.republicMotto ?? '').isNotEmpty)
+                                pw.Padding(
+                                  padding: const pw.EdgeInsets.only(top: 2),
+                                  child: pw.Text(
+                                    schoolInfo.republicMotto!,
+                                    style: pw.TextStyle(
+                                      font: times,
+                                      fontSize: 9,
+                                      color: PdfColors.blueGrey700,
+                                      fontStyle: pw.FontStyle.italic,
+                                    ),
+                                    textAlign: pw.TextAlign.right,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          child: ((schoolInfo.inspection ?? '').isNotEmpty)
+                              ? pw.Text(
+                                  'Inspection: ${schoolInfo.inspection}',
+                                  style: pw.TextStyle(
+                                    font: times,
+                                    fontSize: 9,
+                                    color: PdfColors.blueGrey700,
+                                  ),
+                                )
+                              : pw.SizedBox(),
+                        ),
+                        pw.Expanded(
+                          child: pw.Align(
+                            alignment: pw.Alignment.centerRight,
+                            child: ((schoolInfo.educationDirection ?? '').isNotEmpty)
+                                ? pw.Text(
+                                    "Direction de l'enseignement: ${schoolInfo.educationDirection}",
+                                    style: pw.TextStyle(
+                                      font: times,
+                                      fontSize: 9,
+                                      color: PdfColors.blueGrey700,
+                                    ),
+                                  )
+                                : pw.SizedBox(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 8),
+                  ],
                   // --- En-tête ---
                   pw.Container(
                     padding: const pw.EdgeInsets.all(16),
@@ -1236,6 +1318,88 @@ class PdfService {
               // Contenu principal
               pw.Column(
                 children: [
+                  // En-tête administratif (Ministère / République / Devise + Inspection / Direction)
+                  if (schoolInfo != null) ...[
+                    pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Expanded(
+                          child: ((schoolInfo!.ministry ?? '').isNotEmpty)
+                              ? pw.Text(
+                                  (schoolInfo!.ministry ?? '').toUpperCase(),
+                                  style: pw.TextStyle(
+                                    font: timesBold,
+                                    fontSize: 10,
+                                    color: primary,
+                                  ),
+                                )
+                              : pw.SizedBox(),
+                        ),
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.end,
+                            children: [
+                              pw.Text(
+                                ((schoolInfo!.republic ?? 'RÉPUBLIQUE').toUpperCase()),
+                                style: pw.TextStyle(
+                                  font: timesBold,
+                                  fontSize: 10,
+                                  color: primary,
+                                ),
+                              ),
+                              if ((schoolInfo!.republicMotto ?? '').isNotEmpty)
+                                pw.Padding(
+                                  padding: const pw.EdgeInsets.only(top: 2),
+                                  child: pw.Text(
+                                    schoolInfo!.republicMotto!,
+                                    style: pw.TextStyle(
+                                      font: times,
+                                      fontSize: 9,
+                                      color: primary,
+                                      fontStyle: pw.FontStyle.italic,
+                                    ),
+                                    textAlign: pw.TextAlign.right,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          child: ((schoolInfo!.inspection ?? '').isNotEmpty)
+                              ? pw.Text(
+                                  'Inspection: ${schoolInfo!.inspection}',
+                                  style: pw.TextStyle(
+                                    font: times,
+                                    fontSize: 9,
+                                    color: primary,
+                                  ),
+                                )
+                              : pw.SizedBox(),
+                        ),
+                        pw.Expanded(
+                          child: pw.Align(
+                            alignment: pw.Alignment.centerRight,
+                            child: ((schoolInfo!.educationDirection ?? '').isNotEmpty)
+                                ? pw.Text(
+                                    "Direction de l'enseignement: ${schoolInfo!.educationDirection}",
+                                    style: pw.TextStyle(
+                                      font: times,
+                                      fontSize: 9,
+                                      color: primary,
+                                    ),
+                                  )
+                                : pw.SizedBox(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 8),
+                  ],
                   // Header avec logo et informations de l'école
                   pw.Container(
                     padding: const pw.EdgeInsets.all(16),
@@ -1697,6 +1861,9 @@ class PdfService {
     final pdf = pw.Document();
     final times = await pw.Font.times();
     final timesBold = await pw.Font.timesBold();
+    final dbService = DatabaseService();
+    final schoolInfo = await dbService.getSchoolInfo();
+    final currentAcademicYear = await getCurrentAcademicYear();
 
     pdf.addPage(
       pw.Page(
@@ -1705,6 +1872,142 @@ class PdfService {
         build: (pw.Context context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
+            if (schoolInfo != null) ...[
+              // En-tête administratif
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: ((schoolInfo!.ministry ?? '').isNotEmpty)
+                        ? pw.Text(
+                            (schoolInfo!.ministry ?? '').toUpperCase(),
+                            style: pw.TextStyle(
+                              font: timesBold,
+                              fontSize: 10,
+                              color: PdfColors.blueGrey800,
+                            ),
+                          )
+                        : pw.SizedBox(),
+                  ),
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text(
+                          ((schoolInfo!.republic ?? 'RÉPUBLIQUE').toUpperCase()),
+                          style: pw.TextStyle(
+                            font: timesBold,
+                            fontSize: 10,
+                            color: PdfColors.blueGrey800,
+                          ),
+                        ),
+                        if ((schoolInfo!.republicMotto ?? '').isNotEmpty)
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.only(top: 2),
+                            child: pw.Text(
+                              schoolInfo!.republicMotto!,
+                              style: pw.TextStyle(
+                                font: times,
+                                fontSize: 9,
+                                color: PdfColors.blueGrey700,
+                                fontStyle: pw.FontStyle.italic,
+                              ),
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                children: [
+                  pw.Expanded(
+                    child: ((schoolInfo!.inspection ?? '').isNotEmpty)
+                        ? pw.Text(
+                            'Inspection: ${schoolInfo!.inspection}',
+                            style: pw.TextStyle(
+                              font: times,
+                              fontSize: 9,
+                              color: PdfColors.blueGrey700,
+                            ),
+                          )
+                        : pw.SizedBox(),
+                  ),
+                  pw.Expanded(
+                    child: pw.Align(
+                      alignment: pw.Alignment.centerRight,
+                      child: ((schoolInfo!.educationDirection ?? '').isNotEmpty)
+                          ? pw.Text(
+                              "Direction de l'enseignement: ${schoolInfo!.educationDirection}",
+                              style: pw.TextStyle(
+                                font: times,
+                                fontSize: 9,
+                                color: PdfColors.blueGrey700,
+                              ),
+                            )
+                          : pw.SizedBox(),
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 8),
+              // Header établissement
+              pw.Container(
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    if (schoolInfo?.logoPath != null &&
+                        File(schoolInfo!.logoPath!).existsSync())
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.only(right: 12),
+                        child: pw.Image(
+                          pw.MemoryImage(
+                            File(schoolInfo.logoPath!).readAsBytesSync(),
+                          ),
+                          width: 50,
+                          height: 50,
+                        ),
+                      ),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            schoolInfo?.name ?? 'Établissement',
+                            style: pw.TextStyle(font: timesBold, fontSize: 16),
+                          ),
+                          pw.Text(
+                            schoolInfo?.address ?? '',
+                            style: pw.TextStyle(
+                              font: times,
+                              fontSize: 10,
+                              color: PdfColors.blueGrey800,
+                            ),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            'Année académique: $currentAcademicYear',
+                            style: pw.TextStyle(
+                              font: times,
+                              fontSize: 10,
+                              color: PdfColors.blueGrey800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 12),
+            ],
             pw.Text(
               'Liste des classes',
               style: pw.TextStyle(
@@ -4255,6 +4558,86 @@ class PdfService {
         margin: const pw.EdgeInsets.all(24),
         build: (context) {
           return [
+            // En-tête administratif (Ministère / République / Devise + Inspection / Direction)
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  child: ((schoolInfo.ministry ?? '').isNotEmpty)
+                      ? pw.Text(
+                          (schoolInfo.ministry ?? '').toUpperCase(),
+                          style: pw.TextStyle(
+                            font: timesBold,
+                            fontSize: 10,
+                            color: primary,
+                          ),
+                        )
+                      : pw.SizedBox(),
+                ),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        ((schoolInfo.republic ?? 'RÉPUBLIQUE').toUpperCase()),
+                        style: pw.TextStyle(
+                          font: timesBold,
+                          fontSize: 10,
+                          color: primary,
+                        ),
+                      ),
+                      if ((schoolInfo.republicMotto ?? '').isNotEmpty)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(top: 2),
+                          child: pw.Text(
+                            schoolInfo.republicMotto!,
+                            style: pw.TextStyle(
+                              font: times,
+                              fontSize: 9,
+                              color: primary,
+                              fontStyle: pw.FontStyle.italic,
+                            ),
+                            textAlign: pw.TextAlign.right,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 4),
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: ((schoolInfo.inspection ?? '').isNotEmpty)
+                      ? pw.Text(
+                          'Inspection: ${schoolInfo.inspection}',
+                          style: pw.TextStyle(
+                            font: times,
+                            fontSize: 9,
+                            color: primary,
+                          ),
+                        )
+                      : pw.SizedBox(),
+                ),
+                pw.Expanded(
+                  child: pw.Align(
+                    alignment: pw.Alignment.centerRight,
+                    child: ((schoolInfo.educationDirection ?? '').isNotEmpty)
+                        ? pw.Text(
+                            "Direction de l'enseignement: ${schoolInfo.educationDirection}",
+                            style: pw.TextStyle(
+                              font: times,
+                              fontSize: 9,
+                              color: primary,
+                            ),
+                          )
+                        : pw.SizedBox(),
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 8),
             // Header
             pw.Container(
               padding: const pw.EdgeInsets.all(12),
@@ -5219,6 +5602,86 @@ class PdfService {
         pageTheme: pageTheme,
         build: (pw.Context context) {
           return [
+            // En-tête administratif (Ministère / République / Devise + Inspection / Direction)
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  child: ((schoolInfo.ministry ?? '').isNotEmpty)
+                      ? pw.Text(
+                          (schoolInfo.ministry ?? '').toUpperCase(),
+                          style: pw.TextStyle(
+                            font: timesBold,
+                            fontSize: 10,
+                            color: primary,
+                          ),
+                        )
+                      : pw.SizedBox(),
+                ),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        ((schoolInfo.republic ?? 'RÉPUBLIQUE').toUpperCase()),
+                        style: pw.TextStyle(
+                          font: timesBold,
+                          fontSize: 10,
+                          color: primary,
+                        ),
+                      ),
+                      if ((schoolInfo.republicMotto ?? '').isNotEmpty)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(top: 2),
+                          child: pw.Text(
+                            schoolInfo.republicMotto!,
+                            style: pw.TextStyle(
+                              font: times,
+                              fontSize: 9,
+                              color: primary,
+                              fontStyle: pw.FontStyle.italic,
+                            ),
+                            textAlign: pw.TextAlign.right,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 4),
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: ((schoolInfo.inspection ?? '').isNotEmpty)
+                      ? pw.Text(
+                          'Inspection: ${schoolInfo.inspection}',
+                          style: pw.TextStyle(
+                            font: times,
+                            fontSize: 9,
+                            color: primary,
+                          ),
+                        )
+                      : pw.SizedBox(),
+                ),
+                pw.Expanded(
+                  child: pw.Align(
+                    alignment: pw.Alignment.centerRight,
+                    child: ((schoolInfo.educationDirection ?? '').isNotEmpty)
+                        ? pw.Text(
+                            "Direction de l'enseignement: ${schoolInfo.educationDirection}",
+                            style: pw.TextStyle(
+                              font: times,
+                              fontSize: 9,
+                              color: primary,
+                            ),
+                          )
+                        : pw.SizedBox(),
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 8),
             // Header avec logo et informations de l'école
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,

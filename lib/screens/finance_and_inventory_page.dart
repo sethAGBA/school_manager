@@ -236,6 +236,88 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
+                // En-tête administratif (Ministère, République, etc.) pour harmonisation
+                if (schoolInfo != null) ...[
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Expanded(
+                        child: ((schoolInfo!.ministry ?? '').isNotEmpty)
+                            ? pw.Text(
+                                (schoolInfo!.ministry ?? '').toUpperCase(),
+                                style: pw.TextStyle(
+                                  font: timesBold,
+                                  fontSize: 10,
+                                  color: primary,
+                                ),
+                              )
+                            : pw.SizedBox(),
+                      ),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text(
+                              ((schoolInfo!.republic ?? 'RÉPUBLIQUE').toUpperCase()),
+                              style: pw.TextStyle(
+                                font: timesBold,
+                                fontSize: 10,
+                                color: primary,
+                              ),
+                            ),
+                            if ((schoolInfo!.republicMotto ?? '').isNotEmpty)
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.only(top: 2),
+                                child: pw.Text(
+                                  schoolInfo!.republicMotto!,
+                                  style: pw.TextStyle(
+                                    font: times,
+                                    fontSize: 9,
+                                    color: primary,
+                                    fontStyle: pw.FontStyle.italic,
+                                  ),
+                                  textAlign: pw.TextAlign.right,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Row(
+                    children: [
+                      pw.Expanded(
+                        child: ((schoolInfo!.inspection ?? '').isNotEmpty)
+                            ? pw.Text(
+                                'Inspection: ${schoolInfo!.inspection}',
+                                style: pw.TextStyle(
+                                  font: times,
+                                  fontSize: 9,
+                                  color: primary,
+                                ),
+                              )
+                            : pw.SizedBox(),
+                      ),
+                      pw.Expanded(
+                        child: pw.Align(
+                          alignment: pw.Alignment.centerRight,
+                          child: ((schoolInfo!.educationDirection ?? '').isNotEmpty)
+                              ? pw.Text(
+                                  "Direction de l'enseignement: ${schoolInfo!.educationDirection}",
+                                  style: pw.TextStyle(
+                                    font: times,
+                                    fontSize: 9,
+                                    color: primary,
+                                  ),
+                                )
+                              : pw.SizedBox(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 8),
+                ],
                 // Header with logo and school info
                 pw.Container(
                   padding: const pw.EdgeInsets.all(16),
@@ -543,6 +625,88 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
+                // En-tête administratif (Ministère, République, etc.) pour harmonisation
+                if (schoolInfo != null) ...[
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Expanded(
+                        child: ((schoolInfo!.ministry ?? '').isNotEmpty)
+                            ? pw.Text(
+                                (schoolInfo!.ministry ?? '').toUpperCase(),
+                                style: pw.TextStyle(
+                                  font: timesBold,
+                                  fontSize: 10,
+                                  color: primary,
+                                ),
+                              )
+                            : pw.SizedBox(),
+                      ),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text(
+                              ((schoolInfo!.republic ?? 'RÉPUBLIQUE').toUpperCase()),
+                              style: pw.TextStyle(
+                                font: timesBold,
+                                fontSize: 10,
+                                color: primary,
+                              ),
+                            ),
+                            if ((schoolInfo!.republicMotto ?? '').isNotEmpty)
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.only(top: 2),
+                                child: pw.Text(
+                                  schoolInfo!.republicMotto!,
+                                  style: pw.TextStyle(
+                                    font: times,
+                                    fontSize: 9,
+                                    color: primary,
+                                    fontStyle: pw.FontStyle.italic,
+                                  ),
+                                  textAlign: pw.TextAlign.right,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Row(
+                    children: [
+                      pw.Expanded(
+                        child: ((schoolInfo!.inspection ?? '').isNotEmpty)
+                            ? pw.Text(
+                                'Inspection: ${schoolInfo!.inspection}',
+                                style: pw.TextStyle(
+                                  font: times,
+                                  fontSize: 9,
+                                  color: primary,
+                                ),
+                              )
+                            : pw.SizedBox(),
+                      ),
+                      pw.Expanded(
+                        child: pw.Align(
+                          alignment: pw.Alignment.centerRight,
+                          child: ((schoolInfo!.educationDirection ?? '').isNotEmpty)
+                              ? pw.Text(
+                                  "Direction de l'enseignement: ${schoolInfo!.educationDirection}",
+                                  style: pw.TextStyle(
+                                    font: times,
+                                    fontSize: 9,
+                                    color: primary,
+                                  ),
+                                )
+                              : pw.SizedBox(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 8),
+                ],
                 // Header with logo and info
                 pw.Container(
                   padding: const pw.EdgeInsets.all(16),
