@@ -510,9 +510,24 @@ class DatabaseService {
     await _ensureTeacherUnavailabilityTable(db);
     await _ensureInventoryTable(db);
     await _ensureExpensesTable(db);
+    await _ensurePaymentCancelReason(db);
+    await _ensureExpensesTable(db);
     debugPrint(
       '[DatabaseService][MIGRATION] All post-open migrations completed',
     );
+  }
+
+  Future<void> _ensurePaymentCancelReason(Database db) async {
+    final cols = await db.rawQuery('PRAGMA table_info(payments)');
+    final has = cols.any((c) => c['name'] == 'cancelReason');
+    if (!has) {
+      try {
+        await db.execute('ALTER TABLE payments ADD COLUMN cancelReason TEXT');
+        debugPrint('[DatabaseService][MIGRATION] Added payments.cancelReason');
+      } catch (e) {
+        debugPrint('[DatabaseService][MIGRATION][ERROR] cancelReason: $e');
+      }
+    }
   }
 
   Future<void> _ensureInventoryTable(Database db) async {
@@ -2335,6 +2350,20 @@ class DatabaseService {
     await db.update(
       'payments',
       {'isCancelled': 1, 'cancelledAt': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> cancelPaymentWithReason(int id, String reason) async {
+    final db = await database;
+    await db.update(
+      'payments',
+      {
+        'isCancelled': 1,
+        'cancelledAt': DateTime.now().toIso8601String(),
+        'cancelReason': reason,
+      },
       where: 'id = ?',
       whereArgs: [id],
     );

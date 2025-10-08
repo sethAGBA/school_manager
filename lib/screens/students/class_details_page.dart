@@ -1446,36 +1446,53 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                                   ),
                                   tooltip: 'Annuler ce paiement',
                                   onPressed: () async {
-                                    final confirm = await showDialog<bool>(
+                                    final motifCtrl = TextEditingController();
+                                    final ok = await showDialog<bool>(
                                       context: context,
                                       builder: (context) => CustomDialog(
-                                        title: 'Confirmer l\'annulation',
-                                        content: const Text(
-                                          'Voulez-vous vraiment annuler ce paiement ? Cette action est irréversible.',
+                                        title: 'Motif d\'annulation',
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Veuillez saisir un motif pour annuler ce paiement. Cette action est irréversible.',
+                                            ),
+                                            const SizedBox(height: 12),
+                                            CustomFormField(
+                                              controller: motifCtrl,
+                                              labelText: 'Motif',
+                                              hintText: 'Ex: erreur de saisie, remboursement, etc.',
+                                              isTextArea: true,
+                                              validator: (v) =>
+                                                  (v == null || v.trim().isEmpty)
+                                                      ? 'Motif requis'
+                                                      : null,
+                                            ),
+                                          ],
                                         ),
                                         fields: const [],
-                                        onSubmit: () =>
-                                            Navigator.of(context).pop(true),
+                                        onSubmit: () => Navigator.of(context).pop(true),
                                         actions: [
                                           TextButton(
-                                            onPressed: () => Navigator.of(
-                                              context,
-                                            ).pop(false),
+                                            onPressed: () => Navigator.of(context).pop(false),
                                             child: const Text('Annuler'),
                                           ),
                                           ElevatedButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(true),
+                                            onPressed: () => Navigator.of(context).pop(true),
                                             child: const Text('Confirmer'),
                                           ),
                                         ],
                                       ),
                                     );
-                                    if (confirm == true) {
-                                      await _dbService.cancelPayment(p.id!);
+                                    final reason = motifCtrl.text.trim();
+                                    if (ok == true && reason.isNotEmpty) {
+                                      await _dbService.cancelPaymentWithReason(p.id!, reason);
                                       Navigator.of(context).pop();
                                       _showModernSnackBar('Paiement annulé');
                                       setState(() {});
+                                    } else if (ok == true && reason.isEmpty) {
+                                      _showModernSnackBar('Motif obligatoire pour annuler.');
                                     }
                                   },
                                 ),

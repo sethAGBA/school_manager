@@ -829,6 +829,33 @@ class _DashboardHomeState extends State<DashboardHome>
               ),
             ],
           ),
+          SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: QuickAction(
+                  title: 'Annuler Paiement',
+                  icon: Icons.cancel_outlined,
+                  color: Color(0xFFEF4444),
+                  onTap: () {
+                    // Redirige vers la page Paiements où l\'annulation est disponible par élève
+                    widget.onNavigate(4);
+                    // Optionnel: un snack d\'aide peut être affiché après navigation par la page cible
+                  },
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: QuickAction(
+                  title: 'Finance & Matériel',
+                  icon: Icons.inventory_2_outlined,
+                  color: Color(0xFFF59E0B),
+                  onTap: () => widget.onNavigate(10), // Navigate to Finance & Inventory
+                ),
+              ),
+            ],
+          ),
         ], // Closing the Column
       ), // Closing the Container
     ); // Closing the Container
