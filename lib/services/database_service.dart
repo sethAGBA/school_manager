@@ -11,6 +11,8 @@ import 'package:school_manager/models/grade.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/models/timetable_entry.dart';
+import 'package:school_manager/models/expense.dart';
+import 'package:school_manager/models/inventory_item.dart';
 // Removed UI and prefs from data layer
 
 class DatabaseService {
@@ -267,6 +269,33 @@ class DatabaseService {
           )
         ''');
         await db.execute('''
+          CREATE TABLE IF NOT EXISTS expenses(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL,
+            category TEXT,
+            supplier TEXT,
+            amount REAL NOT NULL,
+            date TEXT NOT NULL,
+            className TEXT,
+            academicYear TEXT NOT NULL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS inventory_items(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            name TEXT NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 0,
+            location TEXT,
+            itemCondition TEXT,
+            value REAL,
+            supplier TEXT,
+            purchaseDate TEXT,
+            className TEXT,
+            academicYear TEXT NOT NULL
+          )
+        ''');
+        await db.execute('''
           CREATE TABLE IF NOT EXISTS report_cards(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             studentId TEXT NOT NULL,
@@ -479,8 +508,39 @@ class DatabaseService {
     await _ensureSubjectAppreciationCoeffColumns(db);
     await _ensureClassCoursesCoeffColumn(db);
     await _ensureTeacherUnavailabilityTable(db);
+    await _ensureInventoryTable(db);
+    await _ensureExpensesTable(db);
     debugPrint(
       '[DatabaseService][MIGRATION] All post-open migrations completed',
+    );
+  }
+
+  Future<void> _ensureInventoryTable(Database db) async {
+    // Create table if missing
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS inventory_items(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT NOT NULL,
+        name TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        location TEXT,
+        itemCondition TEXT,
+        value REAL,
+        supplier TEXT,
+        purchaseDate TEXT,
+        className TEXT,
+        academicYear TEXT NOT NULL
+      )
+    ''');
+    // Indexes
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_inv_year_class ON inventory_items(academicYear, className)'
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_inv_category ON inventory_items(category)'
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_inv_condition ON inventory_items(itemCondition)'
     );
   }
 
@@ -500,6 +560,36 @@ class DatabaseService {
     );
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_unavail_day_time ON teacher_unavailability(dayOfWeek, startTime)',
+    );
+  }
+
+  Future<void> _ensureExpensesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS expenses(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT NOT NULL,
+        category TEXT,
+        supplier TEXT,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        className TEXT,
+        academicYear TEXT NOT NULL
+      )
+    ''');
+    // Add missing columns if needed
+    final cols = await db.rawQuery('PRAGMA table_info(expenses)');
+    bool hasSupplier = cols.any((c) => c['name'] == 'supplier');
+    if (!hasSupplier) {
+      await db.execute('ALTER TABLE expenses ADD COLUMN supplier TEXT');
+    }
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_exp_year_class ON expenses(academicYear, className)'
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_exp_date ON expenses(date)'
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_exp_category ON expenses(category)'
     );
   }
 
@@ -2309,6 +2399,138 @@ class DatabaseService {
       staff.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  // Inventory operations
+  Future<int> insertInventoryItem(InventoryItem item) async {
+    final db = await database;
+    return await db.insert(
+      'inventory_items',
+      item.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // Expenses operations
+  Future<int> insertExpense(Expense e) async {
+    final db = await database;
+    return await db.insert('expenses', e.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> updateExpense(Expense e) async {
+    if (e.id == null) return;
+    final db = await database;
+    await db.update('expenses', e.toMap(),
+        where: 'id = ?', whereArgs: [e.id]);
+  }
+
+  Future<void> deleteExpense(int id) async {
+    final db = await database;
+    await db.delete('expenses', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Expense>> getExpenses({
+    String? className,
+    String? academicYear,
+    String? category,
+    String? supplier,
+  }) async {
+    final db = await database;
+    final where = <String>[];
+    final args = <Object?>[];
+    if (academicYear != null && academicYear.isNotEmpty) {
+      where.add('academicYear = ?');
+      args.add(academicYear);
+    }
+    if (className != null && className.isNotEmpty) {
+      where.add('className = ?');
+      args.add(className);
+    }
+    if (category != null && category.isNotEmpty) {
+      where.add('category = ?');
+      args.add(category);
+    }
+    if (supplier != null && supplier.isNotEmpty) {
+      where.add('supplier = ?');
+      args.add(supplier);
+    }
+    final rows = await db.query(
+      'expenses',
+      where: where.isEmpty ? null : where.join(' AND '),
+      whereArgs: where.isEmpty ? null : args,
+      orderBy: 'date DESC',
+    );
+    return rows.map((m) => Expense.fromMap(m)).toList();
+  }
+
+  Future<double> getTotalExpenses({String? className, String? academicYear}) async {
+    final db = await database;
+    final where = <String>[];
+    final args = <Object?>[];
+    if (academicYear != null && academicYear.isNotEmpty) {
+      where.add('academicYear = ?');
+      args.add(academicYear);
+    }
+    if (className != null && className.isNotEmpty) {
+      where.add('className = ?');
+      args.add(className);
+    }
+    final res = await db.rawQuery(
+      'SELECT SUM(amount) as total FROM expenses' +
+          (where.isEmpty ? '' : ' WHERE ' + where.join(' AND ')),
+      args,
+    );
+    final total = res.isNotEmpty && res.first['total'] != null
+        ? (res.first['total'] as num).toDouble()
+        : 0.0;
+    return total;
+  }
+
+  Future<void> updateInventoryItem(InventoryItem item) async {
+    if (item.id == null) return;
+    final db = await database;
+    await db.update(
+      'inventory_items',
+      item.toMap(),
+      where: 'id = ?',
+      whereArgs: [item.id],
+    );
+  }
+
+  Future<void> deleteInventoryItem(int id) async {
+    final db = await database;
+    await db.delete('inventory_items', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<InventoryItem>> getInventoryItems({
+    String? className,
+    String? academicYear,
+  }) async {
+    final db = await database;
+    String? where;
+    List<Object?>? whereArgs;
+    final parts = <String>[];
+    final args = <Object?>[];
+    if (className != null && className.isNotEmpty) {
+      parts.add('className = ?');
+      args.add(className);
+    }
+    if (academicYear != null && academicYear.isNotEmpty) {
+      parts.add('academicYear = ?');
+      args.add(academicYear);
+    }
+    if (parts.isNotEmpty) {
+      where = parts.join(' AND ');
+      whereArgs = args;
+    }
+    final rows = await db.query(
+      'inventory_items',
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: 'category ASC, name ASC',
+    );
+    return rows.map((m) => InventoryItem.fromMap(m)).toList();
   }
 
   Future<List<Staff>> getStaff() async {

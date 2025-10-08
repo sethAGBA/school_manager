@@ -5,6 +5,7 @@ import 'package:school_manager/models/category.dart';
 import 'package:school_manager/services/database_service.dart';
 import 'package:school_manager/services/pdf_service.dart';
 import 'package:school_manager/screens/students/widgets/custom_dialog.dart';
+import 'package:school_manager/widgets/confirm_dialog.dart';
 import 'package:school_manager/screens/students/widgets/form_field.dart';
 import 'package:school_manager/screens/categories_modal_content.dart';
 import 'package:file_picker/file_picker.dart';
@@ -363,26 +364,10 @@ class _SubjectsPageState extends State<SubjectsPage>
             if (isEdit)
               TextButton(
                 onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (c) => AlertDialog(
-                      title: const Text('Supprimer la matière ?'),
-                      content: const Text('Cette action est irréversible.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(c).pop(false),
-                          child: const Text('Annuler'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.of(c).pop(true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Supprimer'),
-                        ),
-                      ],
-                    ),
+                  final confirm = await showDangerConfirmDialog(
+                    context,
+                    title: 'Supprimer la matière ?',
+                    message: '“${course.name}” sera supprimée. Cette action est irréversible.',
                   );
                   if (confirm == true) {
                     await _db.deleteCourse(course.id);

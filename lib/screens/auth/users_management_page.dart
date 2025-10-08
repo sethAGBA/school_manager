@@ -4,6 +4,7 @@ import 'package:school_manager/models/user.dart';
 import 'package:school_manager/services/auth_service.dart';
 import 'package:school_manager/services/database_service.dart';
 import 'package:school_manager/services/permission_service.dart';
+import 'package:school_manager/widgets/confirm_dialog.dart';
 import 'package:school_manager/constants/colors.dart';
 import 'package:school_manager/constants/sizes.dart';
 
@@ -359,69 +360,10 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
       }
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Supprimer l\'utilisateur'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.delete_forever,
-                size: 40,
-                color: Colors.red,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Voulez-vous vraiment supprimer l\'utilisateur $username ? Cette action est irréversible.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              side: BorderSide(color: Theme.of(context).dividerColor),
-            ),
-            child: const Text(
-              'Annuler',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Supprimer',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await showDangerConfirmDialog(
+      context,
+      title: 'Supprimer l\'utilisateur',
+      message: 'Voulez-vous vraiment supprimer l\'utilisateur $username ? Cette action est irréversible.',
     );
 
     if (confirmed == true) {

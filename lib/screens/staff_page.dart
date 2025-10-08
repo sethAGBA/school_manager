@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:school_manager/widgets/confirm_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:school_manager/screens/students/widgets/form_field.dart';
 import 'package:uuid/uuid.dart';
@@ -796,49 +797,10 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         } else if (value == 'export') {
           _exportIndividualStaff(staff);
         } else if (value == 'delete') {
-          final confirm = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              backgroundColor: Theme.of(context).cardColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
-                  SizedBox(width: 8),
-                  Text(
-                    'Supprimer ce membre ?',
-                    style: TextStyle(
-                      color: Color(0xFFE11D48),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  SizedBox(height: 8),
-                  Text('Cette action est irréversible.'),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Annuler'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Supprimer'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE11D48),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+          final confirm = await showDangerConfirmDialog(
+            context,
+            title: 'Supprimer ce membre ?',
+            message: '“${staff.name}” sera supprimé. Cette action est irréversible.',
           );
           if (confirm == true) {
             try {
@@ -1931,47 +1893,35 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           SizedBox(height: 8),
-                          SizedBox(
-                            height: 40,
-                            child: ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: allCourses
-                                  .map(
-                                    (course) => Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: ChoiceChip(
-                                        label: Text(course.name),
-                                        selected: selectedCourses.contains(
-                                          course.name,
-                                        ),
-                                        onSelected: (selected) {
-                                          setState(() {
-                                            if (selected) {
-                                              selectedCourses.add(course.name);
-                                            } else {
-                                              selectedCourses.remove(
-                                                course.name,
-                                              );
-                                            }
-                                          });
-                                        },
-                                        selectedColor: Color(0xFF6366F1),
-                                        labelStyle: TextStyle(
-                                          color:
-                                              selectedCourses.contains(
-                                                course.name,
-                                              )
-                                              ? Colors.white
-                                              : Color(0xFF6366F1),
-                                        ),
-                                        backgroundColor: Color(
-                                          0xFF6366F1,
-                                        ).withOpacity(0.08),
-                                      ),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: allCourses
+                                .map(
+                                  (course) => FilterChip(
+                                    label: Text(course.name),
+                                    selected: selectedCourses.contains(course.name),
+                                    onSelected: (selected) {
+                                      setState(() {
+                                        if (selected) {
+                                          if (!selectedCourses.contains(course.name)) {
+                                            selectedCourses.add(course.name);
+                                          }
+                                        } else {
+                                          selectedCourses.remove(course.name);
+                                        }
+                                      });
+                                    },
+                                    selectedColor: const Color(0xFF6366F1),
+                                    backgroundColor: const Color(0xFF6366F1).withOpacity(0.08),
+                                    labelStyle: TextStyle(
+                                      color: selectedCourses.contains(course.name)
+                                          ? Colors.white
+                                          : const Color(0xFF6366F1),
                                     ),
-                                  )
-                                  .toList(),
-                            ),
+                                  ),
+                                )
+                                .toList(),
                           ),
                           SizedBox(height: 16),
                           Text(
