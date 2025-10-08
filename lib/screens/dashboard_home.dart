@@ -85,9 +85,12 @@ class _DashboardHomeState extends State<DashboardHome>
           .fold<double>(0, (sum, item) => sum + item.amount);
 
       // Fetch recent activities
-      final recentPayments = (await _dbService.getRecentPayments(
-        3,
-      )).where((p) => studentIdsThisYear.contains(p.studentId)).toList();
+      final recentPayments = (await _dbService.getRecentPayments(5))
+          .where((p) => studentIdsThisYear.contains(p.studentId) && !p.isCancelled)
+          .toList();
+      final recentCancelled = (await _dbService.getRecentCancelledPayments(5))
+          .where((p) => studentIdsThisYear.contains(p.studentId))
+          .toList();
 
       // Filter staff by current academic year (hire date within academic year)
       final allRecentStaff = await _dbService.getRecentStaff(
@@ -117,6 +120,26 @@ class _DashboardHomeState extends State<DashboardHome>
             time: DateFormat('dd/MM/yyyy').format(DateTime.parse(p.date)),
             icon: Icons.payment,
             color: Color(0xFFF59E0B),
+          ),
+        );
+      }
+      for (var p in recentCancelled) {
+        final student = await _dbService.getStudentById(p.studentId);
+        final when = p.cancelledAt != null && p.cancelledAt!.trim().isNotEmpty
+            ? DateTime.tryParse(p.cancelledAt!) ?? DateTime.parse(p.date)
+            : DateTime.parse(p.date);
+        final subtitleParts = <String>[
+          student?.name ?? 'Inconnu',
+          if ((p.cancelReason ?? '').isNotEmpty) 'Motif: ${p.cancelReason}',
+          if ((p.cancelBy ?? '').isNotEmpty) 'Par: ${p.cancelBy}',
+        ];
+        activities.add(
+          ActivityItem(
+            title: 'Paiement annulé',
+            subtitle: subtitleParts.join(' • '),
+            time: DateFormat('dd/MM/yyyy').format(when),
+            icon: Icons.cancel_outlined,
+            color: Color(0xFFEF4444),
           ),
         );
       }
@@ -212,9 +235,7 @@ class _DashboardHomeState extends State<DashboardHome>
         _staffCount = staff.length;
         _classCount = classes.length;
         _totalRevenue = totalRevenue;
-        _recentActivities = activities
-            .take(5)
-            .toList(); // Take top 5 recent activities
+        _recentActivities = activities.take(5).toList();
         _enrollmentSpots = spots;
         _enrollmentMonths = months;
         _isLoading = false;

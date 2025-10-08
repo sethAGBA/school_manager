@@ -22,6 +22,7 @@ import 'package:school_manager/screens/students/widgets/form_field.dart';
 import 'package:school_manager/utils/academic_year.dart';
 import 'package:school_manager/screens/students/student_profile_page.dart';
 // import removed: duplicate and unused
+import 'package:school_manager/services/auth_service.dart';
 
 class PaymentsPage extends StatefulWidget {
   @override
@@ -43,7 +44,9 @@ class _PaymentsPageState extends State<PaymentsPage>
   String? _selectedClassFilter;
   String? _selectedYearFilter;
   String? _selectedGenderFilter;
+  String? _selectedStatusFilter; // null or 'annules'
   int _currentTab = 0;
+  List<Payment> _cancelledPayments = [];
 
   @override
   void initState() {
@@ -80,6 +83,8 @@ class _PaymentsPageState extends State<PaymentsPage>
 
     // Utiliser l'année académique courante de l'application
     final currentAcademicYear = await getCurrentAcademicYear();
+    // Load cancelled for the same year
+    final cancelled = await _dbService.getCancelledPaymentsForYear(currentAcademicYear);
 
     // Filtrer les classes pour l'année courante
     final filteredClasses = classes
@@ -100,6 +105,7 @@ class _PaymentsPageState extends State<PaymentsPage>
       _payments = filteredPayments;
       _studentsById = studentsById;
       _classesByName = classesByName;
+      _cancelledPayments = cancelled;
       _isLoading = false;
     });
   }
@@ -632,21 +638,60 @@ class _PaymentsPageState extends State<PaymentsPage>
                     iconEnabledColor: theme.iconTheme.color,
                     style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                   ),
+                  const SizedBox(width: 16),
+                  // Filtre statut (annulés)
+                  DropdownButton<String?>(
+                    value: _selectedStatusFilter,
+                    hint: Text(
+                      'État',
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Actifs'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'annules',
+                        child: Text('Annulés'),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => _selectedStatusFilter = value),
+                    dropdownColor: theme.cardColor,
+                    iconEnabledColor: theme.iconTheme.color,
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  ),
                 ],
               ),
             ),
-            _buildTableHeader(isDarkMode, theme),
-            Expanded(
-              child: ListView.builder(
-                itemCount: paginatedRows.length,
-                itemBuilder: (context, index) {
-                  final row = paginatedRows[index];
-                  final student = row['student'] as Student;
-                  final payment = row['payment'] as Payment?;
-                  return _buildTableRowV2(student, payment, isDarkMode, theme);
-                },
+            if (_selectedStatusFilter == 'annules') ...[
+              _buildCancelledHeader(theme),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _cancelledPayments.length,
+                  itemBuilder: (context, i) {
+                    final pay = _cancelledPayments[i];
+                    final student = _studentsById[pay.studentId];
+                    return _buildCancelledRow(theme, student, pay);
+                  },
+                ),
               ),
-            ),
+            ] else ...[
+              _buildTableHeader(isDarkMode, theme),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: paginatedRows.length,
+                  itemBuilder: (context, index) {
+                    final row = paginatedRows[index];
+                    final student = row['student'] as Student;
+                    final payment = row['payment'] as Payment?;
+                    return _buildTableRowV2(student, payment, isDarkMode, theme);
+                  },
+                ),
+              ),
+            ],
             if (totalPages > 1)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -694,6 +739,7 @@ class _PaymentsPageState extends State<PaymentsPage>
           _buildHeaderCell('Date de Paiement', flex: 2, theme: theme),
           _buildHeaderCell('Montant', flex: 2, theme: theme),
           _buildHeaderCell('Commentaire', flex: 3, theme: theme),
+          _buildHeaderCell('Enregistré par', flex: 2, theme: theme),
           _buildHeaderCell('Statut', flex: 2, theme: theme),
           _buildHeaderCell('Action', flex: 2, theme: theme),
         ],
@@ -716,6 +762,46 @@ class _PaymentsPageState extends State<PaymentsPage>
           color: theme.textTheme.bodyMedium?.color,
           letterSpacing: 0.5,
         ),
+      ),
+    );
+  }
+
+  Widget _buildCancelledHeader(ThemeData theme) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        border: Border(bottom: BorderSide(color: theme.dividerColor, width: 1)),
+      ),
+      child: Row(
+        children: [
+          _buildHeaderCell('Étudiant', flex: 3, theme: theme),
+          _buildHeaderCell('Classe', flex: 2, theme: theme),
+          _buildHeaderCell('Date', flex: 2, theme: theme),
+          _buildHeaderCell('Montant', flex: 2, theme: theme),
+          _buildHeaderCell('Motif', flex: 3, theme: theme),
+          _buildHeaderCell('Annulé par', flex: 2, theme: theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCancelledRow(ThemeData theme, Student? student, Payment p) {
+    final studentName = student?.name ?? p.studentId;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: theme.dividerColor.withOpacity(0.5))),
+      ),
+      child: Row(
+        children: [
+          _buildCell(studentName, flex: 3, isName: true, isDarkMode: false, theme: theme),
+          _buildCell(p.className, flex: 2, isDarkMode: false, theme: theme),
+          _buildCell(p.date.substring(0, 10), flex: 2, isDarkMode: false, theme: theme),
+          _buildCell(p.amount.toStringAsFixed(0), flex: 2, isDarkMode: false, theme: theme),
+          _buildCell(p.cancelReason ?? '-', flex: 3, isDarkMode: false, theme: theme),
+          _buildCell(p.cancelBy ?? '-', flex: 2, isDarkMode: false, theme: theme),
+        ],
       ),
     );
   }
@@ -794,6 +880,12 @@ class _PaymentsPageState extends State<PaymentsPage>
           _buildCell(
             hasPayment ? (p!.comment ?? '') : '',
             flex: 3,
+            isDarkMode: isDarkMode,
+            theme: theme,
+          ),
+          _buildCell(
+            hasPayment ? (p!.recordedBy ?? '-') : '',
+            flex: 2,
             isDarkMode: isDarkMode,
             theme: theme,
           ),
@@ -1090,6 +1182,7 @@ class _PaymentsPageState extends State<PaymentsPage>
             return;
           }
           try {
+            final user = await AuthService.instance.getCurrentUser();
             final payment = Payment(
               studentId: student.id,
               className: student.className,
@@ -1099,6 +1192,7 @@ class _PaymentsPageState extends State<PaymentsPage>
               comment: commentController.text.isNotEmpty
                   ? commentController.text
                   : null,
+              recordedBy: user?.displayName ?? user?.username,
             );
             await _dbService.insertPayment(payment);
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1139,6 +1233,7 @@ class _PaymentsPageState extends State<PaymentsPage>
                 return;
               }
               try {
+                final user = await AuthService.instance.getCurrentUser();
                 final payment = Payment(
                   studentId: student.id,
                   className: student.className,
@@ -1148,6 +1243,7 @@ class _PaymentsPageState extends State<PaymentsPage>
                   comment: commentController.text.isNotEmpty
                       ? commentController.text
                       : null,
+                  recordedBy: user?.displayName ?? user?.username,
                 );
                 await _dbService.insertPayment(payment);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1315,6 +1411,17 @@ class _PaymentsPageState extends State<PaymentsPage>
                                   : theme.textTheme.bodyMedium?.color,
                             ),
                           ),
+                          if ((p.recordedBy ?? '').isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'Enregistré par : ${p.recordedBy}',
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyMedium?.color,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                           if (p.comment != null && p.comment!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
@@ -1325,6 +1432,11 @@ class _PaymentsPageState extends State<PaymentsPage>
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
+                            ),
+                          if (p.isCancelled && (p.cancelBy ?? '').isNotEmpty)
+                            Text(
+                              'Annulé par ${p.cancelBy}',
+                              style: const TextStyle(color: Colors.red, fontSize: 12),
                             ),
                           if (p.isCancelled && p.cancelledAt != null)
                             Text(

@@ -26,6 +26,7 @@ import 'package:docx_template/docx_template.dart';
 import 'package:school_manager/utils/academic_year.dart';
 import 'package:school_manager/utils/snackbar.dart';
 import 'package:open_file/open_file.dart';
+import 'package:school_manager/services/auth_service.dart';
 
 class ClassDetailsPage extends StatefulWidget {
   final Class classe;
@@ -1411,6 +1412,14 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                               color: p.isCancelled ? Colors.grey : null,
                             ),
                           ),
+                          if ((p.recordedBy ?? '').isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'Enregistré par : ${p.recordedBy}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
                           if (p.comment != null && p.comment!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
@@ -1421,6 +1430,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
+                            ),
+                          if (p.isCancelled && (p.cancelBy ?? '').isNotEmpty)
+                            const SizedBox(height: 2),
+                          if (p.isCancelled && (p.cancelBy ?? '').isNotEmpty)
+                            Text(
+                              'Annulé par ${p.cancelBy}',
+                              style: const TextStyle(color: Colors.red, fontSize: 12),
                             ),
                           if (p.isCancelled && p.cancelledAt != null)
                             Text(
@@ -1487,7 +1503,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                                     );
                                     final reason = motifCtrl.text.trim();
                                     if (ok == true && reason.isNotEmpty) {
-                                      await _dbService.cancelPaymentWithReason(p.id!, reason);
+                                      // Fetch current user display name if available
+                                      String? by;
+                                      try {
+                                        final user = await AuthService.instance.getCurrentUser();
+                                        by = user?.displayName ?? user?.username;
+                                      } catch (_) {}
+                                      await _dbService.cancelPaymentWithReason(p.id!, reason, by: by);
                                       Navigator.of(context).pop();
                                       _showModernSnackBar('Paiement annulé');
                                       setState(() {});
@@ -1630,6 +1652,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
             showMontantDepasseAlerte();
             return;
           }
+          final user = await AuthService.instance.getCurrentUser();
           final payment = Payment(
             studentId: student.id,
             className: student.className,
@@ -1639,6 +1662,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
             comment: commentController.text.isNotEmpty
                 ? commentController.text
                 : null,
+            recordedBy: user?.displayName ?? user?.username,
           );
           await _dbService.insertPayment(payment);
           Navigator.of(context).pop();
@@ -1658,6 +1682,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                 showMontantDepasseAlerte();
                 return;
               }
+              final user = await AuthService.instance.getCurrentUser();
               final payment = Payment(
                 studentId: student.id,
                 className: student.className,
@@ -1667,6 +1692,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                 comment: commentController.text.isNotEmpty
                     ? commentController.text
                     : null,
+                recordedBy: user?.displayName ?? user?.username,
               );
               await _dbService.insertPayment(payment);
               Navigator.of(context).pop();

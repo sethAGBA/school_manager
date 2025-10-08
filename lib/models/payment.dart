@@ -9,6 +9,8 @@ class Payment {
   final bool isCancelled;
   final String? cancelledAt;
   final String? cancelReason;
+  final String? cancelBy;
+  final String? recordedBy;
 
   Payment({
     this.id,
@@ -21,6 +23,8 @@ class Payment {
     this.isCancelled = false,
     this.cancelledAt,
     this.cancelReason,
+    this.cancelBy,
+    this.recordedBy,
   });
 
   Map<String, dynamic> toMap() {
@@ -35,6 +39,8 @@ class Payment {
       'isCancelled': isCancelled ? 1 : 0,
       'cancelledAt': cancelledAt,
       'cancelReason': cancelReason,
+      'cancelBy': cancelBy,
+      'recordedBy': recordedBy,
     };
   }
 
@@ -55,6 +61,8 @@ class Payment {
       isCancelled: map['isCancelled'] == 1,
       cancelledAt: map['cancelledAt'],
       cancelReason: map['cancelReason'],
+      cancelBy: map['cancelBy'],
+      recordedBy: map['recordedBy'],
     );
   }
 
@@ -75,6 +83,8 @@ class Payment {
       isCancelled: json['isCancelled'] == true || json['isCancelled'] == 1,
       cancelledAt: json['cancelledAt'],
       cancelReason: json['cancelReason'],
+      cancelBy: json['cancelBy'],
+      recordedBy: json['recordedBy'],
     );
   }
 
@@ -90,6 +100,8 @@ class Payment {
       'isCancelled': isCancelled,
       'cancelledAt': cancelledAt,
       'cancelReason': cancelReason,
+      'cancelBy': cancelBy,
+      'recordedBy': recordedBy,
     };
 }
 }

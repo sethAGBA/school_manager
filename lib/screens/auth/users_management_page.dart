@@ -34,6 +34,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     'view_timetables': 'Voir les emplois du temps',
     'view_license': 'Voir la licence',
     'view_subjects': 'Voir les matières',
+    'view_finance_inventory': 'Voir les finances et inventaires',
   };
 
   List<AppUser> get _filteredUsers {

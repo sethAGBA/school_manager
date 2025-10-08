@@ -143,6 +143,9 @@ class DatabaseService {
             comment TEXT,
             isCancelled INTEGER DEFAULT 0,
             cancelledAt TEXT,
+            cancelReason TEXT,
+            cancelBy TEXT,
+            recordedBy TEXT,
             FOREIGN KEY (studentId) REFERENCES students(id) ON UPDATE CASCADE ON DELETE RESTRICT,
             FOREIGN KEY (className, classAcademicYear) REFERENCES classes(name, academicYear) ON UPDATE CASCADE ON DELETE RESTRICT
           )
@@ -526,6 +529,24 @@ class DatabaseService {
         debugPrint('[DatabaseService][MIGRATION] Added payments.cancelReason');
       } catch (e) {
         debugPrint('[DatabaseService][MIGRATION][ERROR] cancelReason: $e');
+      }
+    }
+    final hasBy = cols.any((c) => c['name'] == 'cancelBy');
+    if (!hasBy) {
+      try {
+        await db.execute('ALTER TABLE payments ADD COLUMN cancelBy TEXT');
+        debugPrint('[DatabaseService][MIGRATION] Added payments.cancelBy');
+      } catch (e) {
+        debugPrint('[DatabaseService][MIGRATION][ERROR] cancelBy: $e');
+      }
+    }
+    final hasRecordedBy = cols.any((c) => c['name'] == 'recordedBy');
+    if (!hasRecordedBy) {
+      try {
+        await db.execute('ALTER TABLE payments ADD COLUMN recordedBy TEXT');
+        debugPrint('[DatabaseService][MIGRATION] Added payments.recordedBy');
+      } catch (e) {
+        debugPrint('[DatabaseService][MIGRATION][ERROR] recordedBy: $e');
       }
     }
   }
@@ -2355,7 +2376,7 @@ class DatabaseService {
     );
   }
 
-  Future<void> cancelPaymentWithReason(int id, String reason) async {
+  Future<void> cancelPaymentWithReason(int id, String reason, {String? by}) async {
     final db = await database;
     await db.update(
       'payments',
@@ -2363,6 +2384,7 @@ class DatabaseService {
         'isCancelled': 1,
         'cancelledAt': DateTime.now().toIso8601String(),
         'cancelReason': reason,
+        if (by != null) 'cancelBy': by,
       },
       where: 'id = ?',
       whereArgs: [id],
@@ -2402,6 +2424,17 @@ class DatabaseService {
     final List<Map<String, dynamic>> maps = await db.query(
       'payments',
       where: 'isCancelled IS NULL OR isCancelled = 0',
+      orderBy: 'date DESC',
+    );
+    return List.generate(maps.length, (i) => Payment.fromMap(maps[i]));
+  }
+
+  Future<List<Payment>> getCancelledPaymentsForYear(String academicYear) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'payments',
+      where: '(isCancelled = 1) AND classAcademicYear = ?',
+      whereArgs: [academicYear],
       orderBy: 'date DESC',
     );
     return List.generate(maps.length, (i) => Payment.fromMap(maps[i]));
@@ -4189,6 +4222,17 @@ class DatabaseService {
     final List<Map<String, dynamic>> maps = await db.query(
       'payments',
       orderBy: 'date DESC',
+      limit: limit,
+    );
+    return List.generate(maps.length, (i) => Payment.fromMap(maps[i]));
+  }
+
+  Future<List<Payment>> getRecentCancelledPayments(int limit) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'payments',
+      where: 'isCancelled = 1 AND cancelledAt IS NOT NULL',
+      orderBy: 'cancelledAt DESC',
       limit: limit,
     );
     return List.generate(maps.length, (i) => Payment.fromMap(maps[i]));
