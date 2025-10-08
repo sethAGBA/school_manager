@@ -215,14 +215,46 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     final accent = PdfColor.fromHex('#2563EB');
     final light = PdfColor.fromHex('#F3F4F6');
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
+        footer: (context) {
+          final parts = <String>[];
+          if ((schoolInfo?.ministry ?? '').isNotEmpty) parts.add((schoolInfo!.ministry!).toUpperCase());
+          if ((schoolInfo?.republic ?? '').isNotEmpty) parts.add((schoolInfo!.republic!).toUpperCase());
+          if ((schoolInfo?.inspection ?? '').isNotEmpty) parts.add('Inspection: ${schoolInfo!.inspection!}');
+          if ((schoolInfo?.educationDirection ?? '').isNotEmpty) parts.add("Direction: ${schoolInfo!.educationDirection!}");
+          final infoText = parts.join(' - ');
+          return pw.Container(
+            padding: const pw.EdgeInsets.only(top: 6),
+            decoration: pw.BoxDecoration(
+              border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(now, style: pw.TextStyle(font: times, fontSize: 9, color: PdfColors.grey700)),
+                    pw.Text('Page ${context.pageNumber} / ${context.pagesCount}', style: pw.TextStyle(font: times, fontSize: 9, color: PdfColors.grey700)),
+                  ],
+                ),
+                if (infoText.isNotEmpty)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(top: 2),
+                    child: pw.Text(infoText, style: pw.TextStyle(font: times, fontSize: 8, color: PdfColors.grey600)),
+                  ),
+              ],
+            ),
+          );
+        },
         build: (ctx) {
-          return pw.Stack(children: [
-            // Watermark
-            if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
-              pw.Positioned.fill(
+          return [
+            pw.Stack(children: [
+              // Watermark
+              if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+                pw.Positioned.fill(
                 child: pw.Center(
                   child: pw.Opacity(
                     opacity: 0.06,
@@ -236,88 +268,6 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // En-tête administratif (Ministère, République, etc.) pour harmonisation
-                if (schoolInfo != null) ...[
-                  pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Expanded(
-                        child: ((schoolInfo!.ministry ?? '').isNotEmpty)
-                            ? pw.Text(
-                                (schoolInfo!.ministry ?? '').toUpperCase(),
-                                style: pw.TextStyle(
-                                  font: timesBold,
-                                  fontSize: 10,
-                                  color: primary,
-                                ),
-                              )
-                            : pw.SizedBox(),
-                      ),
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.end,
-                          children: [
-                            pw.Text(
-                              ((schoolInfo!.republic ?? 'RÉPUBLIQUE').toUpperCase()),
-                              style: pw.TextStyle(
-                                font: timesBold,
-                                fontSize: 10,
-                                color: primary,
-                              ),
-                            ),
-                            if ((schoolInfo!.republicMotto ?? '').isNotEmpty)
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.only(top: 2),
-                                child: pw.Text(
-                                  schoolInfo!.republicMotto!,
-                                  style: pw.TextStyle(
-                                    font: times,
-                                    fontSize: 9,
-                                    color: primary,
-                                    fontStyle: pw.FontStyle.italic,
-                                  ),
-                                  textAlign: pw.TextAlign.right,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 4),
-                  pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: ((schoolInfo!.inspection ?? '').isNotEmpty)
-                            ? pw.Text(
-                                'Inspection: ${schoolInfo!.inspection}',
-                                style: pw.TextStyle(
-                                  font: times,
-                                  fontSize: 9,
-                                  color: primary,
-                                ),
-                              )
-                            : pw.SizedBox(),
-                      ),
-                      pw.Expanded(
-                        child: pw.Align(
-                          alignment: pw.Alignment.centerRight,
-                          child: ((schoolInfo!.educationDirection ?? '').isNotEmpty)
-                              ? pw.Text(
-                                  "Direction de l'enseignement: ${schoolInfo!.educationDirection}",
-                                  style: pw.TextStyle(
-                                    font: times,
-                                    fontSize: 9,
-                                    color: primary,
-                                  ),
-                                )
-                              : pw.SizedBox(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 8),
-                ],
                 // Header with logo and school info
                 pw.Container(
                   padding: const pw.EdgeInsets.all(16),
@@ -525,7 +475,7 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
               )
             ],
             )
-          ]);
+          ])];
         },
       ),
     );
@@ -605,14 +555,46 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     final accent = PdfColor.fromHex('#2563EB');
     final light = PdfColor.fromHex('#F3F4F6');
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
+        footer: (context) {
+          final parts = <String>[];
+          if ((schoolInfo?.ministry ?? '').isNotEmpty) parts.add((schoolInfo!.ministry!).toUpperCase());
+          if ((schoolInfo?.republic ?? '').isNotEmpty) parts.add((schoolInfo!.republic!).toUpperCase());
+          if ((schoolInfo?.inspection ?? '').isNotEmpty) parts.add('Inspection: ${schoolInfo!.inspection!}');
+          if ((schoolInfo?.educationDirection ?? '').isNotEmpty) parts.add("Direction: ${schoolInfo!.educationDirection!}");
+          final infoText = parts.join(' - ');
+          return pw.Container(
+            padding: const pw.EdgeInsets.only(top: 6),
+            decoration: pw.BoxDecoration(
+              border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(DateFormat('dd/MM/yyyy').format(DateTime.now()), style: pw.TextStyle(font: times, fontSize: 9, color: PdfColors.grey700)),
+                    pw.Text('Page ${context.pageNumber} / ${context.pagesCount}', style: pw.TextStyle(font: times, fontSize: 9, color: PdfColors.grey700)),
+                  ],
+                ),
+                if (infoText.isNotEmpty)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(top: 2),
+                    child: pw.Text(infoText, style: pw.TextStyle(font: times, fontSize: 8, color: PdfColors.grey600)),
+                  ),
+              ],
+            ),
+          );
+        },
         build: (ctx) {
-          return pw.Stack(children: [
-            if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
-              pw.Positioned.fill(
-                child: pw.Center(
+          return [
+            pw.Stack(children: [
+              if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+                pw.Positioned.fill(
+                  child: pw.Center(
                   child: pw.Opacity(
                     opacity: 0.06,
                     child: pw.Image(
@@ -625,88 +607,6 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // En-tête administratif (Ministère, République, etc.) pour harmonisation
-                if (schoolInfo != null) ...[
-                  pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Expanded(
-                        child: ((schoolInfo!.ministry ?? '').isNotEmpty)
-                            ? pw.Text(
-                                (schoolInfo!.ministry ?? '').toUpperCase(),
-                                style: pw.TextStyle(
-                                  font: timesBold,
-                                  fontSize: 10,
-                                  color: primary,
-                                ),
-                              )
-                            : pw.SizedBox(),
-                      ),
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.end,
-                          children: [
-                            pw.Text(
-                              ((schoolInfo!.republic ?? 'RÉPUBLIQUE').toUpperCase()),
-                              style: pw.TextStyle(
-                                font: timesBold,
-                                fontSize: 10,
-                                color: primary,
-                              ),
-                            ),
-                            if ((schoolInfo!.republicMotto ?? '').isNotEmpty)
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.only(top: 2),
-                                child: pw.Text(
-                                  schoolInfo!.republicMotto!,
-                                  style: pw.TextStyle(
-                                    font: times,
-                                    fontSize: 9,
-                                    color: primary,
-                                    fontStyle: pw.FontStyle.italic,
-                                  ),
-                                  textAlign: pw.TextAlign.right,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 4),
-                  pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: ((schoolInfo!.inspection ?? '').isNotEmpty)
-                            ? pw.Text(
-                                'Inspection: ${schoolInfo!.inspection}',
-                                style: pw.TextStyle(
-                                  font: times,
-                                  fontSize: 9,
-                                  color: primary,
-                                ),
-                              )
-                            : pw.SizedBox(),
-                      ),
-                      pw.Expanded(
-                        child: pw.Align(
-                          alignment: pw.Alignment.centerRight,
-                          child: ((schoolInfo!.educationDirection ?? '').isNotEmpty)
-                              ? pw.Text(
-                                  "Direction de l'enseignement: ${schoolInfo!.educationDirection}",
-                                  style: pw.TextStyle(
-                                    font: times,
-                                    fontSize: 9,
-                                    color: primary,
-                                  ),
-                                )
-                              : pw.SizedBox(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 8),
-                ],
                 // Header with logo and info
                 pw.Container(
                   padding: const pw.EdgeInsets.all(16),
@@ -853,7 +753,7 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                 ),
             ],
             )
-          ]);
+          ])];
         },
       ),
     );
