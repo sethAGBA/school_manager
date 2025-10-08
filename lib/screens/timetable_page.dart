@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:school_manager/constants/colors.dart';
 
-
-
 import 'package:school_manager/services/database_service.dart';
 import 'package:school_manager/models/class.dart';
 import 'package:school_manager/models/staff.dart';
 import 'package:school_manager/models/course.dart';
 import 'package:school_manager/models/timetable_entry.dart';
 import 'package:school_manager/services/pdf_service.dart';
+import 'package:school_manager/services/scheduling_service.dart';
 import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/utils/academic_year.dart';
+import 'package:school_manager/utils/timetable_prefs.dart' as ttp;
 import 'package:school_manager/screens/students/widgets/custom_dialog.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'dart:io';
@@ -36,14 +36,16 @@ class _TimetablePageState extends State<TimetablePage> {
   List<Class> _classes = [];
   List<Staff> _teachers = [];
   List<Course> _subjects = [];
-  List<TimetableEntry> _timetableEntries = []; // Add this line to define the timetable entries
+  List<TimetableEntry> _timetableEntries =
+      []; // Add this line to define the timetable entries
   SchoolInfo? _schoolInfo;
 
   // Label de l'année académique courante (ex: "2025-2026"). Nullable pour compatibilité.
   String? _currentAcademicYearLabel;
 
   String _classKey(Class c) => '${c.name}:::${c.academicYear}';
-  String _classKeyFromValues(String name, String academicYear) => '$name:::${academicYear}';
+  String _classKeyFromValues(String name, String academicYear) =>
+      '$name:::${academicYear}';
   String _classLabel(Class c) => '${c.name} (${c.academicYear})';
   Class? _classFromKey(String? key) {
     if (key == null) return null;
@@ -59,25 +61,21 @@ class _TimetablePageState extends State<TimetablePage> {
     return null;
   }
 
-  final List<String> _daysOfWeek = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  final List<String> _daysOfWeek = List.of(ttp.kDefaultDays);
 
-  final List<String> _timeSlots = [
-    '08:00 - 09:00',
-    '09:00 - 10:00',
-    '10:00 - 11:00',
-    '11:00 - 12:00',
-    '13:00 - 14:00',
-    '14:00 - 15:00',
-    '15:00 - 16:00',
-  ];
+  final List<String> _timeSlots = List.of(ttp.kDefaultSlots);
+  Set<String> _breakSlots = <String>{};
 
   final DatabaseService _dbService = DatabaseService();
+  late final SchedulingService _scheduling;
+  Set<String> _teacherUnavailKeys = <String>{}; // format: 'Day|HH:mm'
 
   @override
   void initState() {
     _searchController = TextEditingController();
     _searchFocusNode = FocusNode();
     super.initState();
+    _scheduling = SchedulingService(_dbService);
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
@@ -122,58 +120,17 @@ class _TimetablePageState extends State<TimetablePage> {
       }
     }).toList();
 
-    // Construire les créneaux horaires dynamiquement à partir des entrées
-    final Set<String> uniqueTimes = {};
-    for (var entry in _timetableEntries) {
-      try {
-        if (entry.startTime != null && entry.startTime.toString().isNotEmpty) {
-          uniqueTimes.add(entry.startTime.toString());
-        }
-        if (entry.endTime != null && entry.endTime.toString().isNotEmpty) {
-          uniqueTimes.add(entry.endTime.toString());
-        }
-      } catch (_) {
-        // ignore
-      }
-    }
-
-    // Si aucune entrée, utiliser des créneaux par défaut
-    if (uniqueTimes.isEmpty) {
-      uniqueTimes.addAll([
-        '08:00',
-        '09:00',
-        '10:00',
-        '11:00',
-        '12:00',
-        '13:00',
-        '14:00',
-        '15:00',
-        '16:00'
-      ]);
-    }
-
-    List<String> sortedUniqueTimes = uniqueTimes.toList();
-    // Tri robuste des chaînes de temps au format HH:mm
-    sortedUniqueTimes.sort((a, b) {
-      try {
-        final aParts = a.split(':');
-        final bParts = b.split(':');
-        final aHour = int.parse(aParts[0]);
-        final aMinute = int.parse(aParts[1]);
-        final bHour = int.parse(bParts[0]);
-        final bMinute = int.parse(bParts[1]);
-        if (aHour != bHour) return aHour.compareTo(bHour);
-        return aMinute.compareTo(bMinute);
-      } catch (_) {
-        return a.compareTo(b);
-      }
-    });
-
-    // Construire les intervalles (ex: 08:00 - 09:00)
-    _timeSlots.clear();
-    for (int i = 0; i < sortedUniqueTimes.length - 1; i++) {
-      _timeSlots.add('${sortedUniqueTimes[i]} - ${sortedUniqueTimes[i + 1]}');
-    }
+    // Charger la configuration des jours, créneaux et pauses depuis les préférences
+    final prefDays = await ttp.loadDays();
+    final prefSlots = await ttp.loadSlots();
+    final prefBreaks = await ttp.loadBreakSlots();
+    _daysOfWeek
+      ..clear()
+      ..addAll(prefDays);
+    _timeSlots
+      ..clear()
+      ..addAll(prefSlots);
+    _breakSlots = prefBreaks;
 
     setState(() {
       // initialiser la sélection de classe/enseignant si nécessaire
@@ -193,6 +150,46 @@ class _TimetablePageState extends State<TimetablePage> {
       // on peut exposer l'année académique courante pour affichage
       _currentAcademicYearLabel = currentAcademicYear;
     });
+
+    // Load selected teacher unavailability if in teacher view
+    if (!_isClassView &&
+        _selectedTeacherFilter != null &&
+        _selectedTeacherFilter!.isNotEmpty) {
+      await _loadTeacherUnavailability(
+        _selectedTeacherFilter!,
+        currentAcademicYear,
+      );
+    }
+  }
+
+  Future<void> _loadTeacherUnavailability(
+    String teacherName,
+    String academicYear,
+  ) async {
+    final rows = await _dbService.getTeacherUnavailability(
+      teacherName,
+      academicYear,
+    );
+    setState(() {
+      _teacherUnavailKeys = rows
+          .map((e) => '${e['dayOfWeek']}|${e['startTime']}')
+          .toSet();
+    });
+  }
+
+  Class? _selectedClass() => _classFromKey(_selectedClassKey);
+
+  Staff? _findTeacherForSubject(String subject, Class cls) {
+    final both = _teachers.firstWhere(
+      (t) => t.courses.contains(subject) && t.classes.contains(cls.name),
+      orElse: () => Staff.empty(),
+    );
+    if (both.id.isNotEmpty) return both;
+    final any = _teachers.firstWhere(
+      (t) => t.courses.contains(subject),
+      orElse: () => Staff.empty(),
+    );
+    return any.id.isNotEmpty ? any : null;
   }
 
   @override
@@ -201,6 +198,7 @@ class _TimetablePageState extends State<TimetablePage> {
     _searchFocusNode.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 900;
@@ -216,6 +214,7 @@ class _TimetablePageState extends State<TimetablePage> {
             child: Column(
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     ToggleButtons(
                       isSelected: [_isClassView, !_isClassView],
@@ -227,11 +226,17 @@ class _TimetablePageState extends State<TimetablePage> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Text('Classe', style: theme.textTheme.bodyMedium),
+                          child: Text(
+                            'Classe',
+                            style: theme.textTheme.bodyMedium,
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Text('Enseignant', style: theme.textTheme.bodyMedium),
+                          child: Text(
+                            'Enseignant',
+                            style: theme.textTheme.bodyMedium,
+                          ),
                         ),
                       ],
                     ),
@@ -245,10 +250,15 @@ class _TimetablePageState extends State<TimetablePage> {
                             labelStyle: theme.textTheme.bodyMedium,
                             border: OutlineInputBorder(),
                           ),
+                          isDense: true,
+                          isExpanded: true,
                           items: _classes.map((cls) {
                             return DropdownMenuItem<String>(
                               value: _classKey(cls),
-                              child: Text(_classLabel(cls), style: theme.textTheme.bodyMedium),
+                              child: Text(
+                                _classLabel(cls),
+                                style: theme.textTheme.bodyMedium,
+                              ),
                             );
                           }).toList(),
                           onChanged: (String? newValue) {
@@ -267,16 +277,25 @@ class _TimetablePageState extends State<TimetablePage> {
                             labelStyle: theme.textTheme.bodyMedium,
                             border: OutlineInputBorder(),
                           ),
+                          isDense: true,
+                          isExpanded: true,
                           items: _teachers.map((teacher) {
                             return DropdownMenuItem<String>(
                               value: teacher.name,
-                              child: Text(teacher.name, style: theme.textTheme.bodyMedium),
+                              child: Text(
+                                teacher.name,
+                                style: theme.textTheme.bodyMedium,
+                              ),
                             );
                           }).toList(),
-                          onChanged: (String? newValue) {
+                          onChanged: (String? newValue) async {
                             setState(() {
                               _selectedTeacherFilter = newValue;
                             });
+                            if (newValue != null && newValue.isNotEmpty) {
+                              final year = await getCurrentAcademicYear();
+                              await _loadTeacherUnavailability(newValue, year);
+                            }
                           },
                         ),
                       ),
@@ -288,10 +307,71 @@ class _TimetablePageState extends State<TimetablePage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBlue,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
+                    if (_isClassView) ...[
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: _autoGenerateForSelectedClass,
+                        icon: const Icon(Icons.auto_mode),
+                        label: const Text('Auto-générer'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: _showEditGridDialog,
+                        icon: const Icon(Icons.edit_calendar),
+                        label: const Text('Éditer jours/créneaux'),
+                      ),
+                    ],
+                    if (!_isClassView) ...[
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: _autoGenerateForSelectedTeacher,
+                        icon: const Icon(Icons.auto_mode),
+                        label: const Text('Auto-générer (prof)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: _showEditGridDialog,
+                        icon: const Icon(Icons.edit_calendar),
+                        label: const Text('Éditer jours/créneaux'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: _showTeacherUnavailabilityDialog,
+                        icon: const Icon(Icons.block),
+                        label: const Text('Indisponibilités'),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -299,30 +379,46 @@ class _TimetablePageState extends State<TimetablePage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () => _exportTimetableToPdf(exportBy: _isClassView ? 'class' : 'teacher'),
+                      onPressed: () => _exportTimetableToPdf(
+                        exportBy: _isClassView ? 'class' : 'teacher',
+                      ),
                       icon: const Icon(Icons.picture_as_pdf),
                       label: const Text('Exporter PDF'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
                     ElevatedButton.icon(
-                      onPressed: () => _exportTimetableToExcel(exportBy: _isClassView ? 'class' : 'teacher'),
+                      onPressed: () => _exportTimetableToExcel(
+                        exportBy: _isClassView ? 'class' : 'teacher',
+                      ),
                       icon: const Icon(Icons.grid_on),
                       label: const Text('Exporter Excel'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                if (_isClassView) _buildSubjectPalette(context),
               ],
             ),
           ),
@@ -336,7 +432,10 @@ class _TimetablePageState extends State<TimetablePage> {
                     itemBuilder: (context, index) {
                       final aClass = _classes[index];
                       return ListTile(
-                        title: Text(_classLabel(aClass), style: theme.textTheme.bodyMedium),
+                        title: Text(
+                          _classLabel(aClass),
+                          style: theme.textTheme.bodyMedium,
+                        ),
                         selected: _classKey(aClass) == _selectedClassKey,
                         onTap: () {
                           setState(() {
@@ -352,7 +451,7 @@ class _TimetablePageState extends State<TimetablePage> {
                     scrollDirection: Axis.vertical,
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: _buildTimetableDisplay(context),
+                      child: _buildTimetableGrid(context),
                     ),
                   ),
                 ),
@@ -372,7 +471,10 @@ class _TimetablePageState extends State<TimetablePage> {
       dataRowMaxHeight: double.infinity, // Allow rows to expand vertically
       columns: [
         DataColumn(label: Text('Heure', style: theme.textTheme.titleMedium)),
-        ..._daysOfWeek.map((day) => DataColumn(label: Text(day, style: theme.textTheme.titleMedium))),
+        ..._daysOfWeek.map(
+          (day) =>
+              DataColumn(label: Text(day, style: theme.textTheme.titleMedium)),
+        ),
       ],
       rows: _timeSlots.map((timeSlot) {
         return DataRow(
@@ -381,58 +483,1304 @@ class _TimetablePageState extends State<TimetablePage> {
             ..._daysOfWeek.map((day) {
               final timeSlotParts = timeSlot.split(' - ');
               final slotStartTime = timeSlotParts[0];
+              final slotEndTime = timeSlotParts.length > 1
+                  ? timeSlotParts[1]
+                  : slotStartTime;
 
               final filteredEntries = _timetableEntries.where((e) {
-                final matchesSearch = _searchQuery.isEmpty ||
+                final matchesSearch =
+                    _searchQuery.isEmpty ||
                     e.className.toLowerCase().contains(_searchQuery) ||
                     e.teacher.toLowerCase().contains(_searchQuery) ||
                     e.subject.toLowerCase().contains(_searchQuery) ||
                     e.room.toLowerCase().contains(_searchQuery);
 
                 if (_isClassView) {
-                  final classKey = _classKeyFromValues(e.className, e.academicYear);
+                  final classKey = _classKeyFromValues(
+                    e.className,
+                    e.academicYear,
+                  );
                   return e.dayOfWeek == day &&
                       e.startTime == slotStartTime &&
-                      (_selectedClassKey == null || classKey == _selectedClassKey) &&
+                      (_selectedClassKey == null ||
+                          classKey == _selectedClassKey) &&
                       matchesSearch;
                 } else {
                   return e.dayOfWeek == day &&
-                         e.startTime == slotStartTime &&
-                         (_selectedTeacherFilter == null || e.teacher == _selectedTeacherFilter) &&
-                         matchesSearch;
+                      e.startTime == slotStartTime &&
+                      (_selectedTeacherFilter == null ||
+                          e.teacher == _selectedTeacherFilter) &&
+                      matchesSearch;
                 }
               });
 
               final entriesForSlot = filteredEntries.toList();
+              final isBreak = _breakSlots.contains(timeSlot);
+              final isUnavailableForTeacher =
+                  !_isClassView &&
+                  (_selectedTeacherFilter != null &&
+                      _selectedTeacherFilter!.isNotEmpty) &&
+                  _teacherUnavailKeys.contains('$day|$slotStartTime');
 
               return DataCell(
-                GestureDetector(
-                  onTap: () => _showAddEditTimetableEntryDialog(entry: entriesForSlot.isNotEmpty ? entriesForSlot.first : null),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: entriesForSlot.isNotEmpty ? AppColors.primaryBlue.withOpacity(0.1) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: entriesForSlot.isNotEmpty ? AppColors.primaryBlue : Colors.grey.shade300),
-                    ),
-                    child: entriesForSlot.isNotEmpty
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: entriesForSlot.map((entry) => Text(
-                              '${entry.subject} ${entry.room}\n${entry.teacher} - ${entry.className}',
-                              style: theme.textTheme.bodyMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            )).toList(),
-                          )
-                        : Center(child: Text('+', style: theme.textTheme.bodyMedium)),
-                  ),
+                DragTarget<TimetableEntry>(
+                  onWillAccept: (data) => !isBreak && !isUnavailableForTeacher,
+                  onAccept: (entry) async {
+                    if (isBreak) return;
+                    if (isUnavailableForTeacher &&
+                        (entry.teacher == _selectedTeacherFilter)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Créneau indisponible pour l\'enseignant.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    // Prevent conflicts (same class or same teacher at same time)
+                    final conflict = _timetableEntries.any(
+                      (e) =>
+                          e.dayOfWeek == day &&
+                          e.startTime == slotStartTime &&
+                          (e.className == entry.className ||
+                              (entry.teacher.isNotEmpty &&
+                                  e.teacher == entry.teacher)) &&
+                          e.id != entry.id,
+                    );
+                    if (conflict) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Conflit détecté (classe/enseignant déjà occupé).',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    // Insert new (from palette) or move existing
+                    if (entry.id == null) {
+                      final cls = _selectedClass();
+                      if (cls == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Sélectionnez une classe avant d\'ajouter.',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      final toCreate = TimetableEntry(
+                        subject: entry.subject,
+                        teacher: entry.teacher,
+                        className: cls.name,
+                        academicYear: cls.academicYear,
+                        dayOfWeek: day,
+                        startTime: slotStartTime,
+                        endTime: slotEndTime,
+                        room: entry.room,
+                      );
+                      await _dbService.insertTimetableEntry(toCreate);
+                    } else {
+                      // Preserve duration when moving
+                      int? _toMin(String s) {
+                        try {
+                          final p = s.split(':');
+                          return int.parse(p[0]) * 60 + int.parse(p[1]);
+                        } catch (_) {
+                          return null;
+                        }
+                      }
+
+                      String _fmt(int m) {
+                        final h = (m ~/ 60).toString().padLeft(2, '0');
+                        final mi = (m % 60).toString().padLeft(2, '0');
+                        return '$h:$mi';
+                      }
+
+                      final dur = (() {
+                        final a = _toMin(entry.startTime);
+                        final b = _toMin(entry.endTime);
+                        if (a != null && b != null && b > a) return b - a;
+                        final ss = _toMin(slotStartTime);
+                        final se = _toMin(slotEndTime);
+                        return (ss != null && se != null && se > ss)
+                            ? se - ss
+                            : null;
+                      })();
+                      final ns = _toMin(slotStartTime);
+                      final ne = (ns != null && dur != null)
+                          ? ns + dur
+                          : _toMin(slotEndTime);
+                      final newEnd = (ne != null) ? _fmt(ne) : slotEndTime;
+                      final moved = TimetableEntry(
+                        id: entry.id,
+                        subject: entry.subject,
+                        teacher: entry.teacher,
+                        className: entry.className,
+                        academicYear: entry.academicYear,
+                        dayOfWeek: day,
+                        startTime: slotStartTime,
+                        endTime: newEnd,
+                        room: entry.room,
+                      );
+                      await _dbService.updateTimetableEntry(moved);
+                    }
+                    await _loadData();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cours placé.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                  builder: (ctx, candidate, rejected) {
+                    final isActive = candidate.isNotEmpty;
+                    return GestureDetector(
+                      onTap: () => _showAddEditTimetableEntryDialog(
+                        entry: entriesForSlot.isNotEmpty
+                            ? entriesForSlot.first
+                            : null,
+                      ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isBreak
+                              ? Colors.grey.withOpacity(0.15)
+                              : isUnavailableForTeacher
+                              ? const Color(0xFFE11D48).withOpacity(0.08)
+                              : entriesForSlot.isNotEmpty
+                              ? AppColors.primaryBlue.withOpacity(0.1)
+                              : (isActive
+                                    ? AppColors.primaryBlue.withOpacity(0.06)
+                                    : Colors.transparent),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isBreak
+                                ? Colors.grey
+                                : isUnavailableForTeacher
+                                ? const Color(0xFFE11D48)
+                                : isActive
+                                ? AppColors.primaryBlue
+                                : (entriesForSlot.isNotEmpty
+                                      ? AppColors.primaryBlue
+                                      : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: entriesForSlot.isNotEmpty
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: entriesForSlot.map((entry) {
+                                  final content = Text(
+                                    '${entry.subject} ${entry.room}\n${entry.teacher} - ${entry.className}',
+                                    style: theme.textTheme.bodyMedium,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  );
+                                  return Draggable<TimetableEntry>(
+                                    data: entry,
+                                    feedback: Material(
+                                      color: Colors.transparent,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryBlue
+                                              .withOpacity(0.9),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '${entry.subject} (${entry.startTime})',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    childWhenDragging: Opacity(
+                                      opacity: 0.4,
+                                      child: content,
+                                    ),
+                                    child: content,
+                                  );
+                                }).toList(),
+                              )
+                            : Center(
+                                child: Text(
+                                  isBreak ? 'Pause' : '+',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ),
+                      ),
+                    );
+                  },
                 ),
               );
             }),
           ],
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildSubjectPalette(BuildContext context) {
+    final theme = Theme.of(context);
+    final cls = _selectedClass();
+    if (cls == null || _subjects.isEmpty) return const SizedBox.shrink();
+    Color _subjectColor(String name) {
+      const palette = [
+        Color(0xFF60A5FA),
+        Color(0xFFF472B6),
+        Color(0xFFF59E0B),
+        Color(0xFF34D399),
+        Color(0xFFA78BFA),
+        Color(0xFFFB7185),
+        Color(0xFF38BDF8),
+        Color(0xFF10B981),
+      ];
+      final idx = name.codeUnits.fold<int>(
+        0,
+        (a, b) => (a + b) % palette.length,
+      );
+      return palette[idx];
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 6),
+            child: Text(
+              'Palette (glisser-déposer pour ajouter)',
+              style: theme.textTheme.labelLarge,
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _subjects.map((s) {
+              final teacher = _findTeacherForSubject(s.name, cls)?.name ?? '';
+              final col = _subjectColor(s.name);
+              final chip = Chip(
+                label: Text(
+                  '${s.name}${teacher.isNotEmpty ? ' · $teacher' : ''}',
+                ),
+                backgroundColor: col.withOpacity(0.14),
+              );
+              return Draggable<TimetableEntry>(
+                data: TimetableEntry(
+                  subject: s.name,
+                  teacher: teacher,
+                  className: cls.name,
+                  academicYear: cls.academicYear,
+                  dayOfWeek: '',
+                  startTime: '',
+                  endTime: '',
+                  room: '',
+                ),
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: col.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      s.name,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+                childWhenDragging: Opacity(opacity: 0.4, child: chip),
+                child: chip,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Text('Légende', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: _subjects.take(12).map((s) {
+              final col = _subjectColor(s.name);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: col.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: col.withOpacity(0.5)),
+                ),
+                child: Text(s.name, style: theme.textTheme.bodySmall),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Advanced stacked grid with merged visual blocks per duration
+  Widget _buildTimetableGrid(BuildContext context) {
+    final theme = Theme.of(context);
+    // Helpers
+    int? toMin(String s) {
+      s = s.trim();
+      final upper = s.toUpperCase();
+      bool pm = upper.endsWith('PM');
+      bool am = upper.endsWith('AM');
+      if (pm || am) {
+        s = s.replaceAll(RegExp(r'(?i)\s*(AM|PM)\s*$'), '');
+      }
+      final parts = s.split(':');
+      if (parts.length >= 2) {
+        int? h = int.tryParse(parts[0]);
+        int? m = int.tryParse(parts[1]);
+        if (h == null || m == null) return null;
+        if (pm && h < 12) h += 12;
+        if (am && h == 12) h = 0;
+        return h * 60 + m;
+      }
+      return null;
+    }
+
+    List<String> bounds() {
+      final set = <String>{};
+      for (final slot in _timeSlots) {
+        final p = slot.split(' - ');
+        if (p.isNotEmpty) set.add(p.first.trim());
+        if (p.length > 1) set.add(p[1].trim());
+      }
+      final list = set.toList();
+      list.sort((a, b) => (toMin(a) ?? 0).compareTo((toMin(b) ?? 0)));
+      return list;
+    }
+
+    final boundaries = bounds();
+    if (boundaries.length < 2) {
+      return _buildTimetableDisplay(context); // fallback
+    }
+    int indexFor(String t) {
+      int? tm = toMin(t);
+      if (tm == null) return 0;
+      int best = 0;
+      int bestDiff = 1 << 30;
+      for (int i = 0; i < boundaries.length; i++) {
+        final diff = ((toMin(boundaries[i]) ?? 0) - tm).abs();
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = i;
+        }
+      }
+      return best;
+    }
+
+    Color subjectColor(String name) {
+      const palette = [
+        Color(0xFF60A5FA),
+        Color(0xFFF472B6),
+        Color(0xFFF59E0B),
+        Color(0xFF34D399),
+        Color(0xFFA78BFA),
+        Color(0xFFFB7185),
+        Color(0xFF38BDF8),
+        Color(0xFF10B981),
+      ];
+      final idx = name.codeUnits.fold<int>(
+        0,
+        (a, b) => (a + b) % palette.length,
+      );
+      return palette[idx];
+    }
+
+    // Filter for current view
+    final entries = _timetableEntries.where((e) {
+      final matchesSearch =
+          _searchQuery.isEmpty ||
+          e.className.toLowerCase().contains(_searchQuery) ||
+          e.teacher.toLowerCase().contains(_searchQuery) ||
+          e.subject.toLowerCase().contains(_searchQuery) ||
+          e.room.toLowerCase().contains(_searchQuery);
+      if (_isClassView) {
+        final classKey = _classKeyFromValues(e.className, e.academicYear);
+        return (_selectedClassKey == null || classKey == _selectedClassKey) &&
+            matchesSearch;
+      } else {
+        return (_selectedTeacherFilter == null ||
+                e.teacher == _selectedTeacherFilter) &&
+            matchesSearch;
+      }
+    }).toList();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final leftGutter = 90.0;
+        final topGutter = 20.0;
+        // Provide finite dimensions even when unconstrained (inside scroll views)
+        const double defaultCol = 160.0;
+        const double defaultRow = 64.0;
+        final rowCount = boundaries.length - 1;
+        final calcGridWidth = constraints.hasBoundedWidth
+            ? (constraints.maxWidth - leftGutter).clamp(0.0, double.infinity)
+            : defaultCol * _daysOfWeek.length;
+        final calcGridHeight = constraints.hasBoundedHeight
+            ? (constraints.maxHeight - topGutter).clamp(0.0, double.infinity)
+            : defaultRow * (rowCount > 0 ? rowCount : 1);
+        final colWidth = (calcGridWidth / _daysOfWeek.length);
+        final rowHeight = (calcGridHeight / (rowCount > 0 ? rowCount : 1));
+        final stackWidth = leftGutter + colWidth * _daysOfWeek.length;
+        final stackHeight =
+            topGutter + rowHeight * (rowCount > 0 ? rowCount : 1);
+        final children = <Widget>[];
+
+        // Day headers
+        for (int d = 0; d < _daysOfWeek.length; d++) {
+          children.add(
+            Positioned(
+              left: leftGutter + d * colWidth,
+              top: 0,
+              width: colWidth,
+              height: topGutter,
+              child: Center(
+                child: Text(_daysOfWeek[d], style: theme.textTheme.titleMedium),
+              ),
+            ),
+          );
+        }
+
+        // Time labels + lines
+        for (int i = 0; i < boundaries.length; i++) {
+          final y = topGutter + i * rowHeight;
+          children.add(
+            Positioned(
+              left: 0,
+              top: y - 8,
+              width: leftGutter - 10,
+              height: 16,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(boundaries[i], style: theme.textTheme.bodySmall),
+              ),
+            ),
+          );
+          children.add(
+            Positioned(
+              left: leftGutter,
+              right: 0,
+              top: y,
+              height: 1,
+              child: Container(color: theme.dividerColor.withOpacity(0.3)),
+            ),
+          );
+        }
+
+        // Break overlay
+        for (int i = 0; i < rowCount; i++) {
+          final slot = '${boundaries[i]} - ${boundaries[i + 1]}';
+          if (_breakSlots.contains(slot)) {
+            children.add(
+              Positioned(
+                left: leftGutter,
+                top: topGutter + i * rowHeight,
+                width: colWidth * _daysOfWeek.length,
+                height: rowHeight,
+                child: Container(color: Colors.grey.withOpacity(0.12)),
+              ),
+            );
+          }
+        }
+
+        // Teacher unavailability overlay (teacher view)
+        if (!_isClassView &&
+            _selectedTeacherFilter != null &&
+            _selectedTeacherFilter!.isNotEmpty) {
+          for (int i = 0; i < rowCount; i++) {
+            for (int d = 0; d < _daysOfWeek.length; d++) {
+              final key = '${_daysOfWeek[d]}|${boundaries[i]}';
+              if (_teacherUnavailKeys.contains(key)) {
+                children.add(
+                  Positioned(
+                    left: leftGutter + d * colWidth,
+                    top: topGutter + i * rowHeight,
+                    width: colWidth,
+                    height: rowHeight,
+                    child: Container(
+                      color: const Color(0xFFE11D48).withOpacity(0.08),
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+        }
+
+        // Drop zones per (day, segment)
+        for (int i = 0; i < rowCount; i++) {
+          final slotStart = boundaries[i];
+          final slotEnd = boundaries[i + 1];
+          for (int d = 0; d < _daysOfWeek.length; d++) {
+            final isBreak = _breakSlots.contains('$slotStart - $slotEnd');
+            final isUnavailable =
+                !_isClassView &&
+                (_selectedTeacherFilter != null &&
+                    _selectedTeacherFilter!.isNotEmpty) &&
+                _teacherUnavailKeys.contains('${_daysOfWeek[d]}|$slotStart');
+            children.add(
+              Positioned(
+                left: leftGutter + d * colWidth,
+                top: topGutter + i * rowHeight,
+                width: colWidth,
+                height: rowHeight,
+                child: DragTarget<TimetableEntry>(
+                  onWillAccept: (data) => !isBreak && !isUnavailable,
+                  onAccept: (entry) async {
+                    if (isBreak || isUnavailable) return;
+                    final conflict = _timetableEntries.any(
+                      (e) =>
+                          e.dayOfWeek == _daysOfWeek[d] &&
+                          e.startTime == slotStart &&
+                          (e.className == entry.className ||
+                              (entry.teacher.isNotEmpty &&
+                                  e.teacher == entry.teacher)) &&
+                          e.id != entry.id,
+                    );
+                    if (conflict) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Conflit détecté.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    if (entry.id == null) {
+                      final cls = _selectedClass();
+                      if (cls == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Sélectionnez une classe.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      final toCreate = TimetableEntry(
+                        subject: entry.subject,
+                        teacher: entry.teacher,
+                        className: cls.name,
+                        academicYear: cls.academicYear,
+                        dayOfWeek: _daysOfWeek[d],
+                        startTime: slotStart,
+                        endTime: slotEnd,
+                        room: entry.room,
+                      );
+                      await _dbService.insertTimetableEntry(toCreate);
+                    } else {
+                      int? m(String s) => toMin(s);
+                      String fmt(int v) =>
+                          '${(v ~/ 60).toString().padLeft(2, '0')}:${(v % 60).toString().padLeft(2, '0')}';
+                      final dur = (() {
+                        final a = m(entry.startTime);
+                        final b = m(entry.endTime);
+                        if (a != null && b != null && b > a) return b - a;
+                        final ss = m(slotStart);
+                        final se = m(slotEnd);
+                        return (ss != null && se != null && se > ss)
+                            ? se - ss
+                            : null;
+                      })();
+                      final ns = m(slotStart);
+                      final ne = (ns != null && dur != null)
+                          ? ns + dur
+                          : m(slotEnd);
+                      final newEnd = (ne != null) ? fmt(ne) : slotEnd;
+                      final moved = TimetableEntry(
+                        id: entry.id,
+                        subject: entry.subject,
+                        teacher: entry.teacher,
+                        className: entry.className,
+                        academicYear: entry.academicYear,
+                        dayOfWeek: _daysOfWeek[d],
+                        startTime: slotStart,
+                        endTime: newEnd,
+                        room: entry.room,
+                      );
+                      await _dbService.updateTimetableEntry(moved);
+                    }
+                    await _loadData();
+                  },
+                  builder: (ctx, cand, rej) => GestureDetector(
+                    onTap: () => _showAddEditTimetableEntryDialog(
+                      prefilledDay: _daysOfWeek[d],
+                      prefilledStart: slotStart,
+                      prefilledEnd: slotEnd,
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+
+        // Render entries as positioned blocks
+        for (final e in entries) {
+          final dayIndex = _daysOfWeek.indexOf(e.dayOfWeek);
+          if (dayIndex < 0) continue;
+          final sIdx = indexFor(e.startTime);
+          int eIdx = indexFor(e.endTime);
+          if (eIdx <= sIdx) eIdx = (sIdx + 1).clamp(0, boundaries.length - 1);
+          final top = topGutter + sIdx * rowHeight + 2;
+          final height = (eIdx - sIdx) * rowHeight - 4;
+          final color = subjectColor(e.subject);
+          final text =
+              '${e.subject} ${e.room}\n${e.teacher} - ${e.className}\n${e.startTime} - ${e.endTime}';
+          final content = Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: color.withOpacity(0.8)),
+            ),
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+          children.add(
+            Positioned(
+              left: leftGutter + dayIndex * colWidth + 2,
+              top: top,
+              width: colWidth - 4,
+              height: height > 28 ? height : 28,
+              child: Draggable<TimetableEntry>(
+                data: e,
+                feedback: Material(color: Colors.transparent, child: content),
+                childWhenDragging: Opacity(opacity: 0.4, child: content),
+                child: GestureDetector(
+                  onTap: () => _showAddEditTimetableEntryDialog(entry: e),
+                  child: content,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return SizedBox(
+          width: stackWidth.isFinite ? stackWidth : null,
+          height: stackHeight.isFinite ? stackHeight : null,
+          child: Stack(children: children),
+        );
+      },
+    );
+  }
+
+  Future<void> _autoGenerateForSelectedClass() async {
+    final cls = _classFromKey(_selectedClassKey);
+    if (cls == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez sélectionner une classe.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    bool clearExisting = false;
+    int sessionsPerSubject = 1;
+    int teacherMaxPerDay = 0;
+    int classMaxPerDay = 0;
+    int subjectMaxPerDay = 0;
+
+    final confirmed = await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('Auto-générer pour la classe'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Classe: ${_classLabel(cls)}'),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  value: clearExisting,
+                  onChanged: (v) => setState(() => clearExisting = v ?? false),
+                  title: const Text("Vider l'emploi du temps avant génération"),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Séances par matière (hebdo)'),
+                    DropdownButton<int>(
+                      value: sessionsPerSubject,
+                      items: const [1, 2, 3]
+                          .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => sessionsPerSubject = v ?? 1),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Max cours/jour (classe)'),
+                    DropdownButton<int>(
+                      value: classMaxPerDay,
+                      items: const [0, 3, 4, 5, 6, 7, 8]
+                          .map((n) => DropdownMenuItem(value: n, child: Text(n == 0 ? 'Illimité' : '$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => classMaxPerDay = v ?? 0),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Max séances/jour par matière'),
+                    DropdownButton<int>(
+                      value: subjectMaxPerDay,
+                      items: const [0, 1, 2, 3]
+                          .map((n) => DropdownMenuItem(value: n, child: Text(n == 0 ? 'Illimité' : '$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => subjectMaxPerDay = v ?? 0),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Max cours/jour par enseignant'),
+                    DropdownButton<int>(
+                      value: teacherMaxPerDay,
+                      items: const [0, 3, 4, 5, 6, 7, 8]
+                          .map((n) => DropdownMenuItem(value: n, child: Text(n == 0 ? 'Illimité' : '$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => teacherMaxPerDay = v ?? 0),
+                    ),
+                  ],
+                ),
+],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Générer'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    // After dialog closes, run generation
+    final created = await _scheduling.autoGenerateForClass(
+      targetClass: cls,
+      daysOfWeek: _daysOfWeek,
+      timeSlots: _timeSlots,
+      breakSlots: _breakSlots,
+      clearExisting: clearExisting,
+      sessionsPerSubject: sessionsPerSubject,
+      teacherMaxPerDay: teacherMaxPerDay == 0 ? null : teacherMaxPerDay,
+      classMaxPerDay: classMaxPerDay == 0 ? null : classMaxPerDay,
+      subjectMaxPerDay: subjectMaxPerDay == 0 ? null : subjectMaxPerDay,
+    );
+    await _loadData();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Génération terminée: $created cours ajoutés.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Future<void> _autoGenerateForSelectedTeacher() async {
+    if (_selectedTeacherFilter == null || _selectedTeacherFilter!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez sélectionner un enseignant.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    final teacher = _teachers.firstWhere(
+      (t) => t.name == _selectedTeacherFilter,
+      orElse: () => Staff.empty(),
+    );
+    if (teacher.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enseignant introuvable.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    bool clearExisting = false;
+    int sessionsPerSubject = 1;
+    int teacherMaxPerDay = 0;
+    int weeklyHours = teacher.weeklyHours ?? 0;
+    final List<int> weeklyHoursOptions = [0, 5, 10, 12, 15, 18, 20, 24, 30, 36, 40];
+    if (weeklyHours != 0 && !weeklyHoursOptions.contains(weeklyHours)) {
+      weeklyHoursOptions.insert(1, weeklyHours);
+    }
+    int subjectMaxPerDay = 0;
+    int classMaxPerDay = 0;
+
+    final confirmed = await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text("Auto-générer pour l'enseignant"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Enseignant: ${teacher.name}'),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  value: clearExisting,
+                  onChanged: (v) => setState(() => clearExisting = v ?? false),
+                  title: const Text('Vider ses cours avant génération'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Séances par matière (hebdo)'),
+                    DropdownButton<int>(
+                      value: sessionsPerSubject,
+                      items: const [1, 2, 3]
+                          .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => sessionsPerSubject = v ?? 1),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Heures hebdomadaires à enseigner'),
+                    DropdownButton<int>(
+                      value: weeklyHours,
+                      items: weeklyHoursOptions
+                          .map((n) => DropdownMenuItem<int>(value: n, child: Text(n == 0 ? 'Illimité' : '$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => weeklyHours = v ?? 0),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Max cours/jour (classe)'),
+                    DropdownButton<int>(
+                      value: classMaxPerDay,
+                      items: const [0, 3, 4, 5, 6, 7, 8]
+                          .map((n) => DropdownMenuItem(value: n, child: Text(n == 0 ? 'Illimité' : '$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => classMaxPerDay = v ?? 0),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Max séances/jour par matière'),
+                    DropdownButton<int>(
+                      value: subjectMaxPerDay,
+                      items: const [0, 1, 2, 3]
+                          .map((n) => DropdownMenuItem(value: n, child: Text(n == 0 ? 'Illimité' : '$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => subjectMaxPerDay = v ?? 0),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Max cours/jour par enseignant'),
+                    DropdownButton<int>(
+                      value: teacherMaxPerDay,
+                      items: const [0, 3, 4, 5, 6, 7, 8]
+                          .map((n) => DropdownMenuItem(value: n, child: Text(n == 0 ? 'Illimité' : '$n')))
+                          .toList(),
+                      onChanged: (v) => setState(() => teacherMaxPerDay = v ?? 0),
+                    ),
+                  ],
+                ),
+],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Générer'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    // Persist weekly hours preference for this teacher
+    try {
+      await _dbService.updateTeacherWeeklyHours(
+        teacher.id,
+        weeklyHours == 0 ? null : weeklyHours,
+      );
+    } catch (_) {}
+
+    final created = await _scheduling.autoGenerateForTeacher(
+      teacher: teacher,
+      daysOfWeek: _daysOfWeek,
+      timeSlots: _timeSlots,
+      breakSlots: _breakSlots,
+      clearExisting: clearExisting,
+      sessionsPerSubject: sessionsPerSubject,
+      teacherMaxPerDay: teacherMaxPerDay == 0 ? null : teacherMaxPerDay,
+      teacherWeeklyHours: weeklyHours,
+      subjectMaxPerDay: subjectMaxPerDay == 0 ? null : subjectMaxPerDay,
+      classMaxPerDay: classMaxPerDay == 0 ? null : classMaxPerDay,
+    );
+    await _loadData();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Génération terminée: $created cours ajoutés.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Future<void> _showEditGridDialog() async {
+    final days = List<String>.from(_daysOfWeek);
+    final slots = List<String>.from(_timeSlots);
+    final breaks = Set<String>.from(_breakSlots);
+
+    final daysController = TextEditingController();
+    final slotStartController = TextEditingController();
+    final slotEndController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: const Text('Éditer jours / créneaux / pauses'),
+          content: SizedBox(
+            width: 600,
+            child: SingleChildScrollView(
+              child: StatefulBuilder(
+                builder: (context, setState) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Jours', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      children: days
+                          .map(
+                            (d) => Chip(
+                              label: Text(d),
+                              onDeleted: () {
+                                setState(() {
+                                  days.remove(d);
+                                });
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: daysController,
+                            decoration: const InputDecoration(
+                              labelText: 'Ajouter un jour (ex: Dimanche)',
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            final v = daysController.text.trim();
+                            if (v.isNotEmpty && !days.contains(v)) {
+                              setState(() => days.add(v));
+                              daysController.clear();
+                            }
+                          },
+                          child: const Text('Ajouter'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Créneaux (HH:mm - HH:mm)',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: slots
+                          .map(
+                            (s) => InputChip(
+                              label: Text(s),
+                              onDeleted: () {
+                                setState(() => slots.remove(s));
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: slotStartController,
+                            decoration: const InputDecoration(
+                              labelText: 'Début (ex: 08:00)',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: slotEndController,
+                            decoration: const InputDecoration(
+                              labelText: 'Fin (ex: 09:00)',
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            final a = slotStartController.text.trim();
+                            final b = slotEndController.text.trim();
+                            if (a.isNotEmpty && b.isNotEmpty) {
+                              final slot = '$a - $b';
+                              if (!slots.contains(slot)) {
+                                setState(() => slots.add(slot));
+                                slotStartController.clear();
+                                slotEndController.clear();
+                              }
+                            }
+                          },
+                          child: const Text('Ajouter'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Pauses (sélectionner les créneaux à marquer comme pause)',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Column(
+                      children: slots
+                          .map(
+                            (s) => CheckboxListTile(
+                              title: Text(s),
+                              value: breaks.contains(s),
+                              onChanged: (v) {
+                                setState(() {
+                                  if (v == true) {
+                                    breaks.add(s);
+                                  } else {
+                                    breaks.remove(s);
+                                  }
+                                });
+                              },
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Fermer'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await ttp.saveDays(days);
+                await ttp.saveSlots(slots);
+                await ttp.saveBreakSlots(breaks);
+                Navigator.of(context).pop();
+                await _loadData();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Configuration enregistrée.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showTeacherUnavailabilityDialog() async {
+    if (_selectedTeacherFilter == null || _selectedTeacherFilter!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez sélectionner un enseignant.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    final teacherName = _selectedTeacherFilter!;
+    final year = await getCurrentAcademicYear();
+    // Local editable copy
+    final Set<String> edits = Set<String>.from(_teacherUnavailKeys);
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: Text('Indisponibilités • $teacherName'),
+          content: SizedBox(
+            width: 720,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _daysOfWeek.map((day) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 4),
+                        child: Text(day, style: theme.textTheme.titleSmall),
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: _timeSlots.map((slot) {
+                          final slotStart = slot.split(' - ').first;
+                          final key = '$day|$slotStart';
+                          final checked = edits.contains(key);
+                          return FilterChip(
+                            selected: checked,
+                            label: Text(slot),
+                            onSelected: (v) {
+                              setState(() {
+                                if (v) {
+                                  edits.add(key);
+                                } else {
+                                  edits.remove(key);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Fermer'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final rows = edits.map((k) {
+                  final parts = k.split('|');
+                  return {'dayOfWeek': parts[0], 'startTime': parts[1]};
+                }).toList();
+                await _dbService.saveTeacherUnavailability(
+                  teacherName: teacherName,
+                  academicYear: year,
+                  slots: rows,
+                );
+                Navigator.of(context).pop();
+                await _loadTeacherUnavailability(teacherName, year);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Indisponibilités enregistrées.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -489,7 +1837,9 @@ class _TimetablePageState extends State<TimetablePage> {
                         'Créez et gérez les plannings de cours par classe et par enseignant.', // Changed description
                         style: TextStyle(
                           fontSize: isDesktop ? 16 : 14,
-                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.7,
+                          ),
                           height: 1.5,
                         ),
                       ),
@@ -525,7 +1875,9 @@ class _TimetablePageState extends State<TimetablePage> {
             focusNode: _searchFocusNode,
             decoration: InputDecoration(
               hintText: 'Rechercher un emploi du temps...',
-              hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6)),
+              hintStyle: TextStyle(
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+              ),
               prefixIcon: Icon(Icons.search, color: theme.iconTheme.color),
               filled: true,
               fillColor: theme.cardColor,
@@ -540,7 +1892,10 @@ class _TimetablePageState extends State<TimetablePage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                borderSide: BorderSide(
+                  color: theme.colorScheme.primary,
+                  width: 2,
+                ),
               ),
             ),
             onChanged: (value) => setState(() => _searchQuery = value.trim()),
@@ -551,18 +1906,31 @@ class _TimetablePageState extends State<TimetablePage> {
     );
   }
 
-  void _showAddEditTimetableEntryDialog({TimetableEntry? entry}) {
+  void _showAddEditTimetableEntryDialog({
+    TimetableEntry? entry,
+    String? prefilledDay,
+    String? prefilledStart,
+    String? prefilledEnd,
+  }) {
     final _formKey = GlobalKey<FormState>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // Get ScaffoldMessengerState here
+    final scaffoldMessenger = ScaffoldMessenger.of(
+      context,
+    ); // Get ScaffoldMessengerState here
     String? selectedSubject = entry?.subject;
     String? selectedTeacher = entry?.teacher;
     String? selectedClassKey = entry != null
         ? _classKeyFromValues(entry.className, entry.academicYear)
         : _selectedClassKey;
-    String? selectedDay = entry?.dayOfWeek;
-    TextEditingController startTimeController = TextEditingController(text: entry?.startTime);
-    TextEditingController endTimeController = TextEditingController(text: entry?.endTime);
-    TextEditingController roomController = TextEditingController(text: entry?.room);
+    String? selectedDay = entry?.dayOfWeek ?? prefilledDay;
+    TextEditingController startTimeController = TextEditingController(
+      text: entry?.startTime ?? prefilledStart,
+    );
+    TextEditingController endTimeController = TextEditingController(
+      text: entry?.endTime ?? prefilledEnd,
+    );
+    TextEditingController roomController = TextEditingController(
+      text: entry?.room,
+    );
 
     showDialog(
       context: context,
@@ -575,11 +1943,16 @@ class _TimetablePageState extends State<TimetablePage> {
             Flexible(
               child: Row(
                 children: [
-                  Icon(entry == null ? Icons.add_box : Icons.edit, color: AppColors.primaryBlue),
+                  Icon(
+                    entry == null ? Icons.add_box : Icons.edit,
+                    color: AppColors.primaryBlue,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      entry == null ? 'Ajouter un cours à l\'emploi du temps' : 'Modifier le cours',
+                      entry == null
+                          ? 'Ajouter un cours à l\'emploi du temps'
+                          : 'Modifier le cours',
                       style: Theme.of(context).textTheme.headlineMedium,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -601,55 +1974,113 @@ class _TimetablePageState extends State<TimetablePage> {
               children: [
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
-                    labelText: 'Matière', 
+                    labelText: 'Matière',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.book_outlined),
                   ),
-                  value: selectedSubject,
-                  items: _subjects.map((s) => DropdownMenuItem(value: s.name, child: Text(s.name))).toList(),
+                  isDense: true,
+                  isExpanded: true,
+                  value: (() {
+                    final items = _subjects.map((s) => s.name).toSet();
+                    return (selectedSubject != null &&
+                            items.contains(selectedSubject))
+                        ? selectedSubject
+                        : null;
+                  })(),
+                  items: _subjects
+                      .map(
+                        (s) => DropdownMenuItem(
+                          value: s.name,
+                          child: Text(s.name),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (value) => selectedSubject = value,
-                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Champ requis' : null,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
-                    labelText: 'Enseignant', 
+                    labelText: 'Enseignant',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.person_outlined),
                   ),
-                  value: selectedTeacher,
-                  items: _teachers.map((t) => DropdownMenuItem(value: t.name, child: Text(t.name))).toList(),
+                  isDense: true,
+                  isExpanded: true,
+                  value: (() {
+                    final items = _teachers.map((t) => t.name).toSet();
+                    return (selectedTeacher != null &&
+                            items.contains(selectedTeacher))
+                        ? selectedTeacher
+                        : null;
+                  })(),
+                  items: _teachers
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t.name,
+                          child: Text(t.name),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (value) => selectedTeacher = value,
-                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Champ requis' : null,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
-                    labelText: 'Classe', 
+                    labelText: 'Classe',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.class_outlined),
                   ),
-                  value: selectedClassKey,
+                  isDense: true,
+                  isExpanded: true,
+                  value: (() {
+                    final items = _classes.map((c) => _classKey(c)).toSet();
+                    if (selectedClassKey != null &&
+                        items.contains(selectedClassKey)) {
+                      return selectedClassKey;
+                    }
+                    if (_selectedClassKey != null &&
+                        items.contains(_selectedClassKey)) {
+                      return _selectedClassKey;
+                    }
+                    return null;
+                  })(),
                   items: _classes
-                      .map((c) => DropdownMenuItem(
-                            value: _classKey(c),
-                            child: Text(_classLabel(c)),
-                          ))
+                      .map(
+                        (c) => DropdownMenuItem(
+                          value: _classKey(c),
+                          child: Text(_classLabel(c)),
+                        ),
+                      )
                       .toList(),
                   onChanged: (value) => selectedClassKey = value,
-                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Champ requis' : null,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
-                    labelText: 'Jour de la semaine', 
+                    labelText: 'Jour de la semaine',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.calendar_today_outlined),
                   ),
-                  value: selectedDay,
-                  items: _daysOfWeek.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                  isDense: true,
+                  isExpanded: true,
+                  value: (() {
+                    return (selectedDay != null &&
+                            _daysOfWeek.contains(selectedDay))
+                        ? selectedDay
+                        : null;
+                  })(),
+                  items: _daysOfWeek
+                      .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                      .toList(),
                   onChanged: (value) => selectedDay = value,
-                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Champ requis' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -669,7 +2100,8 @@ class _TimetablePageState extends State<TimetablePage> {
                       startTimeController.text = picked.format(context);
                     }
                   },
-                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Champ requis' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -689,7 +2121,8 @@ class _TimetablePageState extends State<TimetablePage> {
                       endTimeController.text = picked.format(context);
                     }
                   },
-                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Champ requis' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -716,7 +2149,9 @@ class _TimetablePageState extends State<TimetablePage> {
                 final classData = _classFromKey(selectedClassKey);
                 if (classData == null) {
                   scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Classe introuvable. Veuillez réessayer.')),
+                    const SnackBar(
+                      content: Text('Classe introuvable. Veuillez réessayer.'),
+                    ),
                   );
                   return;
                 }
@@ -735,12 +2170,18 @@ class _TimetablePageState extends State<TimetablePage> {
                 if (entry == null) {
                   await _dbService.insertTimetableEntry(newEntry);
                   scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Cours ajouté avec succès.'), backgroundColor: Colors.green),
+                    const SnackBar(
+                      content: Text('Cours ajouté avec succès.'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                 } else {
                   await _dbService.updateTimetableEntry(newEntry);
                   scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Cours modifié avec succès.'), backgroundColor: Colors.green),
+                    const SnackBar(
+                      content: Text('Cours modifié avec succès.'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                 }
                 Navigator.of(context).pop();
@@ -753,67 +2194,94 @@ class _TimetablePageState extends State<TimetablePage> {
             ElevatedButton(
               onPressed: () async {
                 // Show confirmation dialog
-                final bool confirmDelete = await showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      backgroundColor: Theme.of(context).cardColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      title: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
-                          SizedBox(width: 8),
-                          Text('Confirmer la suppression', style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      content: const Text('Êtes-vous sûr de vouloir supprimer ce cours ?'),
-                      actions: <Widget>[
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('Annuler'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
-                          child: const Text('Supprimer'),
-                        ),
-                      ],
-                    );
-                  },
-                ) ?? false; // In case dialog is dismissed by tapping outside
+                final bool confirmDelete =
+                    await showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          backgroundColor: Theme.of(context).cardColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: Color(0xFFE11D48),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Confirmer la suppression',
+                                style: TextStyle(
+                                  color: Color(0xFFE11D48),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          content: const Text(
+                            'Êtes-vous sûr de vouloir supprimer ce cours ?',
+                          ),
+                          actions: <Widget>[
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Annuler'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFE11D48),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Supprimer'),
+                            ),
+                          ],
+                        );
+                      },
+                    ) ??
+                    false; // In case dialog is dismissed by tapping outside
 
                 if (confirmDelete) {
-                    final TimetableEntry? deletedEntry = entry; // Store the entry before deletion
-                    await _dbService.deleteTimetableEntry(deletedEntry!.id!); // Delete the entry
-                    Navigator.of(context).pop(); // Close the add/edit dialog
-                    _loadData(); // Reload data to update the display
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Cours supprimé avec succès.'),
-                        backgroundColor: Colors.green,
-                        action: SnackBarAction(
-                          label: 'Annuler',
-                          onPressed: () async {
-                            if (deletedEntry != null) {
-                              await _dbService.insertTimetableEntry(deletedEntry);
-                              _loadData(); // Reload data to update the display
-                              // Dismiss the current dialog first if it's still open
-                              if (Navigator.of(context).canPop()) {
-                                Navigator.of(context).pop();
-                              }
-                              // Now show the SnackBar from the main Scaffold's context
-                              scaffoldMessenger.showSnackBar(
-                                const SnackBar(content: Text('Suppression annulée.'), backgroundColor: Colors.blue),
-                              );
+                  final TimetableEntry? deletedEntry =
+                      entry; // Store the entry before deletion
+                  await _dbService.deleteTimetableEntry(
+                    deletedEntry!.id!,
+                  ); // Delete the entry
+                  Navigator.of(context).pop(); // Close the add/edit dialog
+                  _loadData(); // Reload data to update the display
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Cours supprimé avec succès.'),
+                      backgroundColor: Colors.green,
+                      action: SnackBarAction(
+                        label: 'Annuler',
+                        onPressed: () async {
+                          if (deletedEntry != null) {
+                            await _dbService.insertTimetableEntry(deletedEntry);
+                            _loadData(); // Reload data to update the display
+                            // Dismiss the current dialog first if it's still open
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
                             }
-                          },
-                        ),
+                            // Now show the SnackBar from the main Scaffold's context
+                            scaffoldMessenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Suppression annulée.'),
+                                backgroundColor: Colors.blue,
+                              ),
+                            );
+                          }
+                        },
                       ),
-                    );
-                  }
+                    ),
+                  );
+                }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Supprimer'),
             ),
         ],
@@ -829,7 +2297,12 @@ class _TimetablePageState extends State<TimetablePage> {
       await _loadData(); // Attempt to load data if not already loaded
       if (_schoolInfo == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Informations de l\'école non disponibles. Veuillez configurer les informations de l\'école dans les paramètres.'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text(
+              'Informations de l\'école non disponibles. Veuillez configurer les informations de l\'école dans les paramètres.',
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
@@ -841,9 +2314,12 @@ class _TimetablePageState extends State<TimetablePage> {
     final filteredEntries = _timetableEntries.where((e) {
       if (exportBy == 'class') {
         if (classFilter == null) return true;
-        return e.className == classFilter.name && e.academicYear == classFilter.academicYear;
-      } else { // teacher
-        return _selectedTeacherFilter == null || e.teacher == _selectedTeacherFilter;
+        return e.className == classFilter.name &&
+            e.academicYear == classFilter.academicYear;
+      } else {
+        // teacher
+        return _selectedTeacherFilter == null ||
+            e.teacher == _selectedTeacherFilter;
       }
     }).toList();
 
@@ -876,41 +2352,88 @@ class _TimetablePageState extends State<TimetablePage> {
     var excel = Excel.createExcel();
     Sheet sheetObject = excel['Emploi du Temps'];
 
-    // Headers
-    sheetObject.appendRow([TextCellValue('Heure'), ..._daysOfWeek.map((day) => TextCellValue(day))]);
+    // Header row
+    sheetObject
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
+        .value = TextCellValue(
+      'Heure',
+    );
+    for (int d = 0; d < _daysOfWeek.length; d++) {
+      sheetObject
+          .cell(CellIndex.indexByColumnRow(columnIndex: d + 1, rowIndex: 0))
+          .value = TextCellValue(
+        _daysOfWeek[d],
+      );
+    }
 
-    // Add data rows
+    Color _subjectColor(String name) {
+      const palette = [
+        Color(0xFF60A5FA),
+        Color(0xFFF472B6),
+        Color(0xFFF59E0B),
+        Color(0xFF34D399),
+        Color(0xFFA78BFA),
+        Color(0xFFFB7185),
+        Color(0xFF38BDF8),
+        Color(0xFF10B981),
+      ];
+      final idx = name.codeUnits.fold<int>(
+        0,
+        (a, b) => (a + b) % palette.length,
+      );
+      return palette[idx];
+    }
+
+    String _hex(Color c) =>
+        '#${c.red.toRadixString(16).padLeft(2, '0')}${c.green.toRadixString(16).padLeft(2, '0')}${c.blue.toRadixString(16).padLeft(2, '0')}';
+
     final classFilter = _classFromKey(_selectedClassKey);
     final classLabel = classFilter != null ? _classLabel(classFilter) : '';
 
-    for (var timeSlot in _timeSlots) {
+    for (int r = 0; r < _timeSlots.length; r++) {
+      final timeSlot = _timeSlots[r];
       final timeSlotParts = timeSlot.split(' - ');
       final slotStartTime = timeSlotParts[0];
-
-      List<CellValue> row = [TextCellValue(timeSlot)];
-      for (var day in _daysOfWeek) {
+      sheetObject
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: r + 1))
+          .value = TextCellValue(
+        timeSlot,
+      );
+      for (int d = 0; d < _daysOfWeek.length; d++) {
+        final day = _daysOfWeek[d];
         final entriesForSlot = _timetableEntries.where((e) {
           if (exportBy == 'class') {
             return e.dayOfWeek == day &&
                 e.startTime == slotStartTime &&
-                (classFilter == null || (e.className == classFilter.name && e.academicYear == classFilter.academicYear));
-          } else { // teacher
+                (classFilter == null ||
+                    (e.className == classFilter.name &&
+                        e.academicYear == classFilter.academicYear));
+          } else {
             return e.dayOfWeek == day &&
                 e.startTime == slotStartTime &&
-                (_selectedTeacherFilter == null || e.teacher == _selectedTeacherFilter);
+                (_selectedTeacherFilter == null ||
+                    e.teacher == _selectedTeacherFilter);
           }
         }).toList();
 
+        final cell = sheetObject.cell(
+          CellIndex.indexByColumnRow(columnIndex: d + 1, rowIndex: r + 1),
+        );
         if (entriesForSlot.isNotEmpty) {
-          String cellText = entriesForSlot.map((entry) {
-            return '${entry.subject} ${entry.room}\n${entry.teacher} - ${entry.className}';
-          }).join('\n\n');
-          row.add(TextCellValue(cellText));
+          final first = entriesForSlot.first;
+          final text = entriesForSlot
+              .map(
+                (e) => '${e.subject} ${e.room}\n${e.teacher} - ${e.className}',
+              )
+              .join('\n\n');
+          cell.value = TextCellValue(text);
+          cell.cellStyle = CellStyle(
+            backgroundColorHex: _hex(_subjectColor(first.subject)).excelColor,
+          );
         } else {
-          row.add(TextCellValue(''));
+          cell.value = TextCellValue('');
         }
       }
-      sheetObject.appendRow(row);
     }
 
     final fileName = exportBy == 'class'

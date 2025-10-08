@@ -136,7 +136,11 @@ class Staff {
       if (v == null) return [];
       final s = v.toString();
       if (s.trim().isEmpty) return [];
-      return s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      return s
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
 
     return Staff(
@@ -150,12 +154,16 @@ class Staff {
       courses: _splitList(map['courses']),
       classes: _splitList(map['classes']),
       status: map['status'] ?? 'Actif',
-      hireDate: map['hireDate'] != null ? DateTime.parse(map['hireDate']) : DateTime.now(),
+      hireDate: map['hireDate'] != null
+          ? DateTime.parse(map['hireDate'])
+          : DateTime.now(),
       typeRole: map['typeRole'] ?? 'Administration',
       firstName: map['first_name'],
       lastName: map['last_name'],
       gender: map['gender'],
-      birthDate: map['birth_date'] != null ? DateTime.tryParse(map['birth_date']) : null,
+      birthDate: map['birth_date'] != null
+          ? DateTime.tryParse(map['birth_date'])
+          : null,
       birthPlace: map['birth_place'],
       nationality: map['nationality'],
       address: map['address'],
@@ -164,18 +172,28 @@ class Staff {
       idNumber: map['id_number'],
       socialSecurityNumber: map['social_security'],
       maritalStatus: map['marital_status'],
-      numberOfChildren: map['number_of_children'] != null ? int.tryParse(map['number_of_children'].toString()) : null,
+      numberOfChildren: map['number_of_children'] != null
+          ? int.tryParse(map['number_of_children'].toString())
+          : null,
       region: map['region'],
       levels: _splitList(map['levels']),
       highestDegree: map['highest_degree'],
       specialty: map['specialty'],
-      experienceYears: map['experience_years'] != null ? int.tryParse(map['experience_years'].toString()) : null,
+      experienceYears: map['experience_years'] != null
+          ? int.tryParse(map['experience_years'].toString())
+          : null,
       previousInstitution: map['previous_institution'],
       contractType: map['contract_type'],
-      baseSalary: map['base_salary'] != null ? double.tryParse(map['base_salary'].toString()) : null,
-      weeklyHours: map['weekly_hours'] != null ? int.tryParse(map['weekly_hours'].toString()) : null,
+      baseSalary: map['base_salary'] != null
+          ? double.tryParse(map['base_salary'].toString())
+          : null,
+      weeklyHours: map['weekly_hours'] != null
+          ? int.tryParse(map['weekly_hours'].toString())
+          : null,
       supervisor: map['supervisor'],
-      retirementDate: map['retirement_date'] != null ? DateTime.tryParse(map['retirement_date']) : null,
+      retirementDate: map['retirement_date'] != null
+          ? DateTime.tryParse(map['retirement_date'])
+          : null,
       documents: _splitList(map['documents']),
     );
   }

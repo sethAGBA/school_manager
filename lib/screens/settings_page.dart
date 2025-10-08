@@ -28,11 +28,12 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMixin {
+class _SettingsPageState extends State<SettingsPage>
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
   // Controllers pour les informations de l'école
   final _etablissementController = TextEditingController();
   final _adresseController = TextEditingController();
@@ -50,7 +51,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
   final _republicController = TextEditingController();
   final _educationDirectionController = TextEditingController();
   final _inspectionController = TextEditingController();
-  
+
   // Focus nodes pour l'accessibilité
   late FocusNode _etablissementFocusNode;
   late FocusNode _adresseFocusNode;
@@ -66,7 +67,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
   late FocusNode _republicFocusNode;
   late FocusNode _educationDirectionFocusNode;
   late FocusNode _inspectionFocusNode;
-  
+
   String? _logoPath;
   bool _isDarkMode = false;
   bool _notificationsEnabled = true;
@@ -75,10 +76,14 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
   String _academicYear = '2024-2025';
   List<String> _availableYears = [];
   String _searchQuery = '';
-  
+
   final List<String> _languages = ['Français', 'English', 'العربية', 'Español'];
   final List<String> _niveauxScolaires = [
-    'Maternelle', 'Primaire', 'Collège', 'Lycée', 'Université'
+    'Maternelle',
+    'Primaire',
+    'Collège',
+    'Lycée',
+    'Université',
   ];
 
   @override
@@ -91,11 +96,15 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _animationController.forward();
-    
+
     _etablissementFocusNode = FocusNode();
     _adresseFocusNode = FocusNode();
     _telephoneFocusNode = FocusNode();
@@ -110,7 +119,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     _republicFocusNode = FocusNode();
     _educationDirectionFocusNode = FocusNode();
     _inspectionFocusNode = FocusNode();
-    
+
     _loadSchoolSettings();
     _academicYearController.text = _academicYear;
     _loadAvailableYears();
@@ -134,7 +143,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     _republicController.dispose();
     _educationDirectionController.dispose();
     _inspectionController.dispose();
-    
+
     _etablissementFocusNode.dispose();
     _adresseFocusNode.dispose();
     _telephoneFocusNode.dispose();
@@ -164,11 +173,14 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       _mottoController.text = prefs.getString('school_motto') ?? '';
       _directeurController.text = prefs.getString('school_director') ?? '';
       _codeEtablissementController.text = prefs.getString('school_code') ?? '';
-      _niveauScolaireController.text = prefs.getString('school_level') ?? 'Primaire';
+      _niveauScolaireController.text =
+          prefs.getString('school_level') ?? 'Primaire';
       _ministryController.text = prefs.getString('school_ministry') ?? '';
-      _republicMottoController.text = prefs.getString('school_republic_motto') ?? '';
+      _republicMottoController.text =
+          prefs.getString('school_republic_motto') ?? '';
       _republicController.text = prefs.getString('school_republic') ?? '';
-      _educationDirectionController.text = prefs.getString('school_education_direction') ?? '';
+      _educationDirectionController.text =
+          prefs.getString('school_education_direction') ?? '';
       _inspectionController.text = prefs.getString('school_inspection') ?? '';
       _logoPath = prefs.getString('school_logo');
       _isDarkMode = prefs.getBool('dark_mode') ?? false;
@@ -203,18 +215,33 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     await prefs.setString('school_motto', _mottoController.text.trim());
     await prefs.setString('school_republic', _republicController.text.trim());
     await prefs.setString('school_director', _directeurController.text.trim());
-    await prefs.setString('school_code', _codeEtablissementController.text.trim());
-    await prefs.setString('school_level', _niveauScolaireController.text.trim());
+    await prefs.setString(
+      'school_code',
+      _codeEtablissementController.text.trim(),
+    );
+    await prefs.setString(
+      'school_level',
+      _niveauScolaireController.text.trim(),
+    );
     await prefs.setString('school_ministry', _ministryController.text.trim());
-    await prefs.setString('school_republic_motto', _republicMottoController.text.trim());
-    await prefs.setString('school_education_direction', _educationDirectionController.text.trim());
-    await prefs.setString('school_inspection', _inspectionController.text.trim());
+    await prefs.setString(
+      'school_republic_motto',
+      _republicMottoController.text.trim(),
+    );
+    await prefs.setString(
+      'school_education_direction',
+      _educationDirectionController.text.trim(),
+    );
+    await prefs.setString(
+      'school_inspection',
+      _inspectionController.text.trim(),
+    );
     await prefs.setBool('dark_mode', _isDarkMode);
     await prefs.setBool('notifications', _notificationsEnabled);
     await prefs.setBool('biometric', _biometricEnabled);
     await prefs.setString('language', _selectedLanguage);
     await prefs.setString('academic_year', _academicYearController.text.trim());
-    
+
     if (_logoPath != null) {
       await prefs.setString('school_logo', _logoPath!);
     }
@@ -242,11 +269,13 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     setState(() {
       _academicYear = _academicYearController.text.trim();
     });
-    
+
     await refreshAcademicYear();
     await _archiveCurrentYearGrades();
     if (mounted) {
-      _showModernSnackBar('Configuration de l\'école sauvegardée avec succès !');
+      _showModernSnackBar(
+        'Configuration de l\'école sauvegardée avec succès !',
+      );
     }
   }
 
@@ -260,7 +289,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
   }
 
   Future<void> _promptAddYear() async {
-    final controller = TextEditingController(text: _suggestNextYear(_academicYear));
+    final controller = TextEditingController(
+      text: _suggestNextYear(_academicYear),
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -270,8 +301,14 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
           decoration: const InputDecoration(hintText: 'ex: 2025-2026'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ajouter')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ajouter'),
+          ),
         ],
       ),
     );
@@ -279,7 +316,10 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       final value = controller.text.trim();
       final valid = RegExp(r'^\d{4}-\d{4}$').hasMatch(value);
       if (!valid) {
-        _showModernSnackBar('Format invalide. Utilisez 2025-2026.', isError: true);
+        _showModernSnackBar(
+          'Format invalide. Utilisez 2025-2026.',
+          isError: true,
+        );
         return;
       }
       setState(() {
@@ -326,18 +366,18 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
   }
 
   Future<void> _pickLogo() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-    );
+    final result = await FilePicker.platform.pickFiles(type: FileType.image);
     if (result != null && result.files.single.path != null) {
       final selectedFile = File(result.files.single.path!);
       final savedPath = await _saveLogo(selectedFile);
       if (savedPath != null) {
-      setState(() {
+        setState(() {
           _logoPath = savedPath;
         });
         // Evict old cached image and force reload for the same file path
-        try { await FileImage(File(savedPath)).evict(); } catch (_) {}
+        try {
+          await FileImage(File(savedPath)).evict();
+        } catch (_) {}
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('school_logo', savedPath);
         if (mounted) {
@@ -373,9 +413,14 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         _showModernSnackBar('Base de données non trouvée.', isError: true);
         return;
       }
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return; // Annulé
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').replaceAll('.', '-');
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .replaceAll('.', '-');
       final backupPath = '$dirPath/school_backup_$timestamp.db';
       await dbFile.copy(backupPath);
       _showModernSnackBar('Sauvegarde créée : ${backupPath.split('/').last}');
@@ -409,27 +454,46 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         await dbFile.delete();
       }
       await pickedFile.copy(dbPath);
-      _showModernSnackBar('Restauration réussie. Veuillez redémarrer l\'application.');
+      _showModernSnackBar(
+        'Restauration réussie. Veuillez redémarrer l\'application.',
+      );
     } catch (e) {
       _showModernSnackBar('Erreur lors de la restauration : $e', isError: true);
     }
   }
 
-  Future<void> _exportData({required Map<String, bool> tables, required String format}) async {
+  Future<void> _exportData({
+    required Map<String, bool> tables,
+    required String format,
+  }) async {
     try {
       final db = DatabaseService();
-      final List<Student> students = tables['Élèves'] == true ? await db.getStudents() : [];
-      final List<Class> classes = tables['Classes'] == true ? await db.getClasses() : [];
-      final List<Payment> payments = tables['Paiements'] == true ? await db.getAllPayments() : [];
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final List<Student> students = tables['Élèves'] == true
+          ? await db.getStudents()
+          : [];
+      final List<Class> classes = tables['Classes'] == true
+          ? await db.getClasses()
+          : [];
+      final List<Payment> payments = tables['Paiements'] == true
+          ? await db.getAllPayments()
+          : [];
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return;
       final List<String> generatedFiles = [];
       final List<File> filesToZip = [];
       // PDF
       if (format == 'PDF' || format == 'ZIP') {
         if (students.isNotEmpty) {
-          final pdfBytes = await PdfService.exportStudentsListPdf(students: students.map((s) => {'student': s, 'classe': null}).toList());
-          final file = File('$dirPath/export_eleves_${DateTime.now().millisecondsSinceEpoch}.pdf');
+          final pdfBytes = await PdfService.exportStudentsListPdf(
+            students: students
+                .map((s) => {'student': s, 'classe': null})
+                .toList(),
+          );
+          final file = File(
+            '$dirPath/export_eleves_${DateTime.now().millisecondsSinceEpoch}.pdf',
+          );
           await file.writeAsBytes(pdfBytes);
           generatedFiles.add(file.path);
           if (format == 'ZIP') filesToZip.add(file);
@@ -437,20 +501,34 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         if (classes.isNotEmpty) {
           // Génération PDF classes (simple)
           final pdf = await PdfService.exportClassesListPdf(classes: classes);
-          final file = File('$dirPath/export_classes_${DateTime.now().millisecondsSinceEpoch}.pdf');
+          final file = File(
+            '$dirPath/export_classes_${DateTime.now().millisecondsSinceEpoch}.pdf',
+          );
           await file.writeAsBytes(pdf);
           generatedFiles.add(file.path);
           if (format == 'ZIP') filesToZip.add(file);
         }
         if (payments.isNotEmpty) {
-          final rows = payments.map((p) => {
-            'student': students.firstWhere((s) => s.id == p.studentId, orElse: () => Student.empty()),
-            'payment': p,
-            'classe': classes.firstWhere((c) => c.name == p.className, orElse: () => Class.empty()),
-            'totalPaid': p.amount,
-          }).toList();
+          final rows = payments
+              .map(
+                (p) => {
+                  'student': students.firstWhere(
+                    (s) => s.id == p.studentId,
+                    orElse: () => Student.empty(),
+                  ),
+                  'payment': p,
+                  'classe': classes.firstWhere(
+                    (c) => c.name == p.className,
+                    orElse: () => Class.empty(),
+                  ),
+                  'totalPaid': p.amount,
+                },
+              )
+              .toList();
           final pdfBytes = await PdfService.exportPaymentsListPdf(rows: rows);
-          final file = File('$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.pdf');
+          final file = File(
+            '$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.pdf',
+          );
           await file.writeAsBytes(pdfBytes);
           generatedFiles.add(file.path);
           if (format == 'ZIP') filesToZip.add(file);
@@ -460,37 +538,103 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       if (format == 'CSV' || format == 'ZIP') {
         if (students.isNotEmpty) {
           final csvRows = [
-            ['ID', 'Nom', 'Date de naissance', 'Adresse', 'Sexe', 'Contact', 'Email', 'Contact urgence', 'Tuteur', 'Contact tuteur', 'Classe', 'Infos médicales', 'Photo'],
-            ...students.map((s) => [
-              s.id, s.name, s.dateOfBirth, s.address, s.gender, s.contactNumber, s.email, s.emergencyContact, s.guardianName, s.guardianContact, s.className, s.medicalInfo ?? '', s.photoPath ?? ''
-            ])
+            [
+              'ID',
+              'Nom',
+              'Date de naissance',
+              'Adresse',
+              'Sexe',
+              'Contact',
+              'Email',
+              'Contact urgence',
+              'Tuteur',
+              'Contact tuteur',
+              'Classe',
+              'Infos médicales',
+              'Photo',
+            ],
+            ...students.map(
+              (s) => [
+                s.id,
+                s.name,
+                s.dateOfBirth,
+                s.address,
+                s.gender,
+                s.contactNumber,
+                s.email,
+                s.emergencyContact,
+                s.guardianName,
+                s.guardianContact,
+                s.className,
+                s.medicalInfo ?? '',
+                s.photoPath ?? '',
+              ],
+            ),
           ];
           final csvStr = const ListToCsvConverter().convert(csvRows);
-          final file = File('$dirPath/export_eleves_${DateTime.now().millisecondsSinceEpoch}.csv');
+          final file = File(
+            '$dirPath/export_eleves_${DateTime.now().millisecondsSinceEpoch}.csv',
+          );
           await file.writeAsString(csvStr);
           generatedFiles.add(file.path);
           if (format == 'ZIP') filesToZip.add(file);
         }
         if (classes.isNotEmpty) {
           final csvRows = [
-            ['Nom', 'Année', 'Titulaire', 'Frais école', 'Frais cotisation parallèle'],
-            ...classes.map((c) => [c.name, c.academicYear, c.titulaire ?? '', c.fraisEcole ?? '', c.fraisCotisationParallele ?? ''])
+            [
+              'Nom',
+              'Année',
+              'Titulaire',
+              'Frais école',
+              'Frais cotisation parallèle',
+            ],
+            ...classes.map(
+              (c) => [
+                c.name,
+                c.academicYear,
+                c.titulaire ?? '',
+                c.fraisEcole ?? '',
+                c.fraisCotisationParallele ?? '',
+              ],
+            ),
           ];
           final csvStr = const ListToCsvConverter().convert(csvRows);
-          final file = File('$dirPath/export_classes_${DateTime.now().millisecondsSinceEpoch}.csv');
+          final file = File(
+            '$dirPath/export_classes_${DateTime.now().millisecondsSinceEpoch}.csv',
+          );
           await file.writeAsString(csvStr);
           generatedFiles.add(file.path);
           if (format == 'ZIP') filesToZip.add(file);
         }
         if (payments.isNotEmpty) {
           final csvRows = [
-            ['ID', 'Élève', 'Classe', 'Montant', 'Date', 'Commentaire', 'Annulé', 'Date annulation'],
-            ...payments.map((p) => [
-              p.id, p.studentId, p.className, p.amount, p.date, p.comment ?? '', p.isCancelled ? 'Oui' : 'Non', p.cancelledAt ?? ''
-            ])
+            [
+              'ID',
+              'Élève',
+              'Classe',
+              'Montant',
+              'Date',
+              'Commentaire',
+              'Annulé',
+              'Date annulation',
+            ],
+            ...payments.map(
+              (p) => [
+                p.id,
+                p.studentId,
+                p.className,
+                p.amount,
+                p.date,
+                p.comment ?? '',
+                p.isCancelled ? 'Oui' : 'Non',
+                p.cancelledAt ?? '',
+              ],
+            ),
           ];
           final csvStr = const ListToCsvConverter().convert(csvRows);
-          final file = File('$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.csv');
+          final file = File(
+            '$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.csv',
+          );
           await file.writeAsString(csvStr);
           generatedFiles.add(file.path);
           if (format == 'ZIP') filesToZip.add(file);
@@ -499,7 +643,8 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       // ZIP
       if (format == 'ZIP' && filesToZip.isNotEmpty) {
         final encoder = ZipFileEncoder();
-        final zipPath = '$dirPath/export_donnees_${DateTime.now().millisecondsSinceEpoch}.zip';
+        final zipPath =
+            '$dirPath/export_donnees_${DateTime.now().millisecondsSinceEpoch}.zip';
         encoder.create(zipPath);
         for (final file in filesToZip) {
           encoder.addFile(file);
@@ -507,7 +652,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         encoder.close();
         generatedFiles.add(zipPath);
       }
-      _showModernSnackBar('Export réussi :\n${generatedFiles.map((e) => e.split('/').last).join(', ')}');
+      _showModernSnackBar(
+        'Export réussi :\n${generatedFiles.map((e) => e.split('/').last).join(', ')}',
+      );
     } catch (e) {
       _showModernSnackBar('Erreur export : $e', isError: true);
     }
@@ -517,7 +664,8 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     final status = await LicenseService.instance.getStatus();
     final keyController = TextEditingController(text: status.key ?? '');
 
-    String fmt(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    String fmt(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
     String statusLabel(LicenseStatus st) {
       if (st.isActive) return 'Active';
       if (st.isExpired) return 'Expirée';
@@ -535,6 +683,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         }
         return buf.toString();
       }
+
       final grouped = _groupKey(raw);
       if (!masked) return grouped;
       final parts = grouped.split('-');
@@ -568,17 +717,25 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+                    border: Border.all(
+                      color: Theme.of(context).dividerColor.withOpacity(0.2),
+                    ),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF34D399)]),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF10B981), Color(0xFF34D399)],
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.vpn_key_rounded, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.vpn_key_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -594,33 +751,77 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Statut: $label', style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                                    Text(
+                                      'Statut: $label',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge?.color,
+                                      ),
+                                    ),
                                     const SizedBox(height: 6),
                                     Row(
                                       children: [
                                         Expanded(
                                           child: Text(
                                             'Clé: ${_formatKeyForDisplay(st.key ?? '', masked: !showKey)}',
-                                            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium?.color,
+                                            ),
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         IconButton(
-                                          tooltip: showKey ? 'Masquer' : 'Afficher',
+                                          tooltip: showKey
+                                              ? 'Masquer'
+                                              : 'Afficher',
                                           onPressed: () async {
                                             if (!showKey) {
                                               final p = TextEditingController();
                                               final ok = await showDialog<bool>(
                                                 context: context,
                                                 builder: (ctx2) => AlertDialog(
-                                                  title: const Text('Mot de passe SupAdmin'),
-                                                  content: TextField(controller: p, obscureText: true, decoration: const InputDecoration(labelText: 'Mot de passe')),
+                                                  title: const Text(
+                                                    'Mot de passe SupAdmin',
+                                                  ),
+                                                  content: TextField(
+                                                    controller: p,
+                                                    obscureText: true,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          labelText:
+                                                              'Mot de passe',
+                                                        ),
+                                                  ),
                                                   actions: [
-                                                    TextButton(onPressed: () => Navigator.of(ctx2).pop(false), child: const Text('Annuler')),
-                                                    ElevatedButton(onPressed: () async {
-                                                      final valid = await LicenseService.instance.verifySupAdmin(p.text);
-                                                      Navigator.of(ctx2).pop(valid);
-                                                    }, child: const Text('Valider')),
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            ctx2,
+                                                          ).pop(false),
+                                                      child: const Text(
+                                                        'Annuler',
+                                                      ),
+                                                    ),
+                                                    ElevatedButton(
+                                                      onPressed: () async {
+                                                        final valid =
+                                                            await LicenseService
+                                                                .instance
+                                                                .verifySupAdmin(
+                                                                  p.text,
+                                                                );
+                                                        Navigator.of(
+                                                          ctx2,
+                                                        ).pop(valid);
+                                                      },
+                                                      child: const Text(
+                                                        'Valider',
+                                                      ),
+                                                    ),
                                                   ],
                                                 ),
                                               );
@@ -628,31 +829,80 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                                                 setState(() => showKey = true);
                                                 // Arm timeout 2 minutes
                                                 revealTimer?.cancel();
-                                        revealTimer = Timer(const Duration(minutes: 1), () {
-                                                  showKey = false;
-                                                  (context as Element).markNeedsBuild();
-                                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Affichage sensible masqué (timeout)')));
-                                                });
+                                                revealTimer = Timer(
+                                                  const Duration(minutes: 1),
+                                                  () {
+                                                    showKey = false;
+                                                    (context as Element)
+                                                        .markNeedsBuild();
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Affichage sensible masqué (timeout)',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                );
                                               } else {
-                                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mot de passe SupAdmin incorrect')));
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Mot de passe SupAdmin incorrect',
+                                                    ),
+                                                  ),
+                                                );
                                               }
                                             } else {
                                               setState(() => showKey = false);
                                               revealTimer?.cancel();
                                             }
                                           },
-                                          icon: Icon(showKey ? Icons.visibility_off : Icons.visibility, size: 18, color: Theme.of(context).iconTheme.color),
+                                          icon: Icon(
+                                            showKey
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            size: 18,
+                                            color: Theme.of(
+                                              context,
+                                            ).iconTheme.color,
+                                          ),
                                         ),
                                       ],
                                     ),
                                     if (st.registeredAt != null) ...[
                                       const SizedBox(height: 6),
-                                      Text('Enregistrée le: ${fmt(st.registeredAt!)}', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                                      Text(
+                                        'Enregistrée le: ${fmt(st.registeredAt!)}',
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.color,
+                                        ),
+                                      ),
                                     ],
                                     const SizedBox(height: 6),
-                                    Text('Expiration: ${st.expiry != null ? fmt(st.expiry!) : '—'}', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                                    Text(
+                                      'Expiration: ${st.expiry != null ? fmt(st.expiry!) : '—'}',
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
                                     const SizedBox(height: 4),
-                                    Text('Jours restants: ${st.isActive ? days : (st.isExpired ? 0 : '—')}', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                                    Text(
+                                      'Jours restants: ${st.isActive ? days : (st.isExpired ? 0 : '—')}',
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
                                   ],
                                 );
                               },
@@ -663,15 +913,27 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                               builder: (context, snap) {
                                 if (snap.data == true) {
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981).withOpacity(0.12),
+                                      color: const Color(
+                                        0xFF10B981,
+                                      ).withOpacity(0.12),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                                      border: Border.all(
+                                        color: const Color(
+                                          0xFF10B981,
+                                        ).withOpacity(0.3),
+                                      ),
                                     ),
                                     child: const Text(
                                       'Lot de 12 licences consommé — application débloquée',
-                                      style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                                      style: TextStyle(
+                                        color: Color(0xFF10B981),
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   );
                                 }
@@ -682,17 +944,26 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withOpacity(0.3),
+                          ),
                         ),
                         child: Text(
                           'Powered by ACTe',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color?.withOpacity(0.8),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -710,10 +981,15 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                   decoration: InputDecoration(
                     labelText: 'Clé de licence',
                     prefixIcon: const Icon(Icons.vpn_key),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     suffixIcon: IconButton(
                       tooltip: inputReveal ? 'Masquer' : 'Afficher (SupAdmin)',
-                      icon: Icon(inputReveal ? Icons.visibility_off : Icons.visibility, size: 18),
+                      icon: Icon(
+                        inputReveal ? Icons.visibility_off : Icons.visibility,
+                        size: 18,
+                      ),
                       onPressed: () async {
                         if (!inputReveal) {
                           final p = TextEditingController();
@@ -721,13 +997,27 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                             context: context,
                             builder: (ctx2) => AlertDialog(
                               title: const Text('Mot de passe SupAdmin'),
-                              content: TextField(controller: p, obscureText: true, decoration: const InputDecoration(labelText: 'Mot de passe')),
+                              content: TextField(
+                                controller: p,
+                                obscureText: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Mot de passe',
+                                ),
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.of(ctx2).pop(false), child: const Text('Annuler')),
-                                ElevatedButton(onPressed: () async {
-                                  final valid = await LicenseService.instance.verifySupAdmin(p.text);
-                                  Navigator.of(ctx2).pop(valid);
-                                }, child: const Text('Valider')),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(ctx2).pop(false),
+                                  child: const Text('Annuler'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () async {
+                                    final valid = await LicenseService.instance
+                                        .verifySupAdmin(p.text);
+                                    Navigator.of(ctx2).pop(valid);
+                                  },
+                                  child: const Text('Valider'),
+                                ),
                               ],
                             ),
                           );
@@ -737,10 +1027,22 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                             revealTimer = Timer(const Duration(minutes: 1), () {
                               inputReveal = false;
                               (context as Element).markNeedsBuild();
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Affichage sensible masqué (timeout)')));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Affichage sensible masqué (timeout)',
+                                  ),
+                                ),
+                              );
                             });
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mot de passe SupAdmin incorrect')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Mot de passe SupAdmin incorrect',
+                                ),
+                              ),
+                            );
                           }
                         } else {
                           setState(() => inputReveal = false);
@@ -755,20 +1057,30 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                 const SizedBox(height: 12),
                 Text(
                   'La licence est valable 12 mois à partir de la date d\'enregistrement.',
-                  style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8)),
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                  ),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text('Fermer', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                child: Text(
+                  'Fermer',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                ),
               ),
               OutlinedButton.icon(
                 onPressed: () async {
                   final st = await LicenseService.instance.getStatus();
                   final controller = TextEditingController();
-                  String normalize(String s) => s.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+                  String normalize(String s) =>
+                      s.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
                   await showDialog(
                     context: context,
                     builder: (ctx) {
@@ -781,7 +1093,11 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                             children: [
                               Text(
                                 'Pour supprimer la licence, saisissez la clé actuelle pour confirmer.\nLa clé restera marquée comme utilisée.',
-                                style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color,
+                                ),
                               ),
                               const SizedBox(height: 12),
                               TextField(
@@ -789,7 +1105,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                                 decoration: InputDecoration(
                                   labelText: 'Clé de licence',
                                   prefixIcon: const Icon(Icons.vpn_key),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ],
@@ -797,20 +1115,37 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              child: Text('Annuler', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                              child: Text(
+                                'Annuler',
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color,
+                                ),
+                              ),
                             ),
                             ElevatedButton(
                               onPressed: () async {
                                 final input = normalize(controller.text);
                                 final current = normalize(st.key ?? '');
                                 if (input.isEmpty || input != current) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clé de licence incorrecte')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Clé de licence incorrecte',
+                                      ),
+                                    ),
+                                  );
                                   return;
                                 }
                                 Navigator.of(context).pop();
                                 await LicenseService.instance.clearLicense();
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Licence supprimée')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Licence supprimée'),
+                                    ),
+                                  );
                                 }
                                 setState(() {});
                               },
@@ -827,25 +1162,40 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                   );
                 },
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
-                label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                label: const Text(
+                  'Supprimer',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
                   final key = keyController.text.trim();
                   if (key.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez saisir la clé de licence')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Veuillez saisir la clé de licence'),
+                      ),
+                    );
                     return;
                   }
                   try {
                     await LicenseService.instance.saveLicense(key: key);
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.toString().replaceFirst('Exception: ', ''),
+                          ),
+                        ),
+                      );
                     }
                     return;
                   }
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Licence enregistrée')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Licence enregistrée')),
+                    );
                   }
                 },
                 icon: const Icon(Icons.save),
@@ -862,7 +1212,11 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     showDialog(
       context: context,
       builder: (context) {
-        final academicYearController = TextEditingController(text: _academicYearController.text.trim().isNotEmpty ? _academicYearController.text.trim() : _academicYear);
+        final academicYearController = TextEditingController(
+          text: _academicYearController.text.trim().isNotEmpty
+              ? _academicYearController.text.trim()
+              : _academicYear,
+        );
         return StatefulBuilder(
           builder: (context, setState) => CustomDialog(
             title: 'Exporter les statistiques (PDF)',
@@ -870,7 +1224,10 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Année académique', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'Année académique',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: academicYearController,
@@ -885,7 +1242,11 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
             fields: const [],
             onSubmit: () async {
               Navigator.of(context).pop();
-              await _exportStatistics(academicYear: academicYearController.text.trim().isEmpty ? _academicYear : academicYearController.text.trim());
+              await _exportStatistics(
+                academicYear: academicYearController.text.trim().isEmpty
+                    ? _academicYear
+                    : academicYearController.text.trim(),
+              );
             },
             actions: [
               TextButton(
@@ -895,7 +1256,11 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
               ElevatedButton(
                 onPressed: () async {
                   Navigator.of(context).pop();
-                  await _exportStatistics(academicYear: academicYearController.text.trim().isEmpty ? _academicYear : academicYearController.text.trim());
+                  await _exportStatistics(
+                    academicYear: academicYearController.text.trim().isEmpty
+                        ? _academicYear
+                        : academicYearController.text.trim(),
+                  );
                 },
                 child: const Text('Exporter en PDF'),
               ),
@@ -917,7 +1282,10 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       final monthlyEnrollment = await db.getMonthlyEnrollmentData();
       final classDistribution = await db.getClassDistribution();
 
-      final totalRevenue = payments.fold<double>(0.0, (sum, p) => sum + (p.amount));
+      final totalRevenue = payments.fold<double>(
+        0.0,
+        (sum, p) => sum + (p.amount),
+      );
       final bytes = await PdfService.exportStatisticsPdf(
         schoolInfo: info,
         academicYear: academicYear,
@@ -929,11 +1297,17 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         classDistribution: classDistribution,
       );
 
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return;
-      final file = File('$dirPath/statistiques_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final file = File(
+        '$dirPath/statistiques_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
       await file.writeAsBytes(bytes);
-      _showModernSnackBar('Statistiques exportées: ${file.path.split('/').last}');
+      _showModernSnackBar(
+        'Statistiques exportées: ${file.path.split('/').last}',
+      );
     } catch (e) {
       _showModernSnackBar('Erreur export statistiques: $e', isError: true);
     }
@@ -955,15 +1329,24 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-                Text('Que souhaitez-vous exporter ?', style: TextStyle(fontWeight: FontWeight.bold)),
-                ...tables.keys.map((key) => CheckboxListTile(
-                  value: tables[key],
-                  onChanged: (val) => setState(() => tables[key] = val ?? false),
-                  title: Text(key),
-                )),
+              children: [
+                Text(
+                  'Que souhaitez-vous exporter ?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                ...tables.keys.map(
+                  (key) => CheckboxListTile(
+                    value: tables[key],
+                    onChanged: (val) =>
+                        setState(() => tables[key] = val ?? false),
+                    title: Text(key),
+                  ),
+                ),
                 Divider(),
-                Text('Format d\'export', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'Format d\'export',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 RadioListTile<String>(
                   value: 'PDF',
                   groupValue: exportFormat,
@@ -975,7 +1358,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                   groupValue: exportFormat,
                   onChanged: (val) => setState(() => exportFormat = val!),
                   title: Text('CSV'),
-        ),
+                ),
                 RadioListTile<String>(
                   value: 'ZIP',
                   groupValue: exportFormat,
@@ -1014,7 +1397,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         content: Row(
           children: [
             Icon(
-              isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.check_circle_outline_rounded,
               color: Colors.white,
               size: 24,
               semanticLabel: isError ? 'Erreur' : 'Succès',
@@ -1032,7 +1417,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
             ),
           ],
         ),
-        backgroundColor: isError ? const Color(0xFFE53E3E) : const Color(0xFF10B981),
+        backgroundColor: isError
+            ? const Color(0xFFE53E3E)
+            : const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -1042,72 +1429,86 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     );
   }
 
-  Future<bool> _showModernConfirmationDialog(String title, String content) async {
+  Future<bool> _showModernConfirmationDialog(
+    String title,
+    String content,
+  ) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => CustomDialog(
-        title: title,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE53E3E).withOpacity(0.1),
-                shape: BoxShape.circle,
+          context: context,
+          builder: (context) => CustomDialog(
+            title: title,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE53E3E).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.warning_rounded,
+                    size: 40,
+                    color: Color(0xFFE53E3E),
+                    semanticLabel: 'Attention',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  content,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+            fields: const [],
+            onSubmit: () => Navigator.of(context).pop(true),
+            actions: [
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  side: BorderSide(color: Theme.of(context).dividerColor),
+                ),
+                child: const Text(
+                  'Annuler',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
-              child: const Icon(
-                Icons.warning_rounded,
-                size: 40,
-                color: Color(0xFFE53E3E),
-                semanticLabel: 'Attention',
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE53E3E),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Confirmer',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              content,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
-        fields: const [],
-        onSubmit: () => Navigator.of(context).pop(true),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              side: BorderSide(color: Theme.of(context).dividerColor),
-            ),
-            child: const Text(
-              'Annuler',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE53E3E),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Confirmer',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   Widget _buildModernSectionTitle(String title, IconData icon) {
@@ -1117,7 +1518,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.1),
+        ),
       ),
       child: Row(
         children: [
@@ -1164,24 +1567,26 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       opacity: _fadeAnimation,
       child: SlideTransition(
         position: _slideAnimation,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 24),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
-                boxShadow: [
-                  BoxShadow(
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
                 color: Theme.of(context).shadowColor.withOpacity(0.05),
-                    blurRadius: 20,
+                blurRadius: 20,
                 offset: const Offset(0, 8),
-                  ),
-                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               _buildModernSectionTitle(title, icon),
               const SizedBox(height: 16),
               ...children,
@@ -1225,11 +1630,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    prefixIcon,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  child: Icon(prefixIcon, color: Colors.white, size: 20),
                 )
               : null,
           border: OutlineInputBorder(
@@ -1275,8 +1676,12 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
               return Colors.transparent; // Use gradient container
             }),
             foregroundColor: MaterialStateProperty.all(Colors.white),
-            overlayColor: MaterialStateProperty.all(Colors.white.withOpacity(0.1)),
-            shadowColor: MaterialStateProperty.all(gradientStart.withOpacity(0.3)),
+            overlayColor: MaterialStateProperty.all(
+              Colors.white.withOpacity(0.1),
+            ),
+            shadowColor: MaterialStateProperty.all(
+              gradientStart.withOpacity(0.3),
+            ),
             elevation: MaterialStateProperty.resolveWith<double>((states) {
               return states.contains(MaterialState.hovered) ? 4 : 2;
             }),
@@ -1286,7 +1691,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
             padding: MaterialStateProperty.all(
               const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             ),
-            minimumSize: MaterialStateProperty.all(const Size(double.infinity, 56)),
+            minimumSize: MaterialStateProperty.all(
+              const Size(double.infinity, 56),
+            ),
           ),
           child: Container(
             decoration: BoxDecoration(
@@ -1339,7 +1746,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor.withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.2),
+        ),
         boxShadow: [
           BoxShadow(
             color: Theme.of(context).shadowColor.withOpacity(0.05),
@@ -1365,7 +1774,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
               semanticLabel: title,
             ),
           ),
-            const SizedBox(width: 16),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1382,7 +1791,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                   subtitle,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    color: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                   ),
                 ),
               ],
@@ -1406,588 +1817,718 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     final isDesktop = MediaQuery.of(context).size.width > 900;
-    
+
     // Filter sections based on search query
-    final sections = [
-      {
-        'title': 'Informations de l\'établissement',
-        'icon': Icons.account_balance,
-        'children': [
-                _buildModernTextField(
-                  controller: _etablissementController,
-            focusNode: _etablissementFocusNode,
-                  label: 'Nom de l\'établissement',
-                  prefixIcon: Icons.account_balance,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => _codeEtablissementFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _codeEtablissementController,
-            focusNode: _codeEtablissementFocusNode,
-                  label: 'Code établissement',
-                  prefixIcon: Icons.tag,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => _directeurFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _directeurController,
-            focusNode: _directeurFocusNode,
-                  label: 'Nom du directeur/directrice',
-                  prefixIcon: Icons.person,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => _adresseFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _mottoController,
-                  focusNode: _mottoFocusNode,
-                  label: 'Devise de l\'établissement ',
-                  prefixIcon: Icons.format_quote,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _adresseFocusNode.requestFocus(),
-                ),
-                DropdownButtonFormField<String>(
-                  value: _niveauScolaireController.text.isEmpty ? 'Primaire' : _niveauScolaireController.text,
-                  decoration: InputDecoration(
-                    labelText: 'Niveau scolaire',
-              prefixIcon: Container(
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+    final sections =
+        [
+          {
+            'title': 'Informations de l\'établissement',
+            'icon': Icons.account_balance,
+            'children': [
+              _buildModernTextField(
+                controller: _etablissementController,
+                focusNode: _etablissementFocusNode,
+                label: 'Nom de l\'établissement',
+                prefixIcon: Icons.account_balance,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) =>
+                    _codeEtablissementFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _codeEtablissementController,
+                focusNode: _codeEtablissementFocusNode,
+                label: 'Code établissement',
+                prefixIcon: Icons.tag,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _directeurFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _directeurController,
+                focusNode: _directeurFocusNode,
+                label: 'Nom du directeur/directrice',
+                prefixIcon: Icons.person,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _adresseFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _mottoController,
+                focusNode: _mottoFocusNode,
+                label: 'Devise de l\'établissement ',
+                prefixIcon: Icons.format_quote,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _adresseFocusNode.requestFocus(),
+              ),
+              DropdownButtonFormField<String>(
+                value: _niveauScolaireController.text.isEmpty
+                    ? 'Primaire'
+                    : _niveauScolaireController.text,
+                decoration: InputDecoration(
+                  labelText: 'Niveau scolaire',
+                  prefixIcon: Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.school,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.school,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.3)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
-              ),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor.withOpacity(0.5),
-                  ),
-                  items: _niveauxScolaires.map((niveau) {
-                    return DropdownMenuItem(value: niveau, child: Text(niveau));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _niveauScolaireController.text = value ?? 'Primaire';
-                    });
-                  },
-            style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
-                ),
-                const SizedBox(height: 16),
-                _buildModernTextField(
-                  controller: _ministryController,
-                  focusNode: _ministryFocusNode,
-                  label: 'Ministère',
-                  prefixIcon: Icons.account_balance,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _republicFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _republicController,
-                  focusNode: _republicFocusNode,
-                  label: 'République (ex: REPUBLIQUE TOGOLAISE)',
-                  prefixIcon: Icons.flag_circle,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _republicMottoFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _republicMottoController,
-                  focusNode: _republicMottoFocusNode,
-                  label: 'Devise de la République',
-                  prefixIcon: Icons.flag,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _educationDirectionFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _educationDirectionController,
-                  focusNode: _educationDirectionFocusNode,
-                  label: 'Direction de l\'enseignement',
-                  prefixIcon: Icons.school,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _inspectionFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _inspectionController,
-                  focusNode: _inspectionFocusNode,
-                  label: 'Inspection',
-                  prefixIcon: Icons.admin_panel_settings,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _adresseFocusNode.requestFocus(),
-                ),
-                const SizedBox(height: 16),
-                _buildModernTextField(
-                  controller: _adresseController,
-            focusNode: _adresseFocusNode,
-                  label: 'Adresse complète',
-                  prefixIcon: Icons.location_on,
-                  maxLines: 2,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => _telephoneFocusNode.requestFocus(),
-                ),
-              ],
-        'keywords': ['établissement', 'adresse', 'code', 'directeur', 'niveau', 'ministère', 'devise', 'république', 'direction', 'enseignement', 'inspection'],
-      },
-      {
-        'title': 'Informations de contact',
-        'icon': Icons.contact_phone,
-        'children': [
-                _buildModernTextField(
-                  controller: _telephoneController,
-            focusNode: _telephoneFocusNode,
-                  label: 'Téléphone',
-                  prefixIcon: Icons.phone,
-                  keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _emailController,
-            focusNode: _emailFocusNode,
-                  label: 'Email officiel',
-                  prefixIcon: Icons.email,
-                  keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => _siteWebFocusNode.requestFocus(),
-                ),
-                _buildModernTextField(
-                  controller: _siteWebController,
-            focusNode: _siteWebFocusNode,
-                  label: 'Site web',
-                  prefixIcon: Icons.web,
-                  keyboardType: TextInputType.url,
-            textInputAction: TextInputAction.done,
-                ),
-              ],
-        'keywords': ['contact', 'téléphone', 'email', 'site web'],
-      },
-      {
-        'title': 'Paramètres de l\'application',
-        'icon': Icons.settings,
-        'children': [
-                _buildModernSwitch(
-                  title: 'Notifications',
-                  subtitle: 'Recevoir les notifications push',
-                  value: _notificationsEnabled,
-                  icon: Icons.notifications,
-                  onChanged: (value) {
-                    setState(() {
-                      _notificationsEnabled = value;
-                    });
-                  },
-                ),
-                _buildModernSwitch(
-                  title: 'Authentification a double facteur',
-                  subtitle: 'connection à 2 niveau ',
-                  value: _biometricEnabled,
-                  icon: Icons.fingerprint,
-                  onChanged: (value) {
-                    setState(() {
-                      _biometricEnabled = value;
-                    });
-                  },
-                ),
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-              color: Theme.of(context).cardColor.withOpacity(0.8),
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).shadowColor.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
                   ),
-                  child: Row(
-                    children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor.withOpacity(0.3),
                     ),
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
-                    Icons.language,
-                    color: Colors.white,
-                    size: 20,
-                    semanticLabel: 'Langue',
-                  ),
-                ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                      Text(
-                        'Langue',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                      Text(
-                        'Langue de l\'interface',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                        ),
-                      ),
-                          ],
-                        ),
-                      ),
-                      DropdownButton<String>(
-                        value: _selectedLanguage,
-                        underline: const SizedBox(),
-                        items: _languages.map((lang) {
-                          return DropdownMenuItem(value: lang, child: Text(lang));
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedLanguage = value ?? 'Français';
-                          });
-                        },
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Bouton de licence déplacé vers la section "À propos"
-              ],
-        'keywords': ['application', 'notifications', 'biométrique', 'langue'],
-      },
-      {
-        'title': 'Année académique',
-        'icon': Icons.calendar_today,
-        'children': [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).shadowColor.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF6366F1),
+                      width: 2,
                     ),
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
-                    Icons.school_outlined,
-                    color: Colors.white,
-                    size: 20,
-                    semanticLabel: 'Année académique',
-                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).cardColor.withOpacity(0.5),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Année en cours',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                items: _niveauxScolaires.map((niveau) {
+                  return DropdownMenuItem(value: niveau, child: Text(niveau));
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _niveauScolaireController.text = value ?? 'Primaire';
+                  });
+                },
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildModernTextField(
+                controller: _ministryController,
+                focusNode: _ministryFocusNode,
+                label: 'Ministère',
+                prefixIcon: Icons.account_balance,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _republicFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _republicController,
+                focusNode: _republicFocusNode,
+                label: 'République (ex: REPUBLIQUE TOGOLAISE)',
+                prefixIcon: Icons.flag_circle,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _republicMottoFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _republicMottoController,
+                focusNode: _republicMottoFocusNode,
+                label: 'Devise de la République',
+                prefixIcon: Icons.flag,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) =>
+                    _educationDirectionFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _educationDirectionController,
+                focusNode: _educationDirectionFocusNode,
+                label: 'Direction de l\'enseignement',
+                prefixIcon: Icons.school,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _inspectionFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _inspectionController,
+                focusNode: _inspectionFocusNode,
+                label: 'Inspection',
+                prefixIcon: Icons.admin_panel_settings,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _adresseFocusNode.requestFocus(),
+              ),
+              const SizedBox(height: 16),
+              _buildModernTextField(
+                controller: _adresseController,
+                focusNode: _adresseFocusNode,
+                label: 'Adresse complète',
+                prefixIcon: Icons.location_on,
+                maxLines: 2,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _telephoneFocusNode.requestFocus(),
+              ),
+            ],
+            'keywords': [
+              'établissement',
+              'adresse',
+              'code',
+              'directeur',
+              'niveau',
+              'ministère',
+              'devise',
+              'république',
+              'direction',
+              'enseignement',
+              'inspection',
+            ],
+          },
+          {
+            'title': 'Informations de contact',
+            'icon': Icons.contact_phone,
+            'children': [
+              _buildModernTextField(
+                controller: _telephoneController,
+                focusNode: _telephoneFocusNode,
+                label: 'Téléphone',
+                prefixIcon: Icons.phone,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _emailController,
+                focusNode: _emailFocusNode,
+                label: 'Email officiel',
+                prefixIcon: Icons.email,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _siteWebFocusNode.requestFocus(),
+              ),
+              _buildModernTextField(
+                controller: _siteWebController,
+                focusNode: _siteWebFocusNode,
+                label: 'Site web',
+                prefixIcon: Icons.web,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.done,
+              ),
+            ],
+            'keywords': ['contact', 'téléphone', 'email', 'site web'],
+          },
+          {
+            'title': 'Paramètres de l\'application',
+            'icon': Icons.settings,
+            'children': [
+              _buildModernSwitch(
+                title: 'Notifications',
+                subtitle: 'Recevoir les notifications push',
+                value: _notificationsEnabled,
+                icon: Icons.notifications,
+                onChanged: (value) {
+                  setState(() {
+                    _notificationsEnabled = value;
+                  });
+                },
+              ),
+              _buildModernSwitch(
+                title: 'Authentification a double facteur',
+                subtitle: 'connection à 2 niveau ',
+                value: _biometricEnabled,
+                icon: Icons.fingerprint,
+                onChanged: (value) {
+                  setState(() {
+                    _biometricEnabled = value;
+                  });
+                },
+              ),
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.2),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).shadowColor.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                         ),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      if (_availableYears.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text('Années disponibles', style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _availableYears.map((y) {
-                            final selected = y == _academicYear;
-                            return ChoiceChip(
-                              label: Text(y),
-                              selected: selected,
-                              onSelected: (_) => _applyAcademicYear(y),
-                              selectedColor: const Color(0xFF6366F1).withOpacity(0.15),
-                              labelStyle: TextStyle(
-                                color: selected ? const Color(0xFF6366F1) : Theme.of(context).textTheme.bodyMedium?.color,
-                                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _academicYearController,
-                        decoration: const InputDecoration(
-                          labelText: 'Année scolaire',
-                          hintText: 'ex: 2024-2025',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF6366F1),
-                        ),
-                        onChanged: (val) {
-                          setState(() {
-                            _academicYear = val;
-                          });
-                        },
+                      child: const Icon(
+                        Icons.language,
+                        color: Colors.white,
+                        size: 20,
+                        semanticLabel: 'Langue',
                       ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 8,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final year = _academicYearController.text.trim();
-                              if (year.isEmpty) {
-                                _showModernSnackBar('Veuillez saisir une année académique.', isError: true);
-                                return;
-                              }
-                              await DatabaseService().archiveReportCardsForYear(year);
-                              _showModernSnackBar('Tous les bulletins et notes de l\'année $year ont été archivés.');
-                            },
-                            icon: const Icon(Icons.archive),
-                            label: const Text('Archiver toute l\'année'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6366F1),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          Text(
+                            'Langue',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color,
                             ),
                           ),
-                          OutlinedButton.icon(
-                            onPressed: _promptAddYear,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Ajouter une année'),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              final year = _academicYearController.text.trim().isNotEmpty ? _academicYearController.text.trim() : _academicYear;
-                              _applyAcademicYear(year);
-                            },
-                            icon: const Icon(Icons.check_circle_outline),
-                            label: const Text('Définir comme actuelle'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          Text(
+                            'Langue de l\'interface',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        'keywords': ['année', 'académique'],
-      },
-      {
-        'title': 'Gestion des données',
-        'icon': Icons.storage,
-        'children': [
-          _buildModernActionButton(
-                  label: 'Sauvegarder la base de données',
-                  icon: Icons.backup,
-                  onPressed: () => _backupDatabase(context),
-            gradientStart: const Color(0xFF3B82F6),
-            gradientEnd: const Color(0xFF60A5FA),
-            tooltip: 'Créer une sauvegarde de la base de données',
-                ),
-          _buildModernActionButton(
-                  label: 'Restaurer la base de données',
-                  icon: Icons.restore,
-                  onPressed: () => _restoreDatabase(context),
-            gradientStart: const Color(0xFFF59E0B),
-            gradientEnd: const Color(0xFFFBBF24),
-            tooltip: 'Restaurer une sauvegarde précédente',
-                ),
-          _buildModernActionButton(
-                  label: 'Exporter les données',
-                  icon: Icons.file_download,
-            onPressed: _showExportDialog,
-            gradientStart: const Color(0xFF10B981),
-            gradientEnd: const Color(0xFF34D399),
-            tooltip: 'Exporter toutes les données',
-                ),
-          _buildModernActionButton(
-            label: 'Exporter les statistiques (PDF)',
-            icon: Icons.insights,
-            onPressed: _showExportStatisticsDialog,
-            gradientStart: const Color(0xFF0EA5E9),
-            gradientEnd: const Color(0xFF38BDF8),
-            tooltip: 'Télécharger les statistiques en PDF',
-          ),
-              ],
-        'keywords': ['données', 'sauvegarde', 'restauration', 'export'],
-      },
-      // {
-      //   'title': 'Sécurité',
-      //   'icon': Icons.security,
-      //   'children': [
-      //     _buildModernActionButton(
-      //             label: 'Changer le mot de passe administrateur',
-      //             icon: Icons.lock_reset,
-      //             onPressed: () {
-      //         _showModernSnackBar('Changement de mot de passe bientôt disponible.', isError: true);
-      //             },
-      //       gradientStart: const Color(0xFF7C3AED),
-      //       gradientEnd: const Color(0xFF9F7AEA),
-      //       tooltip: 'Modifier le mot de passe admin (bientôt disponible)',
-      //           ),
-      //     _buildModernActionButton(
-      //             label: 'Gestion des utilisateurs',
-      //             icon: Icons.admin_panel_settings,
-      //             onPressed: () {
-      //               Navigator.of(context).push(
-      //                 MaterialPageRoute(builder: (_) => const UsersManagementPage()),
-      //               );
-      //             },
-      //       gradientStart: const Color(0xFF1E40AF),
-      //       gradientEnd: const Color(0xFF3B82F6),
-      //       tooltip: 'Créer / supprimer des comptes, activer 2FA',
-      //           ),
-      //         ],
-      //   'keywords': ['sécurité', 'mot de passe', 'permissions'],
-      // },
-      {
-        'title': 'À propos',
-        'icon': Icons.info,
-        'children': [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).shadowColor.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.school, size: 48, color: Colors.white),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'École Management System',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.titleLarge?.color),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Text('© 2025  Cabinet ACTe', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7))),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildAboutInfoRow(Icons.tag, 'Version', '1.0.0 (100)'),
-                _buildAboutInfoRow(Icons.apartment, 'Éditeur', 'cabinet ACTe'),
-                _buildAboutInfoRow(Icons.language, 'Site web', 'https://www.cabinetacte.com'),
-                _buildAboutInfoRow(Icons.email_outlined, 'Email support', 'cabinetactetg@gmail.com'),
-                _buildAboutInfoRow(Icons.phone, 'Téléphone', '+228 92 21 75 64 / +228 90 57 9946'),
-                _buildAboutInfoRow(Icons.verified_user, 'Licence', 'Propriétaire'),
-                _buildAboutInfoRow(Icons.privacy_tip_outlined, 'Confidentialité', 'Voir la politique'),
-                _buildAboutInfoRow(Icons.rule_folder_outlined, "Conditions d'utilisation", 'Voir les conditions'),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        const url = 'https://www.cabinetacte.com';
-                        Clipboard.setData(const ClipboardData(text: url));
-                        _showModernSnackBar('Lien du site copié dans le presse-papiers');
-                      },
-                      icon: const Icon(Icons.open_in_new),
-                      label: const Text('Visiter le site'),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        const email = 'cabinetactetg@gmail.com';
-                        Clipboard.setData(const ClipboardData(text: email));
-                        _showModernSnackBar('Adresse support copiée');
+                    DropdownButton<String>(
+                      value: _selectedLanguage,
+                      underline: const SizedBox(),
+                      items: _languages.map((lang) {
+                        return DropdownMenuItem(value: lang, child: Text(lang));
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedLanguage = value ?? 'Français';
+                        });
                       },
-                      icon: const Icon(Icons.support_agent),
-                      label: const Text('Contacter le support'),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _showLicenseDialog,
-                      icon: const Icon(Icons.vpn_key_rounded),
-                      label: const Text('Voir la licence'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0EA5E9),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
-        'keywords': ['à propos', 'version', 'école', 'support', 'licence'],
-      },
-    ].where((section) {
-      if (_searchQuery.isEmpty) return true;
-      final query = _searchQuery.toLowerCase();
-      return section['title'].toString().toLowerCase().contains(query) ||
-          (section['keywords'] as List<String>).any((keyword) => keyword.toLowerCase().contains(query));
-    }).toList();
+              ),
+              // Bouton de licence déplacé vers la section "À propos"
+            ],
+            'keywords': [
+              'application',
+              'notifications',
+              'biométrique',
+              'langue',
+            ],
+          },
+          {
+            'title': 'Année académique',
+            'icon': Icons.calendar_today,
+            'children': [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.2),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).shadowColor.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.school_outlined,
+                        color: Colors.white,
+                        size: 20,
+                        semanticLabel: 'Année académique',
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Année en cours',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.color,
+                            ),
+                          ),
+                          if (_availableYears.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Années disponibles',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _availableYears.map((y) {
+                                final selected = y == _academicYear;
+                                return ChoiceChip(
+                                  label: Text(y),
+                                  selected: selected,
+                                  onSelected: (_) => _applyAcademicYear(y),
+                                  selectedColor: const Color(
+                                    0xFF6366F1,
+                                  ).withOpacity(0.15),
+                                  labelStyle: TextStyle(
+                                    color: selected
+                                        ? const Color(0xFF6366F1)
+                                        : Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.color,
+                                    fontWeight: selected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _academicYearController,
+                            decoration: const InputDecoration(
+                              labelText: 'Année scolaire',
+                              hintText: 'ex: 2024-2025',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF6366F1),
+                            ),
+                            onChanged: (val) {
+                              setState(() {
+                                _academicYear = val;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 8,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  final year = _academicYearController.text
+                                      .trim();
+                                  if (year.isEmpty) {
+                                    _showModernSnackBar(
+                                      'Veuillez saisir une année académique.',
+                                      isError: true,
+                                    );
+                                    return;
+                                  }
+                                  await DatabaseService()
+                                      .archiveReportCardsForYear(year);
+                                  _showModernSnackBar(
+                                    'Tous les bulletins et notes de l\'année $year ont été archivés.',
+                                  );
+                                },
+                                icon: const Icon(Icons.archive),
+                                label: const Text('Archiver toute l\'année'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF6366F1),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _promptAddYear,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Ajouter une année'),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  final year =
+                                      _academicYearController.text
+                                          .trim()
+                                          .isNotEmpty
+                                      ? _academicYearController.text.trim()
+                                      : _academicYear;
+                                  _applyAcademicYear(year);
+                                },
+                                icon: const Icon(Icons.check_circle_outline),
+                                label: const Text('Définir comme actuelle'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            'keywords': ['année', 'académique'],
+          },
+          {
+            'title': 'Gestion des données',
+            'icon': Icons.storage,
+            'children': [
+              _buildModernActionButton(
+                label: 'Sauvegarder la base de données',
+                icon: Icons.backup,
+                onPressed: () => _backupDatabase(context),
+                gradientStart: const Color(0xFF3B82F6),
+                gradientEnd: const Color(0xFF60A5FA),
+                tooltip: 'Créer une sauvegarde de la base de données',
+              ),
+              _buildModernActionButton(
+                label: 'Restaurer la base de données',
+                icon: Icons.restore,
+                onPressed: () => _restoreDatabase(context),
+                gradientStart: const Color(0xFFF59E0B),
+                gradientEnd: const Color(0xFFFBBF24),
+                tooltip: 'Restaurer une sauvegarde précédente',
+              ),
+              _buildModernActionButton(
+                label: 'Exporter les données',
+                icon: Icons.file_download,
+                onPressed: _showExportDialog,
+                gradientStart: const Color(0xFF10B981),
+                gradientEnd: const Color(0xFF34D399),
+                tooltip: 'Exporter toutes les données',
+              ),
+              _buildModernActionButton(
+                label: 'Exporter les statistiques (PDF)',
+                icon: Icons.insights,
+                onPressed: _showExportStatisticsDialog,
+                gradientStart: const Color(0xFF0EA5E9),
+                gradientEnd: const Color(0xFF38BDF8),
+                tooltip: 'Télécharger les statistiques en PDF',
+              ),
+            ],
+            'keywords': ['données', 'sauvegarde', 'restauration', 'export'],
+          },
+          // {
+          //   'title': 'Sécurité',
+          //   'icon': Icons.security,
+          //   'children': [
+          //     _buildModernActionButton(
+          //             label: 'Changer le mot de passe administrateur',
+          //             icon: Icons.lock_reset,
+          //             onPressed: () {
+          //         _showModernSnackBar('Changement de mot de passe bientôt disponible.', isError: true);
+          //             },
+          //       gradientStart: const Color(0xFF7C3AED),
+          //       gradientEnd: const Color(0xFF9F7AEA),
+          //       tooltip: 'Modifier le mot de passe admin (bientôt disponible)',
+          //           ),
+          //     _buildModernActionButton(
+          //             label: 'Gestion des utilisateurs',
+          //             icon: Icons.admin_panel_settings,
+          //             onPressed: () {
+          //               Navigator.of(context).push(
+          //                 MaterialPageRoute(builder: (_) => const UsersManagementPage()),
+          //               );
+          //             },
+          //       gradientStart: const Color(0xFF1E40AF),
+          //       gradientEnd: const Color(0xFF3B82F6),
+          //       tooltip: 'Créer / supprimer des comptes, activer 2FA',
+          //           ),
+          //         ],
+          //   'keywords': ['sécurité', 'mot de passe', 'permissions'],
+          // },
+          {
+            'title': 'À propos',
+            'icon': Icons.info,
+            'children': [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withOpacity(0.2),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).shadowColor.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.school,
+                              size: 48,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'École Management System',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.titleLarge?.color,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '© 2025  Cabinet ACTe',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildAboutInfoRow(Icons.tag, 'Version', '1.0.0 (100)'),
+                    _buildAboutInfoRow(
+                      Icons.apartment,
+                      'Éditeur',
+                      'cabinet ACTe',
+                    ),
+                    _buildAboutInfoRow(
+                      Icons.language,
+                      'Site web',
+                      'https://www.cabinetacte.com',
+                    ),
+                    _buildAboutInfoRow(
+                      Icons.email_outlined,
+                      'Email support',
+                      'cabinetactetg@gmail.com',
+                    ),
+                    _buildAboutInfoRow(
+                      Icons.phone,
+                      'Téléphone',
+                      '+228 92 21 75 64 / +228 90 57 9946',
+                    ),
+                    _buildAboutInfoRow(
+                      Icons.verified_user,
+                      'Licence',
+                      'Propriétaire',
+                    ),
+                    _buildAboutInfoRow(
+                      Icons.privacy_tip_outlined,
+                      'Confidentialité',
+                      'Voir la politique',
+                    ),
+                    _buildAboutInfoRow(
+                      Icons.rule_folder_outlined,
+                      "Conditions d'utilisation",
+                      'Voir les conditions',
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            const url = 'https://www.cabinetacte.com';
+                            Clipboard.setData(const ClipboardData(text: url));
+                            _showModernSnackBar(
+                              'Lien du site copié dans le presse-papiers',
+                            );
+                          },
+                          icon: const Icon(Icons.open_in_new),
+                          label: const Text('Visiter le site'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            const email = 'cabinetactetg@gmail.com';
+                            Clipboard.setData(const ClipboardData(text: email));
+                            _showModernSnackBar('Adresse support copiée');
+                          },
+                          icon: const Icon(Icons.support_agent),
+                          label: const Text('Contacter le support'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _showLicenseDialog,
+                          icon: const Icon(Icons.vpn_key_rounded),
+                          label: const Text('Voir la licence'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0EA5E9),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            'keywords': ['à propos', 'version', 'école', 'support', 'licence'],
+          },
+        ].where((section) {
+          if (_searchQuery.isEmpty) return true;
+          final query = _searchQuery.toLowerCase();
+          return section['title'].toString().toLowerCase().contains(query) ||
+              (section['keywords'] as List<String>).any(
+                (keyword) => keyword.toLowerCase().contains(query),
+              );
+        }).toList();
 
     // Build sections and place "À propos" at the very bottom
-    final aboutSectionIndex = sections.indexWhere((s) => s['title'] == 'À propos');
+    final aboutSectionIndex = sections.indexWhere(
+      (s) => s['title'] == 'À propos',
+    );
     Map<String, dynamic>? aboutSection;
     if (aboutSectionIndex != -1) {
       aboutSection = sections[aboutSectionIndex];
@@ -2033,10 +2574,16 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                           decoration: BoxDecoration(
                             color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withOpacity(0.1),
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                color: Theme.of(context).shadowColor.withOpacity(0.05),
+                                color: Theme.of(
+                                  context,
+                                ).shadowColor.withOpacity(0.05),
                                 blurRadius: 20,
                                 offset: const Offset(0, 8),
                               ),
@@ -2052,23 +2599,37 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     gradient: const LinearGradient(
-                                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                      colors: [
+                                        Color(0xFF6366F1),
+                                        Color(0xFF8B5CF6),
+                                      ],
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                                        color: const Color(
+                                          0xFF6366F1,
+                                        ).withOpacity(0.3),
                                         blurRadius: 20,
                                         offset: const Offset(0, 10),
                                       ),
                                     ],
                                   ),
-                                  child: _logoPath != null && File(_logoPath!).existsSync()
-                                      ? ClipOval(child: Image.file(File(_logoPath!), key: ValueKey(_logoPath), fit: BoxFit.cover))
+                                  child:
+                                      _logoPath != null &&
+                                          File(_logoPath!).existsSync()
+                                      ? ClipOval(
+                                          child: Image.file(
+                                            File(_logoPath!),
+                                            key: ValueKey(_logoPath),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
                                       : const Icon(
                                           Icons.school,
                                           color: Colors.white,
                                           size: 60,
-                                          semanticLabel: 'Logo de l\'établissement',
+                                          semanticLabel:
+                                              'Logo de l\'établissement',
                                         ),
                                 ),
                               ),
@@ -2078,38 +2639,73 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).textTheme.titleMedium?.color,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium?.color,
                                 ),
                               ),
                               Text(
                                 'Touchez pour modifier',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color
+                                      ?.withOpacity(0.7),
                                 ),
                               ),
-                              if (_logoPath != null && File(_logoPath!).existsSync())
+                              if (_logoPath != null &&
+                                  File(_logoPath!).existsSync())
                                 TextButton.icon(
                                   onPressed: () async {
                                     final confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (ctx) => AlertDialog(
-                                        backgroundColor: Theme.of(context).cardColor,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).cardColor,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
                                         title: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: const [
-                                            Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
+                                            Icon(
+                                              Icons.warning_amber_rounded,
+                                              color: Color(0xFFE11D48),
+                                            ),
                                             SizedBox(width: 8),
-                                            Text('Supprimer le logo ?', style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.bold)),
+                                            Text(
+                                              'Supprimer le logo ?',
+                                              style: TextStyle(
+                                                color: Color(0xFFE11D48),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ],
                                         ),
-                                        content: const Text('Cette action est irréversible.'),
+                                        content: const Text(
+                                          'Cette action est irréversible.',
+                                        ),
                                         actions: [
-                                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Annuler'),
+                                          ),
                                           ElevatedButton(
-                                            onPressed: () => Navigator.pop(ctx, true),
-                                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(
+                                                0xFFE11D48,
+                                              ),
+                                              foregroundColor: Colors.white,
+                                            ),
                                             child: const Text('Supprimer'),
                                           ),
                                         ],
@@ -2119,19 +2715,27 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                                       await _removeLogo();
                                     }
                                   },
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  label: const Text('Supprimer le logo', style: TextStyle(color: Colors.red)),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  label: const Text(
+                                    'Supprimer le logo',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
                                 ),
                             ],
                           ),
                         ),
                       ),
                       // Settings sections (without "À propos")
-                      ...sections.map((section) => _buildModernSectionCard(
-                            title: section['title'] as String,
-                            icon: section['icon'] as IconData,
-                            children: section['children'] as List<Widget>,
-                          )),
+                      ...sections.map(
+                        (section) => _buildModernSectionCard(
+                          title: section['title'] as String,
+                          icon: section['icon'] as IconData,
+                          children: section['children'] as List<Widget>,
+                        ),
+                      ),
                       // Save button
                       _buildModernActionButton(
                         label: 'Enregistrer les modifications',
@@ -2210,7 +2814,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                         'Configurez les informations de l\'établissement et les préférences de l\'application.',
                         style: TextStyle(
                           fontSize: isDesktop ? 16 : 14,
-                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.7,
+                          ),
                           height: 1.5,
                         ),
                       ),
@@ -2246,7 +2852,9 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
             decoration: InputDecoration(
               hintText: 'Rechercher un paramètre...',
               prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
             ),
             onChanged: (value) => setState(() => _searchQuery = value.trim()),
@@ -2264,19 +2872,32 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     }
   }
 
-  Widget _buildAboutInfoRow(IconData icon, String label, String value, {VoidCallback? onTap}) {
+  Widget _buildAboutInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    VoidCallback? onTap,
+  }) {
     final color = Theme.of(context).textTheme.bodyMedium?.color;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: Colors.white, size: 18),
       ),
-      title: Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyLarge?.color)),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+        ),
+      ),
       subtitle: Text(value, style: TextStyle(color: color)),
       onTap: onTap,
       dense: true,

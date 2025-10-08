@@ -6,7 +6,11 @@ import 'package:school_manager/services/auth_service.dart';
 class TwoFactorPage extends StatefulWidget {
   final String username;
   final VoidCallback onSuccess;
-  const TwoFactorPage({super.key, required this.username, required this.onSuccess});
+  const TwoFactorPage({
+    super.key,
+    required this.username,
+    required this.onSuccess,
+  });
 
   @override
   State<TwoFactorPage> createState() => _TwoFactorPageState();
@@ -27,7 +31,9 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
     _controllers = List.generate(_digits, (_) => TextEditingController());
     _nodes = List.generate(_digits, (_) => FocusNode());
     // Autofocus first box slightly later
-    WidgetsBinding.instance.addPostFrameCallback((_) => _nodes.first.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _nodes.first.requestFocus(),
+    );
     _secondsLeft = _computeSecondsLeft();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       final left = _computeSecondsLeft();
@@ -62,7 +68,10 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
       _isVerifying = true;
       _error = null;
     });
-    final ok = await AuthService.instance.verifyTotpCode(widget.username, _collectCode());
+    final ok = await AuthService.instance.verifyTotpCode(
+      widget.username,
+      _collectCode(),
+    );
     setState(() => _isVerifying = false);
     if (!mounted) return;
     if (ok) {
@@ -118,8 +127,16 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [const Color(0xFF1E293B), const Color(0xFF334155), const Color(0xFF475569)]
-                : [const Color(0xFF6366F1), const Color(0xFF8B5CF6), const Color(0xFFEC4899)],
+                ? [
+                    const Color(0xFF1E293B),
+                    const Color(0xFF334155),
+                    const Color(0xFF475569),
+                  ]
+                : [
+                    const Color(0xFF6366F1),
+                    const Color(0xFF8B5CF6),
+                    const Color(0xFFEC4899),
+                  ],
           ),
         ),
         child: Stack(
@@ -154,7 +171,9 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
                 child: Card(
                   elevation: 24,
                   shadowColor: Colors.black.withOpacity(0.3),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(24),
@@ -175,21 +194,41 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                              ),
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
-                                BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.3), blurRadius: 18, offset: const Offset(0, 8)),
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF6366F1,
+                                  ).withOpacity(0.3),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
+                                ),
                               ],
                             ),
-                            child: const Icon(Icons.verified_user, color: Colors.white, size: 36),
+                            child: const Icon(
+                              Icons.verified_user,
+                              color: Colors.white,
+                              size: 36,
+                            ),
                           ),
                           const SizedBox(height: 16),
-                          Text('Vérification 2FA', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                          Text(
+                            'Vérification 2FA',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             'Entrez le code à 6 chiffres de votre application d\'authentification.',
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8)),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.textTheme.bodyMedium?.color
+                                  ?.withOpacity(0.8),
+                            ),
                           ),
                           const SizedBox(height: 20),
                           Row(
@@ -201,8 +240,11 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
                             alignment: Alignment.centerRight,
                             child: TextButton.icon(
                               onPressed: () async {
-                                final data = await Clipboard.getData('text/plain');
-                                if (data?.text != null) _handlePaste(data!.text!);
+                                final data = await Clipboard.getData(
+                                  'text/plain',
+                                );
+                                if (data?.text != null)
+                                  _handlePaste(data!.text!);
                               },
                               icon: const Icon(Icons.paste, size: 16),
                               label: const Text('Coller le code'),
@@ -210,13 +252,17 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
                           ),
                           if (_error != null) ...[
                             const SizedBox(height: 8),
-                            Text(_error!, style: const TextStyle(color: Colors.red)),
+                            Text(
+                              _error!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
                           ],
                           const SizedBox(height: 16),
                           Text(
                             'Nouveau code dans $_secondsLeft s',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.textTheme.bodySmall?.color?.withOpacity(0.85),
+                              color: theme.textTheme.bodySmall?.color
+                                  ?.withOpacity(0.85),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -228,23 +274,31 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
                               child: LinearProgressIndicator(
                                 minHeight: 6,
                                 value: (30 - _secondsLeft) / 30.0,
-                                backgroundColor: theme.dividerColor.withOpacity(0.3),
-                                valueColor: const AlwaysStoppedAnimation(Color(0xFF6366F1)),
+                                backgroundColor: theme.dividerColor.withOpacity(
+                                  0.3,
+                                ),
+                                valueColor: const AlwaysStoppedAnimation(
+                                  Color(0xFF6366F1),
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 8),
                           Shortcuts(
                             shortcuts: <LogicalKeySet, Intent>{
-                              LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
-                              LogicalKeySet(LogicalKeyboardKey.numpadEnter): const ActivateIntent(),
+                              LogicalKeySet(LogicalKeyboardKey.enter):
+                                  const ActivateIntent(),
+                              LogicalKeySet(LogicalKeyboardKey.numpadEnter):
+                                  const ActivateIntent(),
                             },
                             child: Actions(
                               actions: <Type, Action<Intent>>{
-                                ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (intent) {
-                                  if (!_isVerifying) _verify();
-                                  return null;
-                                }),
+                                ActivateIntent: CallbackAction<ActivateIntent>(
+                                  onInvoke: (intent) {
+                                    if (!_isVerifying) _verify();
+                                    return null;
+                                  },
+                                ),
                               },
                               child: Focus(
                                 autofocus: true,
@@ -253,10 +307,16 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
                                   child: ElevatedButton.icon(
                                     onPressed: _isVerifying ? null : _verify,
                                     icon: const Icon(Icons.lock_open),
-                                    label: _isVerifying ? const Text('Vérification...') : const Text('Vérifier'),
+                                    label: _isVerifying
+                                        ? const Text('Vérification...')
+                                        : const Text('Vérifier'),
                                     style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -266,7 +326,10 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
                           const SizedBox(height: 8),
                           Text(
                             'Besoin d\'aide ? Contactez votre administrateur.',
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.8)),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.textTheme.bodySmall?.color
+                                  ?.withOpacity(0.8),
+                            ),
                           ),
                         ],
                       ),

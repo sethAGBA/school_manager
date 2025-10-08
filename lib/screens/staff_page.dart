@@ -33,7 +33,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
   String _selectedTab = 'Tout le Personnel';
   String _searchQuery = '';
   String _selectedRoleTab = 'Tout le Personnel';
-  final List<String> _roleTabs = ['Tout le Personnel', 'Personnel Enseignant', 'Personnel Administratif'];
+  final List<String> _roleTabs = [
+    'Tout le Personnel',
+    'Personnel Enseignant',
+    'Personnel Administratif',
+  ];
 
   final DatabaseService _dbService = DatabaseService();
   List<Staff> _staffList = [];
@@ -41,7 +45,7 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
   List<Course> _allCourses = [];
   int _currentPage = 0;
   static const int _rowsPerPage = 7;
-  
+
   @override
   void initState() {
     super.initState();
@@ -52,9 +56,13 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _animationController.forward();
     _searchFocusNode = FocusNode();
     _searchController.addListener(() {
@@ -95,14 +103,14 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     final isDesktop = MediaQuery.of(context).size.width > 900;
-    final isTablet = MediaQuery.of(context).size.width > 600 && MediaQuery.of(context).size.width <= 900;
+    final isTablet =
+        MediaQuery.of(context).size.width > 600 &&
+        MediaQuery.of(context).size.width <= 900;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Container(
-          decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-        ),
+        decoration: BoxDecoration(color: theme.scaffoldBackgroundColor),
         child: SafeArea(
           child: Column(
             children: [
@@ -116,12 +124,20 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                     ElevatedButton.icon(
                       onPressed: _showAddCourseDialog,
                       icon: Icon(Icons.add, color: Colors.white),
-                      label: Text('Ajouter un cours', style: TextStyle(color: Colors.white)),
+                      label: Text(
+                        'Ajouter un cours',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0xFF6366F1),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                     SizedBox(width: 16),
@@ -132,8 +148,13 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                     SizedBox(width: 16),
@@ -144,8 +165,13 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ],
@@ -194,9 +220,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // To push notification icon to the end
+            mainAxisAlignment: MainAxisAlignment
+                .spaceBetween, // To push notification icon to the end
             children: [
-              Row( // This inner Row contains the icon, title, and description
+              Row(
+                // This inner Row contains the icon, title, and description
                 children: [
                   Container(
                     padding: EdgeInsets.all(12),
@@ -213,7 +241,8 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                     ),
                   ),
                   SizedBox(width: 16),
-                  Column( // Title and description
+                  Column(
+                    // Title and description
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -221,7 +250,10 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                         style: TextStyle(
                           fontSize: isDesktop ? 32 : 24,
                           fontWeight: FontWeight.bold,
-                          color: theme.textTheme.bodyLarge?.color, // Use bodyLarge for title
+                          color: theme
+                              .textTheme
+                              .bodyLarge
+                              ?.color, // Use bodyLarge for title
                           letterSpacing: 1.2,
                         ),
                       ),
@@ -230,7 +262,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                         'Gérez le personnel enseignant et administratif, assignez les cours et surveillez la présence.',
                         style: TextStyle(
                           fontSize: isDesktop ? 16 : 14,
-                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7), // Use bodyMedium for description
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.7,
+                          ), // Use bodyMedium for description
                           height: 1.5,
                         ),
                       ),
@@ -266,9 +300,13 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
             focusNode: _searchFocusNode,
             decoration: InputDecoration(
               hintText: 'Rechercher par nom ou ID du personnel...',
-              hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6)),
+              hintStyle: TextStyle(
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+              ),
               prefixIcon: Icon(Icons.search, color: theme.iconTheme.color),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
             ),
             onChanged: (value) => setState(() => _searchQuery = value.trim()),
@@ -279,7 +317,12 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStaffTable(BuildContext context, bool isDesktop, bool isTablet, ThemeData theme) {
+  Widget _buildStaffTable(
+    BuildContext context,
+    bool isDesktop,
+    bool isTablet,
+    ThemeData theme,
+  ) {
     final filtered = _staffList.where((staff) {
       final query = _searchQuery;
       final tab = _selectedRoleTab;
@@ -290,7 +333,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         matchRole = staff.typeRole == 'Administration';
       }
       if (query.isEmpty) return matchRole;
-      return matchRole && (staff.name.toLowerCase().contains(query) || staff.id.toLowerCase().contains(query));
+      return matchRole &&
+          (staff.name.toLowerCase().contains(query) ||
+              staff.id.toLowerCase().contains(query));
     }).toList();
     final totalPages = (filtered.length / _rowsPerPage).ceil();
     final start = _currentPage * _rowsPerPage;
@@ -304,7 +349,8 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
               children: [
                 if (isDesktop) _buildDesktopTable(paginated, theme),
                 if (isTablet) _buildTabletTable(paginated, theme),
-                if (!isDesktop && !isTablet) _buildMobileCards(paginated, theme),
+                if (!isDesktop && !isTablet)
+                  _buildMobileCards(paginated, theme),
               ],
             ),
           ),
@@ -317,12 +363,16 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
               children: [
                 IconButton(
                   icon: Icon(Icons.chevron_left),
-                  onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                  onPressed: _currentPage > 0
+                      ? () => setState(() => _currentPage--)
+                      : null,
                 ),
                 Text('Page ${_currentPage + 1} / $totalPages'),
                 IconButton(
                   icon: Icon(Icons.chevron_right),
-                  onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
+                  onPressed: _currentPage < totalPages - 1
+                      ? () => setState(() => _currentPage++)
+                      : null,
                 ),
               ],
             ),
@@ -336,94 +386,179 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
       scrollDirection: Axis.horizontal,
       child: ConstrainedBox(
         constraints: BoxConstraints(minWidth: 1100),
-      child: DataTable(
-          headingRowColor: MaterialStateProperty.all(Color(0xFF6366F1).withOpacity(0.08)),
-        dataRowColor: MaterialStateProperty.all(Colors.transparent),
-        columns: [
-          DataColumn(
-              label: Text('Nom', style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
+        child: DataTable(
+          headingRowColor: MaterialStateProperty.all(
+            Color(0xFF6366F1).withOpacity(0.08),
           ),
-          DataColumn(
-              label: Text('Rôle', style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
-          ),
-          DataColumn(
-              label: Text('Classes', style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
-          ),
-          DataColumn(
-              label: Text('Cours', style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
-          ),
-          DataColumn(
-              label: Text('Actions', style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
-          ),
-        ],
-        rows: staffData.map((staff) {
-          return DataRow(
-            cells: [
-                DataCell(Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Color(0xFF6366F1),
-                      backgroundImage: staff.photoPath != null && staff.photoPath!.isNotEmpty
-                          ? FileImage(File(staff.photoPath!))
-                          : null,
-                      child: staff.photoPath == null || staff.photoPath!.isEmpty
-                          ? Text(
-                              _getInitials(staff.name),
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+          dataRowColor: MaterialStateProperty.all(Colors.transparent),
+          columns: [
+            DataColumn(
+              label: Text(
+                'Nom',
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Rôle',
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Classes',
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Cours',
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Actions',
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+          rows: staffData.map((staff) {
+            return DataRow(
+              cells: [
+                DataCell(
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Color(0xFF6366F1),
+                        backgroundImage:
+                            staff.photoPath != null &&
+                                staff.photoPath!.isNotEmpty
+                            ? FileImage(File(staff.photoPath!))
+                            : null,
+                        child:
+                            staff.photoPath == null || staff.photoPath!.isEmpty
+                            ? Text(
+                                _getInitials(staff.name),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              )
+                            : null,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        staff.name,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                DataCell(
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF6366F1).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      staff.role,
+                      style: TextStyle(
+                        color: Color(0xFF6366F1),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: 180,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Wrap(
+                        spacing: 6,
+                        children: staff.classes
+                            .map(
+                              (c) => Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF6366F1).withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  c,
+                                  style: TextStyle(
+                                    color: Color(0xFF6366F1),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
                             )
-                          : null,
-                    ),
-                    SizedBox(width: 8),
-                    Text(staff.name, style: TextStyle(color: theme.textTheme.bodyLarge?.color)),
-                  ],
-                )),
-                DataCell(Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF6366F1).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(staff.role, style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold, fontSize: 13)),
-                )),
-                DataCell(SizedBox(
-                  width: 180,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Wrap(
-                      spacing: 6,
-                      children: staff.classes.map((c) => Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Color(0xFF6366F1).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(c, style: TextStyle(color: Color(0xFF6366F1), fontSize: 12)),
-                      )).toList(),
+                            .toList(),
+                      ),
                     ),
                   ),
-                )),
-                DataCell(SizedBox(
-                  width: 180,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Wrap(
-                      spacing: 6,
-                      children: staff.courses.map((c) => Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Color(0xFF6366F1).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(c, style: TextStyle(color: Color(0xFF6366F1), fontSize: 12)),
-                      )).toList(),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: 180,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Wrap(
+                        spacing: 6,
+                        children: staff.courses
+                            .map(
+                              (c) => Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF6366F1).withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  c,
+                                  style: TextStyle(
+                                    color: Color(0xFF6366F1),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
                     ),
                   ),
-                )),
+                ),
                 DataCell(_buildActionsMenu(staff)),
-            ],
-          );
-        }).toList(),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );
@@ -451,13 +586,31 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(staff.name, style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
-                    Text(staff.role, style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 12)),
+                    Text(
+                      staff.name,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      staff.role,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
               Expanded(
-                child: Text(staff.department, style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 12)),
+                child: Text(
+                  staff.department,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyMedium?.color,
+                    fontSize: 12,
+                  ),
+                ),
               ),
               _buildStatusChip(staff.status),
               SizedBox(width: 8),
@@ -487,18 +640,31 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
             leading: CircleAvatar(
               radius: 25,
               backgroundColor: Color(0xFF6366F1),
-              backgroundImage: staff.photoPath != null && staff.photoPath!.isNotEmpty
+              backgroundImage:
+                  staff.photoPath != null && staff.photoPath!.isNotEmpty
                   ? FileImage(File(staff.photoPath!))
                   : null,
               child: staff.photoPath == null || staff.photoPath!.isEmpty
                   ? Text(
                       _getInitials(staff.name),
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     )
                   : null,
             ),
-            title: Text(staff.name, style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.bold)),
-            subtitle: Text(staff.role, style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+            title: Text(
+              staff.name,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              staff.role,
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            ),
             trailing: _buildStatusChip(staff.status),
             children: [
               Padding(
@@ -506,7 +672,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                 child: Column(
                   children: [
                     _buildInfoRow('Département', staff.department, theme),
-                    _buildInfoRow('Cours Assignés', staff.courses.join(', '), theme),
+                    _buildInfoRow(
+                      'Cours Assignés',
+                      staff.courses.join(', '),
+                      theme,
+                    ),
                     SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -543,7 +713,10 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
             width: 120,
             child: Text(
               '$label:',
-              style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Color(0xFF6366F1),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           Expanded(
@@ -588,12 +761,12 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
           Icon(icon, size: 16, color: Colors.white, semanticLabel: status),
           const SizedBox(width: 4),
           Text(
-        status,
+            status,
             style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -608,9 +781,7 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.cyan,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
@@ -629,13 +800,21 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
             context: context,
             builder: (context) => AlertDialog(
               backgroundColor: Theme.of(context).cardColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
                   Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
                   SizedBox(width: 8),
-                  Text('Supprimer ce membre ?', style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.bold)),
+                  Text(
+                    'Supprimer ce membre ?',
+                    style: TextStyle(
+                      color: Color(0xFFE11D48),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               content: Column(
@@ -653,7 +832,10 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                 ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(true),
                   child: const Text('Supprimer'),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE11D48),
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -677,7 +859,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Erreur lors de la suppression : ${e.toString()}'),
+                    content: Text(
+                      'Erreur lors de la suppression : ${e.toString()}',
+                    ),
                     backgroundColor: Colors.red,
                     duration: Duration(seconds: 5),
                   ),
@@ -691,7 +875,10 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         PopupMenuItem(value: 'details', child: Text('Détails')),
         PopupMenuItem(value: 'edit', child: Text('Modifier')),
         PopupMenuItem(value: 'export', child: Text('Exporter')),
-        PopupMenuItem(value: 'delete', child: Text('Supprimer', style: TextStyle(color: Colors.red))),
+        PopupMenuItem(
+          value: 'delete',
+          child: Text('Supprimer', style: TextStyle(color: Colors.red)),
+        ),
       ],
       icon: Icon(Icons.more_vert, color: Color(0xFF6366F1)),
     );
@@ -710,7 +897,10 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
           children: [
             Icon(Icons.book, color: Color(0xFF6366F1)),
             SizedBox(width: 8),
-            Text('Ajouter un cours', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Ajouter un cours',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Form(
@@ -722,12 +912,13 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                 controller: nameController,
                 labelText: 'Nom du cours',
                 hintText: 'Ex: Mathématiques',
-                validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Champ requis' : null,
               ),
               CustomFormField(
                 controller: descController,
                 labelText: 'Description (optionnelle)',
-                hintText: 'Ex: Cours de base, avancé...'
+                hintText: 'Ex: Cours de base, avancé...',
               ),
             ],
           ),
@@ -743,7 +934,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                 final name = nameController.text.trim();
                 final desc = descController.text.trim();
                 if (_allCourses.where((c) => c.name == name).isEmpty) {
-                  final course = Course(id: const Uuid().v4(), name: name, description: desc.isNotEmpty ? desc : null);
+                  final course = Course(
+                    id: const Uuid().v4(),
+                    name: name,
+                    description: desc.isNotEmpty ? desc : null,
+                  );
                   await _dbService.insertCourse(course);
                   await _loadCourses();
                   Navigator.of(context).pop();
@@ -753,7 +948,12 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                     builder: (ctx) => AlertDialog(
                       title: const Text('Succès'),
                       content: const Text('Cours ajouté !'),
-                      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('OK'),
+                        ),
+                      ],
                     ),
                   );
                 } else {
@@ -762,13 +962,21 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                     builder: (ctx) => AlertDialog(
                       title: const Text('Information'),
                       content: const Text('Ce cours existe déjà.'),
-                      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('OK'),
+                        ),
+                      ],
                     ),
                   );
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF6366F1), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+            ),
             child: Text('Ajouter'),
           ),
         ],
@@ -779,12 +987,16 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
   void _showAddEditStaffDialog(Staff? staff) async {
     final isEdit = staff != null;
     final _formKey = GlobalKey<FormState>();
-    
+
     // Controllers pour les informations personnelles
     final nameController = TextEditingController(text: staff?.name ?? '');
-    final firstNameController = TextEditingController(text: staff?.firstName ?? '');
-    final lastNameController = TextEditingController(text: staff?.lastName ?? '');
-    
+    final firstNameController = TextEditingController(
+      text: staff?.firstName ?? '',
+    );
+    final lastNameController = TextEditingController(
+      text: staff?.lastName ?? '',
+    );
+
     // Fonction pour mettre à jour le nom complet automatiquement
     void updateFullName() {
       final firstName = firstNameController.text.trim();
@@ -799,42 +1011,79 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         nameController.text = '';
       }
     }
-    
+
     // Ajouter des listeners pour la mise à jour automatique
     firstNameController.addListener(updateFullName);
     lastNameController.addListener(updateFullName);
-    
+
     // Initialiser le nom complet si on est en mode édition
     if (isEdit && staff != null) {
       updateFullName();
     }
     final phoneController = TextEditingController(text: staff?.phone ?? '');
     final emailController = TextEditingController(text: staff?.email ?? '');
-    final birthPlaceController = TextEditingController(text: staff?.birthPlace ?? '');
-    final nationalityController = TextEditingController(text: staff?.nationality ?? '');
+    final birthPlaceController = TextEditingController(
+      text: staff?.birthPlace ?? '',
+    );
+    final nationalityController = TextEditingController(
+      text: staff?.nationality ?? '',
+    );
     final addressController = TextEditingController(text: staff?.address ?? '');
-    
+
     // Controllers pour les informations administratives
-    final matriculeController = TextEditingController(text: staff?.matricule ?? '');
-    final idNumberController = TextEditingController(text: staff?.idNumber ?? '');
-    final socialSecurityController = TextEditingController(text: staff?.socialSecurityNumber ?? '');
-    final numberOfChildrenController = TextEditingController(text: staff?.numberOfChildren?.toString() ?? '');
-    
+    final matriculeController = TextEditingController(
+      text: staff?.matricule ?? '',
+    );
+    final idNumberController = TextEditingController(
+      text: staff?.idNumber ?? '',
+    );
+    final socialSecurityController = TextEditingController(
+      text: staff?.socialSecurityNumber ?? '',
+    );
+    final numberOfChildrenController = TextEditingController(
+      text: staff?.numberOfChildren?.toString() ?? '',
+    );
+
     // Controllers pour les informations professionnelles
     String? selectedRole = staff?.typeRole ?? null;
-    final roleDescriptionController = TextEditingController(text: staff != null && staff.role != 'Professeur' && staff.role != 'Administration' ? staff.role : '');
-    final departmentController = TextEditingController(text: staff?.department ?? '');
-    final highestDegreeController = TextEditingController(text: staff?.highestDegree ?? '');
-    final specialtyController = TextEditingController(text: staff?.specialty ?? '');
-    final experienceYearsController = TextEditingController(text: staff?.experienceYears?.toString() ?? '');
-    final previousInstitutionController = TextEditingController(text: staff?.previousInstitution ?? '');
-    final qualificationsController = TextEditingController(text: staff?.qualifications ?? '');
-    
+    final roleDescriptionController = TextEditingController(
+      text:
+          staff != null &&
+              staff.role != 'Professeur' &&
+              staff.role != 'Administration'
+          ? staff.role
+          : '',
+    );
+    final departmentController = TextEditingController(
+      text: staff?.department ?? '',
+    );
+    final highestDegreeController = TextEditingController(
+      text: staff?.highestDegree ?? '',
+    );
+    final specialtyController = TextEditingController(
+      text: staff?.specialty ?? '',
+    );
+    final experienceYearsController = TextEditingController(
+      text: staff?.experienceYears?.toString() ?? '',
+    );
+    final previousInstitutionController = TextEditingController(
+      text: staff?.previousInstitution ?? '',
+    );
+    final qualificationsController = TextEditingController(
+      text: staff?.qualifications ?? '',
+    );
+
     // Controllers pour les informations contractuelles
-    final baseSalaryController = TextEditingController(text: staff?.baseSalary?.toString() ?? '');
-    final weeklyHoursController = TextEditingController(text: staff?.weeklyHours?.toString() ?? '');
-    final supervisorController = TextEditingController(text: staff?.supervisor ?? '');
-    
+    final baseSalaryController = TextEditingController(
+      text: staff?.baseSalary?.toString() ?? '',
+    );
+    final weeklyHoursController = TextEditingController(
+      text: staff?.weeklyHours?.toString() ?? '',
+    );
+    final supervisorController = TextEditingController(
+      text: staff?.supervisor ?? '',
+    );
+
     // Variables d'état
     String? gender = staff?.gender;
     DateTime? birthDate = staff?.birthDate;
@@ -845,7 +1094,7 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     DateTime? retirementDate = staff?.retirementDate;
     String? photoPath = staff?.photoPath;
     List<String> documents = List<String>.from(staff?.documents ?? []);
-    
+
     final statusList = ['Actif', 'En congé', 'Inactif'];
     String status = staff?.status ?? 'Actif';
     DateTime hireDate = staff?.hireDate ?? DateTime.now();
@@ -854,86 +1103,144 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     List<Course> allCourses = List<Course>.from(_allCourses);
     List<String> allClasses = [];
     bool loadingClasses = true;
-    final roleList = ['Professeur', 'Instituteur', 'Surveillant', 'Administration'];
+    final roleList = [
+      'Professeur',
+      'Instituteur',
+      'Surveillant',
+      'Administration',
+    ];
     final genderList = ['Masculin', 'Féminin'];
-    final maritalStatusList = ['Célibataire', 'Marié(e)', 'Divorcé(e)', 'Veuf/Veuve'];
+    final maritalStatusList = [
+      'Célibataire',
+      'Marié(e)',
+      'Divorcé(e)',
+      'Veuf/Veuve',
+    ];
     final regionList = ['Kara', 'Maritime', 'Plateaux', 'Centrale', 'Savanes'];
     final contractTypeList = ['CDI', 'CDD', 'Vacataire', 'Permanent'];
-    final levelList = ['Maternelle', 'CP', 'CE1', 'CE2', 'CM1', 'CM2', '6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Tle'];
+    final levelList = [
+      'Maternelle',
+      'CP',
+      'CE1',
+      'CE2',
+      'CM1',
+      'CM2',
+      '6ème',
+      '5ème',
+      '4ème',
+      '3ème',
+      '2nde',
+      '1ère',
+      'Tle',
+    ];
     Future<void> doSubmit() async {
       if (_formKey.currentState!.validate()) {
         try {
           final newStaff = Staff(
-          id: staff?.id ?? const Uuid().v4(),
-          name: nameController.text.trim(),
-          role: roleDescriptionController.text.trim(),
-          typeRole: selectedRole ?? 'Administration',
-          department: departmentController.text.trim(),
-          phone: phoneController.text.trim(),
-          email: emailController.text.trim(),
-          qualifications: qualificationsController.text.trim(),
-          courses: selectedCourses,
-          classes: selectedClasses,
-          status: status,
-          hireDate: hireDate,
-          // Informations personnelles
-          firstName: firstNameController.text.trim().isNotEmpty ? firstNameController.text.trim() : null,
-          lastName: lastNameController.text.trim().isNotEmpty ? lastNameController.text.trim() : null,
-          gender: gender,
-          birthDate: birthDate,
-          birthPlace: birthPlaceController.text.trim().isNotEmpty ? birthPlaceController.text.trim() : null,
-          nationality: nationalityController.text.trim().isNotEmpty ? nationalityController.text.trim() : null,
-          address: addressController.text.trim().isNotEmpty ? addressController.text.trim() : null,
-          photoPath: photoPath,
-          // Informations administratives
-          matricule: matriculeController.text.trim().isNotEmpty ? matriculeController.text.trim() : null,
-          idNumber: idNumberController.text.trim().isNotEmpty ? idNumberController.text.trim() : null,
-          socialSecurityNumber: socialSecurityController.text.trim().isNotEmpty ? socialSecurityController.text.trim() : null,
-          maritalStatus: maritalStatus,
-          numberOfChildren: numberOfChildrenController.text.trim().isNotEmpty ? int.tryParse(numberOfChildrenController.text.trim()) : null,
-          // Informations professionnelles
-          region: region,
-          levels: selectedLevels.isNotEmpty ? selectedLevels : null,
-          highestDegree: highestDegreeController.text.trim().isNotEmpty ? highestDegreeController.text.trim() : null,
-          specialty: specialtyController.text.trim().isNotEmpty ? specialtyController.text.trim() : null,
-          experienceYears: experienceYearsController.text.trim().isNotEmpty ? int.tryParse(experienceYearsController.text.trim()) : null,
-          previousInstitution: previousInstitutionController.text.trim().isNotEmpty ? previousInstitutionController.text.trim() : null,
-          // Informations contractuelles
-          contractType: contractType,
-          baseSalary: baseSalaryController.text.trim().isNotEmpty ? double.tryParse(baseSalaryController.text.trim()) : null,
-          weeklyHours: weeklyHoursController.text.trim().isNotEmpty ? int.tryParse(weeklyHoursController.text.trim()) : null,
-          supervisor: supervisorController.text.trim().isNotEmpty ? supervisorController.text.trim() : null,
-          retirementDate: retirementDate,
-          // Documents
-          documents: documents.isNotEmpty ? documents : null,
-        );
-        if (isEdit) {
-          await _dbService.updateStaff(newStaff.id, newStaff);
-          // Notification de succès pour la modification
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Personnel modifié avec succès !'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 3),
-              ),
-            );
+            id: staff?.id ?? const Uuid().v4(),
+            name: nameController.text.trim(),
+            role: roleDescriptionController.text.trim(),
+            typeRole: selectedRole ?? 'Administration',
+            department: departmentController.text.trim(),
+            phone: phoneController.text.trim(),
+            email: emailController.text.trim(),
+            qualifications: qualificationsController.text.trim(),
+            courses: selectedCourses,
+            classes: selectedClasses,
+            status: status,
+            hireDate: hireDate,
+            // Informations personnelles
+            firstName: firstNameController.text.trim().isNotEmpty
+                ? firstNameController.text.trim()
+                : null,
+            lastName: lastNameController.text.trim().isNotEmpty
+                ? lastNameController.text.trim()
+                : null,
+            gender: gender,
+            birthDate: birthDate,
+            birthPlace: birthPlaceController.text.trim().isNotEmpty
+                ? birthPlaceController.text.trim()
+                : null,
+            nationality: nationalityController.text.trim().isNotEmpty
+                ? nationalityController.text.trim()
+                : null,
+            address: addressController.text.trim().isNotEmpty
+                ? addressController.text.trim()
+                : null,
+            photoPath: photoPath,
+            // Informations administratives
+            matricule: matriculeController.text.trim().isNotEmpty
+                ? matriculeController.text.trim()
+                : null,
+            idNumber: idNumberController.text.trim().isNotEmpty
+                ? idNumberController.text.trim()
+                : null,
+            socialSecurityNumber:
+                socialSecurityController.text.trim().isNotEmpty
+                ? socialSecurityController.text.trim()
+                : null,
+            maritalStatus: maritalStatus,
+            numberOfChildren: numberOfChildrenController.text.trim().isNotEmpty
+                ? int.tryParse(numberOfChildrenController.text.trim())
+                : null,
+            // Informations professionnelles
+            region: region,
+            levels: selectedLevels.isNotEmpty ? selectedLevels : null,
+            highestDegree: highestDegreeController.text.trim().isNotEmpty
+                ? highestDegreeController.text.trim()
+                : null,
+            specialty: specialtyController.text.trim().isNotEmpty
+                ? specialtyController.text.trim()
+                : null,
+            experienceYears: experienceYearsController.text.trim().isNotEmpty
+                ? int.tryParse(experienceYearsController.text.trim())
+                : null,
+            previousInstitution:
+                previousInstitutionController.text.trim().isNotEmpty
+                ? previousInstitutionController.text.trim()
+                : null,
+            // Informations contractuelles
+            contractType: contractType,
+            baseSalary: baseSalaryController.text.trim().isNotEmpty
+                ? double.tryParse(baseSalaryController.text.trim())
+                : null,
+            weeklyHours: weeklyHoursController.text.trim().isNotEmpty
+                ? int.tryParse(weeklyHoursController.text.trim())
+                : null,
+            supervisor: supervisorController.text.trim().isNotEmpty
+                ? supervisorController.text.trim()
+                : null,
+            retirementDate: retirementDate,
+            // Documents
+            documents: documents.isNotEmpty ? documents : null,
+          );
+          if (isEdit) {
+            await _dbService.updateStaff(newStaff.id, newStaff);
+            // Notification de succès pour la modification
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Personnel modifié avec succès !'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          } else {
+            await _dbService.insertStaff(newStaff);
+            // Notification de succès pour l'ajout
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Personnel ajouté avec succès !'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
           }
-        } else {
-          await _dbService.insertStaff(newStaff);
-          // Notification de succès pour l'ajout
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Personnel ajouté avec succès !'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        }
-        await _loadStaff();
-        if (context.mounted) Navigator.of(context).pop();
+          await _loadStaff();
+          if (context.mounted) Navigator.of(context).pop();
         } catch (e) {
           // Notification d'erreur
           if (context.mounted) {
@@ -977,39 +1284,62 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                         decoration: BoxDecoration(
                           color: Color(0xFF6366F1).withOpacity(0.05),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Color(0xFF6366F1).withOpacity(0.2)),
+                          border: Border.all(
+                            color: Color(0xFF6366F1).withOpacity(0.2),
+                          ),
                         ),
                         child: Row(
                           children: [
                             // Photo upload section
                             GestureDetector(
-                              onTap: () => _showPhotoPicker(setState, photoPath, (newPath) => setState(() => photoPath = newPath)),
+                              onTap: () => _showPhotoPicker(
+                                setState,
+                                photoPath,
+                                (newPath) =>
+                                    setState(() => photoPath = newPath),
+                              ),
                               child: Container(
                                 width: 80,
                                 height: 80,
                                 decoration: BoxDecoration(
                                   color: Color(0xFF6366F1).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(40),
-                                  border: Border.all(color: Color(0xFF6366F1), width: 2),
+                                  border: Border.all(
+                                    color: Color(0xFF6366F1),
+                                    width: 2,
+                                  ),
                                 ),
-              child: photoPath != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(40),
-                      child: Image.file(
-                        File(photoPath!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Icon(
-                          Icons.person,
-                          size: 40,
-                          color: Color(0xFF6366F1),
-                        ),
-                      ),
-                    )
+                                child: photoPath != null
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(40),
+                                        child: Image.file(
+                                          File(photoPath!),
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Icon(
+                                                    Icons.person,
+                                                    size: 40,
+                                                    color: Color(0xFF6366F1),
+                                                  ),
+                                        ),
+                                      )
                                     : Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.camera_alt, color: Color(0xFF6366F1), size: 24),
-                                          Text('Photo', style: TextStyle(color: Color(0xFF6366F1), fontSize: 10)),
+                                          Icon(
+                                            Icons.camera_alt,
+                                            color: Color(0xFF6366F1),
+                                            size: 24,
+                                          ),
+                                          Text(
+                                            'Photo',
+                                            style: TextStyle(
+                                              color: Color(0xFF6366F1),
+                                              fontSize: 10,
+                                            ),
+                                          ),
                                         ],
                                       ),
                               ),
@@ -1021,14 +1351,16 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                 controller: nameController,
                                 labelText: 'Nom complet',
                                 hintText: 'Entrez le nom complet',
-                                validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                                validator: (v) => v == null || v.isEmpty
+                                    ? 'Champ requis'
+                                    : null,
                               ),
                             ),
                           ],
                         ),
                       ),
                       SizedBox(height: 20),
-                      
+
                       // Section 1: Informations personnelles
                       Container(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -1071,7 +1403,8 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   labelText: 'Sexe',
                                   dropdownItems: genderList,
                                   dropdownValue: gender,
-                                  onDropdownChanged: (val) => setState(() => gender = val),
+                                  onDropdownChanged: (val) =>
+                                      setState(() => gender = val),
                                 ),
                               ),
                               SizedBox(width: 12),
@@ -1084,12 +1417,17 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                       firstDate: DateTime(1950),
                                       lastDate: DateTime.now(),
                                     );
-                                    if (picked != null) setState(() => birthDate = picked);
+                                    if (picked != null)
+                                      setState(() => birthDate = picked);
                                   },
                                   child: AbsorbPointer(
                                     child: CustomFormField(
                                       controller: TextEditingController(
-                                        text: birthDate != null ? DateFormat('dd/MM/yyyy').format(birthDate!) : '',
+                                        text: birthDate != null
+                                            ? DateFormat(
+                                                'dd/MM/yyyy',
+                                              ).format(birthDate!)
+                                            : '',
                                       ),
                                       labelText: 'Date de naissance',
                                       hintText: 'Sélectionnez la date',
@@ -1135,7 +1473,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   controller: phoneController,
                                   labelText: 'Téléphone',
                                   hintText: 'Ex: +228 90 00 00 00',
-                                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                                  validator: (v) => v == null || v.isEmpty
+                                      ? 'Champ requis'
+                                      : null,
                                 ),
                               ),
                               SizedBox(width: 12),
@@ -1145,8 +1485,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   labelText: 'Email',
                                   hintText: 'exemple@ecole.fr',
                                   validator: (v) {
-                                    if (v == null || v.isEmpty) return 'Champ requis';
-                                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)) {
+                                    if (v == null || v.isEmpty)
+                                      return 'Champ requis';
+                                    if (!RegExp(
+                                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                    ).hasMatch(v)) {
                                       return 'Email invalide';
                                     }
                                     return null;
@@ -1158,7 +1501,7 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                         ],
                       ),
                       SizedBox(height: 20),
-                      
+
                       // Section 2: Informations administratives
                       Container(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -1209,7 +1552,8 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   labelText: 'Situation matrimoniale',
                                   dropdownItems: maritalStatusList,
                                   dropdownValue: maritalStatus,
-                                  onDropdownChanged: (val) => setState(() => maritalStatus = val),
+                                  onDropdownChanged: (val) =>
+                                      setState(() => maritalStatus = val),
                                 ),
                               ),
                             ],
@@ -1223,7 +1567,7 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                         ],
                       ),
                       SizedBox(height: 20),
-                      
+
                       // Section 3: Informations professionnelles
                       Container(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -1246,8 +1590,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   labelText: 'Poste occupé',
                                   dropdownItems: roleList,
                                   dropdownValue: selectedRole,
-                                  onDropdownChanged: (val) => setState(() => selectedRole = val),
-                                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                                  onDropdownChanged: (val) =>
+                                      setState(() => selectedRole = val),
+                                  validator: (v) => v == null || v.isEmpty
+                                      ? 'Champ requis'
+                                      : null,
                                 ),
                               ),
                               SizedBox(width: 12),
@@ -1257,7 +1604,8 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   labelText: 'Région d\'affectation',
                                   dropdownItems: regionList,
                                   dropdownValue: region,
-                                  onDropdownChanged: (val) => setState(() => region = val),
+                                  onDropdownChanged: (val) =>
+                                      setState(() => region = val),
                                 ),
                               ),
                             ],
@@ -1268,28 +1616,36 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                               controller: roleDescriptionController,
                               labelText: 'Professeur de…',
                               hintText: 'Ex: Professeur de Sciences',
-                              validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                              validator: (v) => v == null || v.isEmpty
+                                  ? 'Champ requis'
+                                  : null,
                             ),
                           if (selectedRole == 'Instituteur')
                             CustomFormField(
                               controller: roleDescriptionController,
                               labelText: 'Instituteur de…',
                               hintText: 'Ex: Instituteur de CM2',
-                              validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                              validator: (v) => v == null || v.isEmpty
+                                  ? 'Champ requis'
+                                  : null,
                             ),
                           if (selectedRole == 'Surveillant')
                             CustomFormField(
                               controller: roleDescriptionController,
                               labelText: 'Surveillant de…',
                               hintText: 'Ex: Surveillant général',
-                              validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                              validator: (v) => v == null || v.isEmpty
+                                  ? 'Champ requis'
+                                  : null,
                             ),
                           if (selectedRole == 'Administration')
                             CustomFormField(
                               controller: roleDescriptionController,
                               labelText: 'Fonction administrative',
                               hintText: 'Ex: Directeur, Secrétaire, Comptable…',
-                              validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                              validator: (v) => v == null || v.isEmpty
+                                  ? 'Champ requis'
+                                  : null,
                             ),
                           SizedBox(height: 12),
                           CustomFormField(
@@ -1298,23 +1654,30 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                             hintText: 'Ex: Mathématiques, Sciences Physiques',
                           ),
                           SizedBox(height: 12),
-                          Text('Niveau(x) enseigné(s)', style: TextStyle(fontWeight: FontWeight.w500)),
+                          Text(
+                            'Niveau(x) enseigné(s)',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
                           SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
-                            children: levelList.map((level) => FilterChip(
-                              label: Text(level),
-                              selected: selectedLevels.contains(level),
-                              onSelected: (selected) {
-                                setState(() {
-                                  if (selected) {
-                                    selectedLevels.add(level);
-                                  } else {
-                                    selectedLevels.remove(level);
-                                  }
-                                });
-                              },
-                            )).toList(),
+                            children: levelList
+                                .map(
+                                  (level) => FilterChip(
+                                    label: Text(level),
+                                    selected: selectedLevels.contains(level),
+                                    onSelected: (selected) {
+                                      setState(() {
+                                        if (selected) {
+                                          selectedLevels.add(level);
+                                        } else {
+                                          selectedLevels.remove(level);
+                                        }
+                                      });
+                                    },
+                                  ),
+                                )
+                                .toList(),
                           ),
                           SizedBox(height: 12),
                           Row(
@@ -1342,7 +1705,8 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                               Expanded(
                                 child: CustomFormField(
                                   controller: experienceYearsController,
-                                  labelText: 'Expérience professionnelle (années)',
+                                  labelText:
+                                      'Expérience professionnelle (années)',
                                   hintText: 'Ex: 5',
                                 ),
                               ),
@@ -1365,7 +1729,7 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                         ],
                       ),
                       SizedBox(height: 20),
-                      
+
                       // Section 4: Informations contractuelles
                       Container(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -1388,7 +1752,8 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   labelText: 'Statut',
                                   dropdownItems: statusList,
                                   dropdownValue: status,
-                                  onDropdownChanged: (val) => setState(() => status = val ?? 'Actif'),
+                                  onDropdownChanged: (val) =>
+                                      setState(() => status = val ?? 'Actif'),
                                 ),
                               ),
                               SizedBox(width: 12),
@@ -1398,7 +1763,8 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   labelText: 'Type de contrat',
                                   dropdownItems: contractTypeList,
                                   dropdownValue: contractType,
-                                  onDropdownChanged: (val) => setState(() => contractType = val),
+                                  onDropdownChanged: (val) =>
+                                      setState(() => contractType = val),
                                 ),
                               ),
                             ],
@@ -1415,11 +1781,16 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                       firstDate: DateTime(1980),
                                       lastDate: DateTime.now(),
                                     );
-                                    if (picked != null) setState(() => hireDate = picked);
+                                    if (picked != null)
+                                      setState(() => hireDate = picked);
                                   },
                                   child: AbsorbPointer(
                                     child: CustomFormField(
-                                      controller: TextEditingController(text: DateFormat('dd/MM/yyyy').format(hireDate)),
+                                      controller: TextEditingController(
+                                        text: DateFormat(
+                                          'dd/MM/yyyy',
+                                        ).format(hireDate),
+                                      ),
                                       labelText: "Date d'embauche",
                                       hintText: 'Sélectionnez la date',
                                       readOnly: true,
@@ -1434,16 +1805,22 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                                   onTap: () async {
                                     final picked = await showDatePicker(
                                       context: context,
-                                      initialDate: retirementDate ?? DateTime(2030),
+                                      initialDate:
+                                          retirementDate ?? DateTime(2030),
                                       firstDate: DateTime.now(),
                                       lastDate: DateTime(2050),
                                     );
-                                    if (picked != null) setState(() => retirementDate = picked);
+                                    if (picked != null)
+                                      setState(() => retirementDate = picked);
                                   },
                                   child: AbsorbPointer(
                                     child: CustomFormField(
                                       controller: TextEditingController(
-                                        text: retirementDate != null ? DateFormat('dd/MM/yyyy').format(retirementDate!) : '',
+                                        text: retirementDate != null
+                                            ? DateFormat(
+                                                'dd/MM/yyyy',
+                                              ).format(retirementDate!)
+                                            : '',
                                       ),
                                       labelText: 'Date de départ à la retraite',
                                       hintText: 'Prévisionnelle',
@@ -1484,7 +1861,7 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                         ],
                       ),
                       SizedBox(height: 20),
-                      
+
                       // Section 5: Documents
                       Container(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -1499,34 +1876,42 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                       ),
                       Column(
                         children: [
-                          Text('Documents à joindre', style: TextStyle(fontWeight: FontWeight.w500)),
+                          Text(
+                            'Documents à joindre',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
                           SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
-                            children: [
-                              'Copie pièce d\'identité',
-                              'Diplômes / Attestations',
-                              'CV',
-                              'Photo d\'identité',
-                              'Certificat médical',
-                            ].map((doc) => FilterChip(
-                              label: Text(doc),
-                              selected: documents.contains(doc),
-                              onSelected: (selected) {
-                                setState(() {
-                                  if (selected) {
-                                    documents.add(doc);
-                                  } else {
-                                    documents.remove(doc);
-                                  }
-                                });
-                              },
-                            )).toList(),
+                            children:
+                                [
+                                      'Copie pièce d\'identité',
+                                      'Diplômes / Attestations',
+                                      'CV',
+                                      'Photo d\'identité',
+                                      'Certificat médical',
+                                    ]
+                                    .map(
+                                      (doc) => FilterChip(
+                                        label: Text(doc),
+                                        selected: documents.contains(doc),
+                                        onSelected: (selected) {
+                                          setState(() {
+                                            if (selected) {
+                                              documents.add(doc);
+                                            } else {
+                                              documents.remove(doc);
+                                            }
+                                          });
+                                        },
+                                      ),
+                                    )
+                                    .toList(),
                           ),
                         ],
                       ),
                       SizedBox(height: 20),
-                      
+
                       // Section 6: Cours et Classes
                       Container(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -1541,53 +1926,82 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                       ),
                       Column(
                         children: [
-                          Text('Cours assignés', style: TextStyle(fontWeight: FontWeight.w500)),
+                          Text(
+                            'Cours assignés',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
                           SizedBox(height: 8),
                           SizedBox(
                             height: 40,
                             child: ListView(
                               scrollDirection: Axis.horizontal,
-                              children: allCourses.map((course) => Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text(course.name),
-                                  selected: selectedCourses.contains(course.name),
-                                  onSelected: (selected) {
-                                    setState(() {
-                                      if (selected) {
-                                        selectedCourses.add(course.name);
-                                      } else {
-                                        selectedCourses.remove(course.name);
-                                      }
-                                    });
-                                  },
-                                  selectedColor: Color(0xFF6366F1),
-                                  labelStyle: TextStyle(color: selectedCourses.contains(course.name) ? Colors.white : Color(0xFF6366F1)),
-                                  backgroundColor: Color(0xFF6366F1).withOpacity(0.08),
-                                ),
-                              )).toList(),
+                              children: allCourses
+                                  .map(
+                                    (course) => Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: ChoiceChip(
+                                        label: Text(course.name),
+                                        selected: selectedCourses.contains(
+                                          course.name,
+                                        ),
+                                        onSelected: (selected) {
+                                          setState(() {
+                                            if (selected) {
+                                              selectedCourses.add(course.name);
+                                            } else {
+                                              selectedCourses.remove(
+                                                course.name,
+                                              );
+                                            }
+                                          });
+                                        },
+                                        selectedColor: Color(0xFF6366F1),
+                                        labelStyle: TextStyle(
+                                          color:
+                                              selectedCourses.contains(
+                                                course.name,
+                                              )
+                                              ? Colors.white
+                                              : Color(0xFF6366F1),
+                                        ),
+                                        backgroundColor: Color(
+                                          0xFF6366F1,
+                                        ).withOpacity(0.08),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                           ),
                           SizedBox(height: 16),
-                          Text('Classes assignées', style: TextStyle(fontWeight: FontWeight.w500)),
+                          Text(
+                            'Classes assignées',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
                           SizedBox(height: 8),
                           loadingClasses
                               ? Center(child: CircularProgressIndicator())
                               : Wrap(
                                   spacing: 8,
-                                  children: allClasses.map((cls) => FilterChip(
-                                    label: Text(cls),
-                                    selected: selectedClasses.contains(cls),
-                                    onSelected: (selected) {
-                                      setState(() {
-                                        if (selected) {
-                                          selectedClasses.add(cls);
-                                        } else {
-                                          selectedClasses.remove(cls);
-                                        }
-                                      });
-                                    },
-                                  )).toList(),
+                                  children: allClasses
+                                      .map(
+                                        (cls) => FilterChip(
+                                          label: Text(cls),
+                                          selected: selectedClasses.contains(
+                                            cls,
+                                          ),
+                                          onSelected: (selected) {
+                                            setState(() {
+                                              if (selected) {
+                                                selectedClasses.add(cls);
+                                              } else {
+                                                selectedClasses.remove(cls);
+                                              }
+                                            });
+                                          },
+                                        ),
+                                      )
+                                      .toList(),
                                 ),
                         ],
                       ),
@@ -1616,7 +2030,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                             ),
                             ElevatedButton(
                               onPressed: () => Navigator.of(context).pop(true),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
                               child: const Text('Supprimer'),
                             ),
                           ],
@@ -1628,7 +2044,10 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
                         if (context.mounted) Navigator.of(context).pop();
                       }
                     },
-                    child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                    child: const Text(
+                      'Supprimer',
+                      style: TextStyle(color: Colors.red),
+                    ),
                   ),
                 ElevatedButton(
                   onPressed: () async => doSubmit(),
@@ -1646,8 +2065,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     );
   }
 
-
-  void _showPhotoPicker(StateSetter setState, String? currentPhotoPath, Function(String?) updatePhotoPath) {
+  void _showPhotoPicker(
+    StateSetter setState,
+    String? currentPhotoPath,
+    Function(String?) updatePhotoPath,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1668,13 +2090,20 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
               title: Text('Choisir depuis la galerie'),
               onTap: () async {
                 Navigator.pop(context);
-                await _pickImage(ImageSource.gallery, setState, updatePhotoPath);
+                await _pickImage(
+                  ImageSource.gallery,
+                  setState,
+                  updatePhotoPath,
+                );
               },
             ),
             if (currentPhotoPath != null)
               ListTile(
                 leading: Icon(Icons.delete, color: Colors.red),
-                title: Text('Supprimer la photo', style: TextStyle(color: Colors.red)),
+                title: Text(
+                  'Supprimer la photo',
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   updatePhotoPath(null);
@@ -1686,7 +2115,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _pickImage(ImageSource source, StateSetter setState, Function(String?) updatePhotoPath) async {
+  Future<void> _pickImage(
+    ImageSource source,
+    StateSetter setState,
+    Function(String?) updatePhotoPath,
+  ) async {
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
@@ -1698,18 +2131,19 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
 
       if (image != null) {
         // Sauvegarder l'image dans le dossier de l'application
-        final String fileName = 'staff_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final String fileName =
+            'staff_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final Directory appDir = await getApplicationDocumentsDirectory();
         final String staffPhotosDir = path.join(appDir.path, 'staff_photos');
-        
+
         // Créer le dossier s'il n'existe pas
         await Directory(staffPhotosDir).create(recursive: true);
-        
+
         final String newPath = path.join(staffPhotosDir, fileName);
         final File newFile = await File(image.path).copy(newPath);
-        
+
         updatePhotoPath(newFile.path);
-        
+
         // Afficher un message de succès
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1754,7 +2188,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     if (schoolInfo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Informations de l\'école non disponibles. Veuillez configurer les informations de l\'école dans les paramètres.'),
+          content: Text(
+            'Informations de l\'école non disponibles. Veuillez configurer les informations de l\'école dans les paramètres.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -1772,7 +2208,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         matchRole = staff.typeRole == 'Administration';
       }
       if (query.isEmpty) return matchRole;
-      return matchRole && (staff.name.toLowerCase().contains(query) || staff.id.toLowerCase().contains(query));
+      return matchRole &&
+          (staff.name.toLowerCase().contains(query) ||
+              staff.id.toLowerCase().contains(query));
     }).toList();
 
     final bytes = await PdfService.generateStaffPdf(
@@ -1782,11 +2220,12 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
       title: 'Liste du Personnel - Année $currentAcademicYear',
     );
 
-    final fileName = 'liste_du_personnel_${currentAcademicYear.replaceAll('/', '_')}.pdf';
+    final fileName =
+        'liste_du_personnel_${currentAcademicYear.replaceAll('/', '_')}.pdf';
     final file = File('$directory/$fileName');
     await file.writeAsBytes(bytes);
     OpenFile.open(file.path);
-    
+
     // Notification de succès
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1853,7 +2292,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     if (schoolInfo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Informations de l\'école non disponibles. Veuillez configurer les informations de l\'école dans les paramètres.'),
+          content: Text(
+            'Informations de l\'école non disponibles. Veuillez configurer les informations de l\'école dans les paramètres.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -1869,11 +2310,12 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
       title: 'Fiche individuelle - ${staff.name}',
     );
 
-    final fileName = 'fiche_${staff.name.replaceAll(' ', '_')}_${currentAcademicYear.replaceAll('/', '_')}.pdf';
+    final fileName =
+        'fiche_${staff.name.replaceAll(' ', '_')}_${currentAcademicYear.replaceAll('/', '_')}.pdf';
     final file = File('$directory/$fileName');
     await file.writeAsBytes(bytes);
     OpenFile.open(file.path);
-    
+
     // Notification de succès
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1917,7 +2359,12 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
       ['Prénoms', staff.firstName ?? ''],
       ['Nom de famille', staff.lastName ?? ''],
       ['Sexe', staff.gender ?? ''],
-      ['Date de naissance', staff.birthDate != null ? DateFormat('dd/MM/yyyy').format(staff.birthDate!) : ''],
+      [
+        'Date de naissance',
+        staff.birthDate != null
+            ? DateFormat('dd/MM/yyyy').format(staff.birthDate!)
+            : '',
+      ],
       ['Lieu de naissance', staff.birthPlace ?? ''],
       ['Nationalité', staff.nationality ?? ''],
       ['Adresse', staff.address ?? ''],
@@ -1944,32 +2391,37 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
       ['Salaire de base', staff.baseSalary?.toString() ?? ''],
       ['Heures hebdomadaires', staff.weeklyHours?.toString() ?? ''],
       ['Responsable', staff.supervisor ?? ''],
-      ['Date de retraite', staff.retirementDate != null ? DateFormat('dd/MM/yyyy').format(staff.retirementDate!) : ''],
+      [
+        'Date de retraite',
+        staff.retirementDate != null
+            ? DateFormat('dd/MM/yyyy').format(staff.retirementDate!)
+            : '',
+      ],
       ['Cours assignés', staff.courses.join(', ')],
       ['Classes assignées', staff.classes.join(', ')],
       ['Documents', staff.documents?.join(', ') ?? ''],
     ];
 
     for (var row in data) {
-      sheetObject.appendRow([
-        TextCellValue(row[0]),
-        TextCellValue(row[1]),
-      ]);
+      sheetObject.appendRow([TextCellValue(row[0]), TextCellValue(row[1])]);
     }
 
     final String currentAcademicYear = await getCurrentAcademicYear();
-    final fileName = 'fiche_${staff.name.replaceAll(' ', '_')}_${currentAcademicYear.replaceAll('/', '_')}.xlsx';
+    final fileName =
+        'fiche_${staff.name.replaceAll(' ', '_')}_${currentAcademicYear.replaceAll('/', '_')}.xlsx';
     final file = File('$directory/$fileName');
     final bytes = excel.encode();
     if (bytes != null) {
       await file.writeAsBytes(bytes);
       OpenFile.open(file.path);
-      
+
       // Notification de succès
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Fiche Excel de ${staff.name} exportée avec succès !'),
+            content: Text(
+              'Fiche Excel de ${staff.name} exportée avec succès !',
+            ),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),
@@ -2058,7 +2510,9 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         matchRole = staff.typeRole == 'Administration';
       }
       if (query.isEmpty) return matchRole;
-      return matchRole && (staff.name.toLowerCase().contains(query) || staff.id.toLowerCase().contains(query));
+      return matchRole &&
+          (staff.name.toLowerCase().contains(query) ||
+              staff.id.toLowerCase().contains(query));
     }).toList();
 
     for (var staff in filteredStaff) {
@@ -2067,7 +2521,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         TextCellValue(staff.firstName ?? ''),
         TextCellValue(staff.lastName ?? ''),
         TextCellValue(staff.gender ?? ''),
-        TextCellValue(staff.birthDate != null ? DateFormat('dd/MM/yyyy').format(staff.birthDate!) : ''),
+        TextCellValue(
+          staff.birthDate != null
+              ? DateFormat('dd/MM/yyyy').format(staff.birthDate!)
+              : '',
+        ),
         TextCellValue(staff.birthPlace ?? ''),
         TextCellValue(staff.nationality ?? ''),
         TextCellValue(staff.address ?? ''),
@@ -2094,7 +2552,11 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
         TextCellValue(staff.baseSalary?.toString() ?? ''),
         TextCellValue(staff.weeklyHours?.toString() ?? ''),
         TextCellValue(staff.supervisor ?? ''),
-        TextCellValue(staff.retirementDate != null ? DateFormat('dd/MM/yyyy').format(staff.retirementDate!) : ''),
+        TextCellValue(
+          staff.retirementDate != null
+              ? DateFormat('dd/MM/yyyy').format(staff.retirementDate!)
+              : '',
+        ),
         TextCellValue(staff.courses.join(', ')),
         TextCellValue(staff.classes.join(', ')),
         TextCellValue(staff.documents?.join(', ') ?? ''),
@@ -2102,18 +2564,21 @@ class _StaffPageState extends State<StaffPage> with TickerProviderStateMixin {
     }
 
     final String currentAcademicYear = await getCurrentAcademicYear();
-    final fileName = 'liste_du_personnel_${currentAcademicYear.replaceAll('/', '_')}.xlsx';
+    final fileName =
+        'liste_du_personnel_${currentAcademicYear.replaceAll('/', '_')}.xlsx';
     final file = File('$directory/$fileName');
     final bytes = excel.encode();
     if (bytes != null) {
       await file.writeAsBytes(bytes);
       OpenFile.open(file.path);
-      
+
       // Notification de succès
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export Excel réussi ! Fichier sauvegardé : $fileName'),
+            content: Text(
+              'Export Excel réussi ! Fichier sauvegardé : $fileName',
+            ),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),

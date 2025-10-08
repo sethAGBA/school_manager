@@ -10,7 +10,7 @@ import 'package:school_manager/models/school_info.dart';
 void main() async {
   // Test des calculs de totaux
   print('🧮 Test des calculs de totaux pour les bulletins');
-  
+
   // Données de test
   final student = Student(
     id: 'test-001',
@@ -21,7 +21,7 @@ void main() async {
     gender: 'M',
     status: 'Actif',
   );
-  
+
   final schoolInfo = SchoolInfo(
     name: 'École Test',
     address: '123 Rue de Test',
@@ -30,7 +30,7 @@ void main() async {
     republic: 'République Française',
     republicMotto: 'Liberté, Égalité, Fraternité',
   );
-  
+
   // Notes de test avec différents coefficients
   final grades = [
     Grade(
@@ -130,7 +130,7 @@ void main() async {
       term: 'Trimestre 1',
     ),
   ];
-  
+
   // Professeurs et appréciations
   final professeurs = {
     'Mathématiques': 'M. Martin',
@@ -140,7 +140,7 @@ void main() async {
     'Anglais': 'M. Brown',
     'EPS': 'M. Sport',
   };
-  
+
   final appreciations = {
     'Mathématiques': 'Très bon travail, continuez ainsi',
     'Français': 'Bon travail, quelques efforts à fournir',
@@ -149,7 +149,7 @@ void main() async {
     'Anglais': 'Des progrès à faire',
     'EPS': 'Très bonne participation',
   };
-  
+
   final moyennesClasse = {
     'Mathématiques': '14.5',
     'Français': '12.8',
@@ -158,10 +158,10 @@ void main() async {
     'Anglais': '10.5',
     'EPS': '16.3',
   };
-  
+
   // Calculs manuels pour vérification
   print('\n📊 Calculs manuels de vérification:');
-  
+
   // Mathématiques: (15*4 + 18*2) / (4+2) = (60 + 36) / 6 = 96/6 = 16.0
   final mathGrades = grades.where((g) => g.subject == 'Mathématiques').toList();
   double mathTotal = 0;
@@ -171,8 +171,10 @@ void main() async {
     mathCoeff += g.coefficient;
   }
   final mathMoyenne = mathTotal / mathCoeff;
-  print('Mathématiques: ${mathMoyenne.toStringAsFixed(2)} (coeff: ${mathCoeff})');
-  
+  print(
+    'Mathématiques: ${mathMoyenne.toStringAsFixed(2)} (coeff: ${mathCoeff})',
+  );
+
   // Français: (12*3 + 14*2) / (3+2) = (36 + 28) / 5 = 64/5 = 12.8
   final francaisGrades = grades.where((g) => g.subject == 'Français').toList();
   double francaisTotal = 0;
@@ -182,8 +184,10 @@ void main() async {
     francaisCoeff += g.coefficient;
   }
   final francaisMoyenne = francaisTotal / francaisCoeff;
-  print('Français: ${francaisMoyenne.toStringAsFixed(2)} (coeff: ${francaisCoeff})');
-  
+  print(
+    'Français: ${francaisMoyenne.toStringAsFixed(2)} (coeff: ${francaisCoeff})',
+  );
+
   // Calcul des totaux
   final Map<String, double> subjectWeights = {
     'Mathématiques': 4.0,
@@ -193,16 +197,25 @@ void main() async {
     'Anglais': 2.0,
     'EPS': 1.0,
   };
-  
+
   double sumCoefficients = 0;
   double sumPointsEleve = 0;
   double sumPointsClasse = 0;
-  
-  for (final subject in ['Mathématiques', 'Français', 'Histoire-Géographie', 'Sciences', 'Anglais', 'EPS']) {
+
+  for (final subject in [
+    'Mathématiques',
+    'Français',
+    'Histoire-Géographie',
+    'Sciences',
+    'Anglais',
+    'EPS',
+  ]) {
     final subjectGrades = grades.where((g) => g.subject == subject).toList();
     final devoirs = subjectGrades.where((g) => g.type == 'Devoir').toList();
-    final compositions = subjectGrades.where((g) => g.type == 'Composition').toList();
-    
+    final compositions = subjectGrades
+        .where((g) => g.type == 'Composition')
+        .toList();
+
     double total = 0;
     double totalCoeff = 0;
     for (final g in [...devoirs, ...compositions]) {
@@ -213,29 +226,36 @@ void main() async {
     }
     final moyenneMatiere = totalCoeff > 0 ? (total / totalCoeff) : 0.0;
     final subjectWeight = subjectWeights[subject] ?? totalCoeff;
-    
+
     sumCoefficients += subjectWeight;
-    if (subjectGrades.isNotEmpty) sumPointsEleve += moyenneMatiere * subjectWeight;
-    
+    if (subjectGrades.isNotEmpty)
+      sumPointsEleve += moyenneMatiere * subjectWeight;
+
     final mcText = moyennesClasse[subject] ?? '';
     final mcVal = double.tryParse(mcText.replaceAll(',', '.'));
     if (mcVal != null) sumPointsClasse += mcVal * subjectWeight;
-    
-    print('$subject: Moyenne=${moyenneMatiere.toStringAsFixed(2)}, Coeff=${subjectWeight}, Points=${(moyenneMatiere * subjectWeight).toStringAsFixed(2)}');
+
+    print(
+      '$subject: Moyenne=${moyenneMatiere.toStringAsFixed(2)}, Coeff=${subjectWeight}, Points=${(moyenneMatiere * subjectWeight).toStringAsFixed(2)}',
+    );
   }
-  
+
   print('\n🎯 Totaux calculés:');
   print('Total Coefficients: ${sumCoefficients.toStringAsFixed(2)}');
   print('Total Points Élève: ${sumPointsEleve.toStringAsFixed(2)}');
   print('Total Points Classe: ${sumPointsClasse.toStringAsFixed(2)}');
-  print('Moyenne Générale: ${(sumPointsEleve / sumCoefficients).toStringAsFixed(2)}');
-  
+  print(
+    'Moyenne Générale: ${(sumPointsEleve / sumCoefficients).toStringAsFixed(2)}',
+  );
+
   // Validation des coefficients
   final bool sumOk = (sumCoefficients - 20).abs() < 1e-6;
-  print('Validation Coefficients: ${sumOk ? "✅ OK" : "❌ ERREUR"} (attendu: 20.00, obtenu: ${sumCoefficients.toStringAsFixed(2)})');
-  
+  print(
+    'Validation Coefficients: ${sumOk ? "✅ OK" : "❌ ERREUR"} (attendu: 20.00, obtenu: ${sumCoefficients.toStringAsFixed(2)})',
+  );
+
   print('\n📄 Génération du PDF de test...');
-  
+
   try {
     final pdfBytes = await PdfService.generateReportCardPdf(
       student: student,
@@ -244,7 +264,8 @@ void main() async {
       professeurs: professeurs,
       appreciations: appreciations,
       moyennesClasse: moyennesClasse,
-      appreciationGenerale: 'Élève sérieux et appliqué. Bon niveau général avec des points forts en mathématiques et histoire-géographie.',
+      appreciationGenerale:
+          'Élève sérieux et appliqué. Bon niveau général avec des points forts en mathématiques et histoire-géographie.',
       decision: 'Admis en classe supérieure',
       recommandations: 'Continuer les efforts en français et anglais',
       forces: 'Mathématiques, Histoire-Géographie, EPS',
@@ -259,7 +280,14 @@ void main() async {
       mailEtab: 'contact@ecole-test.fr',
       webEtab: 'www.ecole-test.fr',
       titulaire: 'Mme Durand',
-      subjects: ['Mathématiques', 'Français', 'Histoire-Géographie', 'Sciences', 'Anglais', 'EPS'],
+      subjects: [
+        'Mathématiques',
+        'Français',
+        'Histoire-Géographie',
+        'Sciences',
+        'Anglais',
+        'EPS',
+      ],
       moyennesParPeriode: [14.2, 13.8, 15.1],
       moyenneGenerale: sumPointsEleve / sumCoefficients,
       rang: 5,
@@ -279,16 +307,15 @@ void main() async {
       moyenneLaPlusFaible: 8.2,
       moyenneAnnuelle: null,
     );
-    
+
     // Sauvegarder le PDF de test
     final file = File('test_bulletin_totaux.pdf');
     await file.writeAsBytes(pdfBytes);
     print('✅ PDF généré avec succès: ${file.path}');
     print('📊 Taille du fichier: ${pdfBytes.length} bytes');
-    
   } catch (e) {
     print('❌ Erreur lors de la génération du PDF: $e');
   }
-  
+
   print('\n🎉 Test terminé!');
 }

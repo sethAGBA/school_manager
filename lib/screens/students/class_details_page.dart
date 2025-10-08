@@ -31,13 +31,18 @@ class ClassDetailsPage extends StatefulWidget {
   final Class classe;
   final List<Student> students;
 
-  const ClassDetailsPage({required this.classe, required this.students, Key? key}) : super(key: key);
+  const ClassDetailsPage({
+    required this.classe,
+    required this.students,
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<ClassDetailsPage> createState() => _ClassDetailsPageState();
 }
 
-class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProviderStateMixin {
+class _ClassDetailsPageState extends State<ClassDetailsPage>
+    with TickerProviderStateMixin {
   late TextEditingController _nameController;
   late TextEditingController _yearController;
   late TextEditingController _titulaireController;
@@ -71,8 +76,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
     _nameController = TextEditingController(text: widget.classe.name);
     _yearController = TextEditingController(text: widget.classe.academicYear);
     _titulaireController = TextEditingController(text: widget.classe.titulaire);
-    _fraisEcoleController = TextEditingController(text: widget.classe.fraisEcole?.toString() ?? '');
-    _fraisCotisationParalleleController = TextEditingController(text: widget.classe.fraisCotisationParallele?.toString() ?? '');
+    _fraisEcoleController = TextEditingController(
+      text: widget.classe.fraisEcole?.toString() ?? '',
+    );
+    _fraisCotisationParalleleController = TextEditingController(
+      text: widget.classe.fraisCotisationParallele?.toString() ?? '',
+    );
     _searchController = TextEditingController();
     _students = List<Student>.from(widget.students);
 
@@ -84,15 +93,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
     _searchFocusNode = FocusNode();
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600), // Slightly faster for performance
+      duration: const Duration(
+        milliseconds: 600,
+      ), // Slightly faster for performance
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _animationController.forward();
 
     _fraisEcoleController.addListener(_updateTotalClasse);
@@ -126,15 +141,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
     _fraisCotisationParalleleController.removeListener(_updateTotalClasse);
     super.dispose();
     for (final c in _coeffCtrls.values) c.dispose();
-    }
+  }
 
   void _updateTotalClasse() {
     setState(() {}); // Force le rebuild pour mettre à jour le total
   }
 
   Future<void> _loadClassSubjectsAndCoeffs() async {
-    final subs = await _dbService.getCoursesForClass(_nameController.text, _yearController.text);
-    final coeffs = await _dbService.getClassSubjectCoefficients(_nameController.text, _yearController.text);
+    final subs = await _dbService.getCoursesForClass(
+      _nameController.text,
+      _yearController.text,
+    );
+    final coeffs = await _dbService.getClassSubjectCoefficients(
+      _nameController.text,
+      _yearController.text,
+    );
     setState(() {
       _classSubjects = subs;
       _coeffCtrls.clear();
@@ -176,12 +197,17 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         coefficient: val,
       );
     }
-    _showModernSnackBar('Coefficients mis à jour pour ${_nameController.text}.');
+    _showModernSnackBar(
+      'Coefficients mis à jour pour ${_nameController.text}.',
+    );
   }
 
   Future<void> _saveClass() async {
     if (!_formKey.currentState!.validate()) {
-      _showModernSnackBar('Veuillez remplir tous les champs obligatoires', isError: true);
+      _showModernSnackBar(
+        'Veuillez remplir tous les champs obligatoires',
+        isError: true,
+      );
       return;
     }
 
@@ -192,10 +218,19 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         name: _nameController.text,
         academicYear: _yearController.text,
         titulaire: _titulaireController.text,
-        fraisEcole: _fraisEcoleController.text.isNotEmpty ? double.tryParse(_fraisEcoleController.text) : null,
-        fraisCotisationParallele: _fraisCotisationParalleleController.text.isNotEmpty ? double.tryParse(_fraisCotisationParalleleController.text) : null,
+        fraisEcole: _fraisEcoleController.text.isNotEmpty
+            ? double.tryParse(_fraisEcoleController.text)
+            : null,
+        fraisCotisationParallele:
+            _fraisCotisationParalleleController.text.isNotEmpty
+            ? double.tryParse(_fraisCotisationParalleleController.text)
+            : null,
       );
-      await _dbService.updateClass(widget.classe.name, widget.classe.academicYear, updatedClass);
+      await _dbService.updateClass(
+        widget.classe.name,
+        widget.classe.academicYear,
+        updatedClass,
+      );
       await _loadClassSubjectsAndCoeffs();
       final refreshedClass = await _dbService.getClassByName(
         updatedClass.name,
@@ -213,7 +248,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         _yearController.text = cls.academicYear;
         _titulaireController.text = cls.titulaire ?? '';
         _fraisEcoleController.text = cls.fraisEcole?.toString() ?? '';
-        _fraisCotisationParalleleController.text = cls.fraisCotisationParallele?.toString() ?? '';
+        _fraisCotisationParalleleController.text =
+            cls.fraisCotisationParallele?.toString() ?? '';
         _students = refreshedStudents;
         _isLoading = false;
       });
@@ -222,7 +258,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         builder: (ctx) => AlertDialog(
           title: const Text('Succès'),
           content: const Text('Classe mise à jour avec succès !'),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
     } catch (e) {
@@ -231,8 +272,15 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Erreur'),
-          content: Text('Erreur lors de la mise à jour : ${e.toString().contains('unique') ? 'Nom de classe déjà existant' : e}'),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          content: Text(
+            'Erreur lors de la mise à jour : ${e.toString().contains('unique') ? 'Nom de classe déjà existant' : e}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
     }
@@ -241,7 +289,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
   Future<void> _copyClass() async {
     // Demander l'année cible à l'utilisateur
     final classes = await _dbService.getClasses();
-    final years = classes.map((c) => c.academicYear).where((y) => y.isNotEmpty).toSet().toList()..sort((a, b) => b.compareTo(a));
+    final years =
+        classes
+            .map((c) => c.academicYear)
+            .where((y) => y.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.compareTo(a));
     final current = _yearController.text.trim();
     String suggestNext() {
       try {
@@ -254,54 +308,73 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         return '$now-${now + 1}';
       }
     }
-    final TextEditingController yearCtrl = TextEditingController(text: suggestNext());
+
+    final TextEditingController yearCtrl = TextEditingController(
+      text: suggestNext(),
+    );
     String? targetYear = await showDialog<String>(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setStateDialog) {
-          return AlertDialog(
-            title: const Text('Copier la classe vers…'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (years.isNotEmpty) ...[
-                  const Text('Années existantes'),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: years.map((y) => ChoiceChip(
-                      label: Text(y),
-                      selected: yearCtrl.text == y,
-                      onSelected: (_) => setStateDialog(() => yearCtrl.text = y),
-                    )).toList(),
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Copier la classe vers…'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (years.isNotEmpty) ...[
+                    const Text('Années existantes'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: years
+                          .map(
+                            (y) => ChoiceChip(
+                              label: Text(y),
+                              selected: yearCtrl.text == y,
+                              onSelected: (_) =>
+                                  setStateDialog(() => yearCtrl.text = y),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextField(
+                    controller: yearCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Année cible',
+                      hintText: 'ex: 2025-2026',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
                   ),
-                  const SizedBox(height: 12),
                 ],
-                TextField(
-                  controller: yearCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Année cible',
-                    hintText: 'ex: 2025-2026',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, yearCtrl.text.trim()),
+                  child: const Text('Copier'),
                 ),
               ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-              ElevatedButton(onPressed: () => Navigator.pop(ctx, yearCtrl.text.trim()), child: const Text('Copier')),
-            ],
-          );
-        });
+            );
+          },
+        );
       },
     );
     if (targetYear == null || targetYear.isEmpty) return;
     final valid = RegExp(r'^\d{4}-\d{4}$').hasMatch(targetYear);
     if (!valid) {
-      _showModernSnackBar('Format d\'année invalide. Utilisez 2025-2026.', isError: true);
+      _showModernSnackBar(
+        'Format d\'année invalide. Utilisez 2025-2026.',
+        isError: true,
+      );
       return;
     }
 
@@ -310,11 +383,14 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         .where((c) => c.academicYear == targetYear)
         .toList();
     final originalName = _nameController.text.trim();
-    final alreadyCopied = existingInTarget.any((c) =>
-      c.name == originalName || c.name == '$originalName ($targetYear)'
+    final alreadyCopied = existingInTarget.any(
+      (c) => c.name == originalName || c.name == '$originalName ($targetYear)',
     );
     if (alreadyCopied) {
-      _showModernSnackBar('Cette classe a déjà été copiée pour l\'année $targetYear.', isError: true);
+      _showModernSnackBar(
+        'Cette classe a déjà été copiée pour l\'année $targetYear.',
+        isError: true,
+      );
       return;
     }
 
@@ -322,13 +398,18 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
     try {
       // Préférer le même nom si disponible, sinon suffixer avec l'année cible
       String desired = originalName;
-      if (await _dbService.getClassByName(desired, academicYear: targetYear) != null) {
+      if (await _dbService.getClassByName(desired, academicYear: targetYear) !=
+          null) {
         desired = '$originalName ($targetYear)';
       }
       // Assurer l'unicité en dernier recours (rare)
       String uniqueName = desired;
       int k = 2;
-      while (await _dbService.getClassByName(uniqueName, academicYear: targetYear) != null) {
+      while (await _dbService.getClassByName(
+            uniqueName,
+            academicYear: targetYear,
+          ) !=
+          null) {
         uniqueName = '$desired-$k';
         k++;
       }
@@ -337,8 +418,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         name: uniqueName,
         academicYear: targetYear,
         titulaire: _titulaireController.text,
-        fraisEcole: _fraisEcoleController.text.isNotEmpty ? double.tryParse(_fraisEcoleController.text) : null,
-        fraisCotisationParallele: _fraisCotisationParalleleController.text.isNotEmpty ? double.tryParse(_fraisCotisationParalleleController.text) : null,
+        fraisEcole: _fraisEcoleController.text.isNotEmpty
+            ? double.tryParse(_fraisEcoleController.text)
+            : null,
+        fraisCotisationParallele:
+            _fraisCotisationParalleleController.text.isNotEmpty
+            ? double.tryParse(_fraisCotisationParalleleController.text)
+            : null,
       );
       await _dbService.insertClass(newClass);
       setState(() => _isLoading = false);
@@ -346,8 +432,15 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Succès'),
-          content: Text('Classe copiée vers $targetYear sous le nom "$uniqueName".'),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          content: Text(
+            'Classe copiée vers $targetYear sous le nom "$uniqueName".',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
       Navigator.of(context).pop();
@@ -358,7 +451,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         builder: (ctx) => AlertDialog(
           title: const Text('Erreur'),
           content: Text('Erreur lors de la copie : $e'),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
     }
@@ -370,7 +468,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
     final hasScaffold = Scaffold.maybeOf(context) != null;
     if (hasMessenger && hasScaffold) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: isError ? const Color(0xFFE53E3E) : const Color(0xFF38A169)),
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isError
+              ? const Color(0xFFE53E3E)
+              : const Color(0xFF38A169),
+        ),
       );
     } else {
       showDialog(
@@ -378,14 +481,20 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         builder: (ctx) => AlertDialog(
           title: Text(isError ? 'Erreur' : 'Information'),
           content: Text(message),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
     }
   }
 
   Future<void> _editStudent(Student student) async {
-    final GlobalKey<StudentRegistrationFormState> studentFormKey = GlobalKey<StudentRegistrationFormState>();
+    final GlobalKey<StudentRegistrationFormState> studentFormKey =
+        GlobalKey<StudentRegistrationFormState>();
     await showDialog(
       context: context,
       builder: (context) => CustomDialog(
@@ -395,10 +504,11 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           className: student.className,
           classFieldReadOnly: true,
           onSubmit: () async {
-            final refreshedStudents = await _dbService.getStudentsByClassAndClassYear(
-              _nameController.text,
-              _yearController.text,
-            );
+            final refreshedStudents = await _dbService
+                .getStudentsByClassAndClassYear(
+                  _nameController.text,
+                  _yearController.text,
+                );
             setState(() {
               _students = refreshedStudents;
             });
@@ -408,7 +518,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
               builder: (ctx) => AlertDialog(
                 title: const Text('Succès'),
                 content: const Text('Élève mis à jour avec succès !'),
-                actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('OK'),
+                  ),
+                ],
               ),
             );
           },
@@ -445,13 +560,15 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       try {
         // Supprime l'élève et toutes les données liées (paiements, notes, appréciations, bulletins, archives)
         await _dbService.deleteStudentDeep(student.id);
-        if (student.photoPath != null && File(student.photoPath!).existsSync()) {
+        if (student.photoPath != null &&
+            File(student.photoPath!).existsSync()) {
           await File(student.photoPath!).delete();
         }
-        final refreshedStudents = await _dbService.getStudentsByClassAndClassYear(
-          _nameController.text,
-          _yearController.text,
-        );
+        final refreshedStudents = await _dbService
+            .getStudentsByClassAndClassYear(
+              _nameController.text,
+              _yearController.text,
+            );
         setState(() {
           _students = refreshedStudents;
         });
@@ -460,7 +577,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           builder: (ctx) => AlertDialog(
             title: const Text('Succès'),
             content: const Text('Élève supprimé avec succès !'),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
       } catch (e) {
@@ -469,7 +591,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           builder: (ctx) => AlertDialog(
             title: const Text('Erreur'),
             content: Text('Erreur lors de la suppression : $e'),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
       }
@@ -486,7 +613,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         children: const [
           Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
           SizedBox(width: 8),
-          Text('Confirmer la suppression', style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.bold)),
+          Text(
+            'Confirmer la suppression',
+            style: TextStyle(
+              color: Color(0xFFE11D48),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
       content: Column(
@@ -499,20 +632,32 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
               color: const Color(0xFFE11D48).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.delete_outline_rounded, size: 40, color: Color(0xFFE11D48)),
+            child: const Icon(
+              Icons.delete_outline_rounded,
+              size: 40,
+              color: Color(0xFFE11D48),
+            ),
           ),
           const SizedBox(height: 16),
           Text(
             "Voulez-vous vraiment supprimer l'élève ${student.name} ?\nCette action est irréversible.",
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: theme.textTheme.bodyMedium?.color, height: 1.5),
+            style: TextStyle(
+              fontSize: 16,
+              color: theme.textTheme.bodyMedium?.color,
+              height: 1.5,
+            ),
           ),
         ],
       ),
       actions: [
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(false),
-          style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
           child: const Text('Annuler'),
         ),
         ElevatedButton(
@@ -520,7 +665,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFE11D48),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: const Text('Supprimer'),
         ),
@@ -535,7 +682,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.1),
+        ),
       ),
       child: Row(
         children: [
@@ -576,14 +725,17 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
   Widget _buildModernFormCard(List<Widget> children) {
     final int nbEleves = _students.length;
     final double fraisEcole = double.tryParse(_fraisEcoleController.text) ?? 0;
-    final double fraisCotisation = double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
+    final double fraisCotisation =
+        double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
     final double totalClasse = nbEleves * (fraisEcole + fraisCotisation);
-  // color for totals will be derived from the theme where needed; remove unused local variable
+    // color for totals will be derived from the theme where needed; remove unused local variable
     children.add(
       Padding(
         padding: const EdgeInsets.only(bottom: 24),
         child: CustomFormField(
-          controller: TextEditingController(text: '${totalClasse.toStringAsFixed(2)} FCFA'),
+          controller: TextEditingController(
+            text: '${totalClasse.toStringAsFixed(2)} FCFA',
+          ),
           labelText: 'Total à payer pour la classe',
           hintText: '',
           readOnly: true,
@@ -622,7 +774,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                               controller: _nameController,
                               labelText: AppStrings.classNameDialog,
                               hintText: 'Entrez le nom de la classe',
-                              validator: (value) => value!.isEmpty ? AppStrings.required : null,
+                              validator: (value) =>
+                                  value!.isEmpty ? AppStrings.required : null,
                               suffixIcon: Icons.class_,
                             ),
                           ),
@@ -632,7 +785,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                               controller: _yearController,
                               labelText: AppStrings.academicYearDialog,
                               hintText: "Entrez l'année scolaire",
-                              validator: (value) => value!.isEmpty ? AppStrings.required : null,
+                              validator: (value) =>
+                                  value!.isEmpty ? AppStrings.required : null,
                               suffixIcon: Icons.calendar_today,
                             ),
                           ),
@@ -659,7 +813,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                               labelText: "Frais d'école",
                               hintText: "Montant des frais d'école",
                               validator: (value) {
-                                if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                                if (value != null &&
+                                    value.isNotEmpty &&
+                                    double.tryParse(value) == null) {
                                   return 'Veuillez entrer un montant valide';
                                 }
                                 return null;
@@ -672,9 +828,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                             child: CustomFormField(
                               controller: _fraisCotisationParalleleController,
                               labelText: 'Frais de cotisation parallèle',
-                              hintText: 'Montant des frais de cotisation parallèle',
+                              hintText:
+                                  'Montant des frais de cotisation parallèle',
                               validator: (value) {
-                                if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                                if (value != null &&
+                                    value.isNotEmpty &&
+                                    double.tryParse(value) == null) {
                                   return 'Veuillez entrer un montant valide';
                                 }
                                 return null;
@@ -686,7 +845,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                           Padding(
                             padding: const EdgeInsets.only(bottom: 24),
                             child: CustomFormField(
-                              controller: TextEditingController(text: '${totalClasse.toStringAsFixed(2)} FCFA'),
+                              controller: TextEditingController(
+                                text: '${totalClasse.toStringAsFixed(2)} FCFA',
+                              ),
                               labelText: 'Total à payer pour la classe',
                               hintText: '',
                               readOnly: true,
@@ -706,7 +867,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         controller: _nameController,
                         labelText: AppStrings.classNameDialog,
                         hintText: 'Entrez le nom de la classe',
-                        validator: (value) => value!.isEmpty ? AppStrings.required : null,
+                        validator: (value) =>
+                            value!.isEmpty ? AppStrings.required : null,
                         suffixIcon: Icons.class_,
                       ),
                     ),
@@ -716,7 +878,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         controller: _yearController,
                         labelText: AppStrings.academicYearDialog,
                         hintText: "Entrez l'année scolaire",
-                        validator: (value) => value!.isEmpty ? AppStrings.required : null,
+                        validator: (value) =>
+                            value!.isEmpty ? AppStrings.required : null,
                         suffixIcon: Icons.calendar_today,
                       ),
                     ),
@@ -736,7 +899,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         labelText: "Frais d'école",
                         hintText: "Montant des frais d'école",
                         validator: (value) {
-                          if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                          if (value != null &&
+                              value.isNotEmpty &&
+                              double.tryParse(value) == null) {
                             return 'Veuillez entrer un montant valide';
                           }
                           return null;
@@ -751,7 +916,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         labelText: 'Frais de cotisation parallèle',
                         hintText: 'Montant des frais de cotisation parallèle',
                         validator: (value) {
-                          if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                          if (value != null &&
+                              value.isNotEmpty &&
+                              double.tryParse(value) == null) {
                             return 'Veuillez entrer un montant valide';
                           }
                           return null;
@@ -763,7 +930,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                     Padding(
                       padding: const EdgeInsets.only(bottom: 24),
                       child: CustomFormField(
-                        controller: TextEditingController(text: '${totalClasse.toStringAsFixed(2)} FCFA'),
+                        controller: TextEditingController(
+                          text: '${totalClasse.toStringAsFixed(2)} FCFA',
+                        ),
                         labelText: 'Total à payer pour la classe',
                         hintText: '',
                         readOnly: true,
@@ -782,7 +951,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.2),
+        ),
       ),
       child: TextField(
         controller: _searchController,
@@ -790,7 +961,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         decoration: InputDecoration(
           hintText: 'Rechercher par nom, ID ou genre...',
           hintStyle: TextStyle(
-            color: Theme.of(context).textTheme.bodyMedium!.color?.withOpacity(0.6),
+            color: Theme.of(
+              context,
+            ).textTheme.bodyMedium!.color?.withOpacity(0.6),
             fontSize: 16,
           ),
           prefixIcon: Container(
@@ -809,10 +982,14 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
             ),
           ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 16,
+          ),
         ),
         style: const TextStyle(fontSize: 16),
-        onChanged: (value) => setState(() => _studentSearchQuery = value.trim()),
+        onChanged: (value) =>
+            setState(() => _studentSearchQuery = value.trim()),
       ),
     );
   }
@@ -821,8 +998,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
     return FutureBuilder<double>(
       future: _dbService.getTotalPaidForStudent(student.id),
       builder: (context, snapshot) {
-        final double fraisEcole = double.tryParse(_fraisEcoleController.text) ?? 0;
-        final double fraisCotisation = double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
+        final double fraisEcole =
+            double.tryParse(_fraisEcoleController.text) ?? 0;
+        final double fraisCotisation =
+            double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
         final double montantMax = fraisEcole + fraisCotisation;
         final double totalPaid = snapshot.data ?? 0;
         final bool isPaid = montantMax > 0 && totalPaid >= montantMax;
@@ -831,7 +1010,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.1),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Theme.of(context).shadowColor.withOpacity(0.05),
@@ -867,14 +1048,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: isPaid ? Colors.green : Colors.orange,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     isPaid ? 'Payé' : 'En attente',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
@@ -885,7 +1073,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                 'ID: ${student.id} • ${student.gender == 'M' ? 'Garçon' : 'Fille'}',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  color: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                 ),
               ),
             ),
@@ -966,7 +1156,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.1),
+        ),
       ),
       child: Column(
         children: [
@@ -998,7 +1190,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
             'Commencez par ajouter des élèves à cette classe',
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(context).textTheme.bodyMedium!.color?.withOpacity(0.7),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium!.color?.withOpacity(0.7),
             ),
           ),
         ],
@@ -1008,7 +1202,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
 
   Future<List<Student>> _getFilteredAndSortedStudentsAsync() async {
     final double fraisEcole = double.tryParse(_fraisEcoleController.text) ?? 0;
-    final double fraisCotisation = double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
+    final double fraisCotisation =
+        double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
     final double montantMax = fraisEcole + fraisCotisation;
     List<Student> filtered = [];
     for (final student in _students) {
@@ -1016,11 +1211,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       final isPaid = montantMax > 0 && totalPaid >= montantMax;
       final status = isPaid ? 'Payé' : 'En attente';
       final query = _studentSearchQuery.toLowerCase();
-      final matchSearch = _studentSearchQuery.isEmpty ||
-        student.name.toLowerCase().contains(query) ||
-        student.id.toLowerCase().contains(query) ||
-        (student.gender == 'M' && 'garçon'.contains(query)) ||
-        (student.gender == 'F' && 'fille'.contains(query));
+      final matchSearch =
+          _studentSearchQuery.isEmpty ||
+          student.name.toLowerCase().contains(query) ||
+          student.id.toLowerCase().contains(query) ||
+          (student.gender == 'M' && 'garçon'.contains(query)) ||
+          (student.gender == 'F' && 'fille'.contains(query));
       if (_studentStatusFilter == 'Tous' && matchSearch) {
         filtered.add(student);
       } else if (_studentStatusFilter == status && matchSearch) {
@@ -1077,12 +1273,15 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
 
   void _showStudentDetailsDialog(Student student) async {
     final double fraisEcole = double.tryParse(_fraisEcoleController.text) ?? 0;
-    final double fraisCotisation = double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
+    final double fraisCotisation =
+        double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
     final double montantMax = fraisEcole + fraisCotisation;
     final totalPaid = await _dbService.getTotalPaidForStudent(student.id);
     final reste = montantMax - totalPaid;
-    final status = (montantMax > 0 && totalPaid >= montantMax) ? 'Payé' : 'En attente';
-  final db = await _dbService.database;
+    final status = (montantMax > 0 && totalPaid >= montantMax)
+        ? 'Payé'
+        : 'En attente';
+    final db = await _dbService.database;
     final List<Map<String, dynamic>> allMaps = await db.query(
       'payments',
       where: 'studentId = ?',
@@ -1109,7 +1308,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                       width: double.infinity,
                       height: 120,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.error, color: Colors.red)),
+                      errorBuilder: (context, error, stackTrace) =>
+                          Center(child: Icon(Icons.error, color: Colors.red)),
                     ),
                   ),
                 ),
@@ -1118,10 +1318,19 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
               if (student.matricule != null && student.matricule!.isNotEmpty)
                 _buildDetailRow('Matricule', student.matricule!),
               _buildDetailRow('Année scolaire', student.academicYear),
-              _buildDetailRow('Date d\'inscription', _formatIsoToDisplay(student.enrollmentDate)),
-              _buildDetailRow('Date de naissance', '${_formatIsoToDisplay(student.dateOfBirth)} • ${_calculateAgeFromIso(student.dateOfBirth)}'),
+              _buildDetailRow(
+                'Date d\'inscription',
+                _formatIsoToDisplay(student.enrollmentDate),
+              ),
+              _buildDetailRow(
+                'Date de naissance',
+                '${_formatIsoToDisplay(student.dateOfBirth)} • ${_calculateAgeFromIso(student.dateOfBirth)}',
+              ),
               _buildDetailRow('Statut', student.status),
-              _buildDetailRow('Sexe', student.gender == 'M' ? 'Garçon' : 'Fille'),
+              _buildDetailRow(
+                'Sexe',
+                student.gender == 'M' ? 'Garçon' : 'Fille',
+              ),
               _buildDetailRow('Classe', student.className),
               _buildDetailRow('Adresse', student.address),
               _buildDetailRow('Contact', student.contactNumber),
@@ -1129,96 +1338,152 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
               _buildDetailRow('Contact d\'urgence', student.emergencyContact),
               _buildDetailRow('Tuteur', student.guardianName),
               _buildDetailRow('Contact tuteur', student.guardianContact),
-              if (student.medicalInfo != null && student.medicalInfo!.isNotEmpty)
+              if (student.medicalInfo != null &&
+                  student.medicalInfo!.isNotEmpty)
                 _buildDetailRow('Infos médicales', student.medicalInfo!),
               const SizedBox(height: 16),
               Divider(),
-              Text('Paiement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                'Paiement',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
               const SizedBox(height: 8),
-              _buildDetailRow('Montant dû', '${montantMax.toStringAsFixed(2)} FCFA'),
-              _buildDetailRow('Déjà payé', '${totalPaid.toStringAsFixed(2)} FCFA'),
-              _buildDetailRow('Reste à payer', '${reste.toStringAsFixed(2)} FCFA'),
+              _buildDetailRow(
+                'Montant dû',
+                '${montantMax.toStringAsFixed(2)} FCFA',
+              ),
+              _buildDetailRow(
+                'Déjà payé',
+                '${totalPaid.toStringAsFixed(2)} FCFA',
+              ),
+              _buildDetailRow(
+                'Reste à payer',
+                '${reste.toStringAsFixed(2)} FCFA',
+              ),
               _buildDetailRow('Statut', status),
               const SizedBox(height: 8),
               if (payments.isNotEmpty) ...[
-                Text('Historique des paiements', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'Historique des paiements',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 4),
-                ...payments.map((p) => Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  color: p.isCancelled ? Colors.grey.shade200 : null,
-                  child: ListTile(
-                    leading: Icon(Icons.attach_money, color: p.isCancelled ? Colors.grey : Colors.green),
-                    title: Row(
-                      children: [
-                        Text('${p.amount.toStringAsFixed(2)} FCFA', style: TextStyle(
-                          color: p.isCancelled ? Colors.grey : null,
-                          decoration: p.isCancelled ? TextDecoration.lineThrough : null,
-                        )),
-                        if (p.isCancelled)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Text('(Annulé)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12)),
-                          ),
-                      ],
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${p.date.replaceFirst('T', ' ').substring(0, 16)}', style: TextStyle(color: p.isCancelled ? Colors.grey : null)),
-                        if (p.comment != null && p.comment!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text('Commentaire : ${p.comment!}', style: TextStyle(color: Colors.deepPurple, fontStyle: FontStyle.italic)),
-                          ),
-                        if (p.isCancelled && p.cancelledAt != null)
-                          Text('Annulé le ${p.cancelledAt!.replaceFirst('T', ' ').substring(0, 16)}', style: TextStyle(color: Colors.red, fontSize: 12)),
-                      ],
-                    ),
-                    trailing: p.isCancelled
-                      ? Icon(Icons.block, color: Colors.grey)
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.print, color: Colors.blue),
-                              tooltip: 'Imprimer le reçu',
-                              onPressed: () => _printReceipt(p, student),
+                ...payments.map(
+                  (p) => Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: p.isCancelled ? Colors.grey.shade200 : null,
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.attach_money,
+                        color: p.isCancelled ? Colors.grey : Colors.green,
+                      ),
+                      title: Row(
+                        children: [
+                          Text(
+                            '${p.amount.toStringAsFixed(2)} FCFA',
+                            style: TextStyle(
+                              color: p.isCancelled ? Colors.grey : null,
+                              decoration: p.isCancelled
+                                  ? TextDecoration.lineThrough
+                                  : null,
                             ),
-                            IconButton(
-                              icon: Icon(Icons.delete_outline, color: Colors.red),
-                              tooltip: 'Annuler ce paiement',
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => CustomDialog(
-                                    title: 'Confirmer l\'annulation',
-                                    content: const Text('Voulez-vous vraiment annuler ce paiement ? Cette action est irréversible.'),
-                                    fields: const [],
-                                    onSubmit: () => Navigator.of(context).pop(true),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.of(context).pop(false),
-                                        child: const Text('Annuler'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => Navigator.of(context).pop(true),
-                                        child: const Text('Confirmer'),
-                                      ),
-                                    ],
+                          ),
+                          if (p.isCancelled)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Text(
+                                '(Annulé)',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${p.date.replaceFirst('T', ' ').substring(0, 16)}',
+                            style: TextStyle(
+                              color: p.isCancelled ? Colors.grey : null,
+                            ),
+                          ),
+                          if (p.comment != null && p.comment!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Commentaire : ${p.comment!}',
+                                style: TextStyle(
+                                  color: Colors.deepPurple,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          if (p.isCancelled && p.cancelledAt != null)
+                            Text(
+                              'Annulé le ${p.cancelledAt!.replaceFirst('T', ' ').substring(0, 16)}',
+                              style: TextStyle(color: Colors.red, fontSize: 12),
+                            ),
+                        ],
+                      ),
+                      trailing: p.isCancelled
+                          ? Icon(Icons.block, color: Colors.grey)
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.print, color: Colors.blue),
+                                  tooltip: 'Imprimer le reçu',
+                                  onPressed: () => _printReceipt(p, student),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
                                   ),
-                                );
-                                if (confirm == true) {
-                                  await _dbService.cancelPayment(p.id!);
-                                  Navigator.of(context).pop();
-                                  _showModernSnackBar('Paiement annulé');
-                                  setState(() {});
-                                }
-                              },
+                                  tooltip: 'Annuler ce paiement',
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => CustomDialog(
+                                        title: 'Confirmer l\'annulation',
+                                        content: const Text(
+                                          'Voulez-vous vraiment annuler ce paiement ? Cette action est irréversible.',
+                                        ),
+                                        fields: const [],
+                                        onSubmit: () =>
+                                            Navigator.of(context).pop(true),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              context,
+                                            ).pop(false),
+                                            child: const Text('Annuler'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: const Text('Confirmer'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
+                                      await _dbService.cancelPayment(p.id!);
+                                      Navigator.of(context).pop();
+                                      _showModernSnackBar('Paiement annulé');
+                                      setState(() {});
+                                    }
+                                  },
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                    ),
                   ),
-                )),
+                ),
               ] else ...[
                 Text('Aucun paiement enregistré.'),
               ],
@@ -1239,14 +1504,17 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
 
   void _showPaymentDialog(Student student) async {
     final double fraisEcole = double.tryParse(_fraisEcoleController.text) ?? 0;
-    final double fraisCotisation = double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
+    final double fraisCotisation =
+        double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
     final double montantMax = fraisEcole + fraisCotisation;
     if (montantMax == 0) {
       showDialog(
         context: context,
         builder: (context) => CustomDialog(
           title: 'Alerte',
-          content: const Text('Veuillez renseigner un montant de frais d\'école ou de cotisation dans la fiche classe avant d\'enregistrer un paiement.'),
+          content: const Text(
+            'Veuillez renseigner un montant de frais d\'école ou de cotisation dans la fiche classe avant d\'enregistrer un paiement.',
+          ),
           fields: const [],
           onSubmit: () => Navigator.of(context).pop(),
           actions: [
@@ -1286,7 +1554,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         context: context,
         builder: (context) => CustomDialog(
           title: 'Montant trop élevé',
-          content: Text('Le montant saisi dépasse le solde dû (${reste.toStringAsFixed(2)} FCFA).'),
+          content: Text(
+            'Le montant saisi dépasse le solde dû (${reste.toStringAsFixed(2)} FCFA).',
+          ),
           fields: const [],
           onSubmit: () => Navigator.of(context).pop(),
           actions: [
@@ -1298,6 +1568,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         ),
       );
     }
+
     showDialog(
       context: context,
       builder: (context) => CustomDialog(
@@ -1306,7 +1577,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Montant maximum autorisé : ${reste.toStringAsFixed(2)} FCFA', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Montant maximum autorisé : ${reste.toStringAsFixed(2)} FCFA',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Text('Déjà payé : ${totalPaid.toStringAsFixed(2)} FCFA'),
             const SizedBox(height: 12),
@@ -1345,7 +1619,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
             classAcademicYear: student.academicYear,
             amount: val,
             date: DateTime.now().toIso8601String(),
-            comment: commentController.text.isNotEmpty ? commentController.text : null,
+            comment: commentController.text.isNotEmpty
+                ? commentController.text
+                : null,
           );
           await _dbService.insertPayment(payment);
           Navigator.of(context).pop();
@@ -1371,7 +1647,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                 classAcademicYear: student.academicYear,
                 amount: val,
                 date: DateTime.now().toIso8601String(),
-                comment: commentController.text.isNotEmpty ? commentController.text : null,
+                comment: commentController.text.isNotEmpty
+                    ? commentController.text
+                    : null,
               );
               await _dbService.insertPayment(payment);
               Navigator.of(context).pop();
@@ -1394,26 +1672,62 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('REÇU DE PAIEMENT', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'REÇU DE PAIEMENT',
+                style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.SizedBox(height: 16),
-              pw.Text('Élève : ${student.name}', style: pw.TextStyle(fontSize: 16)),
-              pw.Text('Classe : ${student.className}', style: pw.TextStyle(fontSize: 16)),
+              pw.Text(
+                'Élève : ${student.name}',
+                style: pw.TextStyle(fontSize: 16),
+              ),
+              pw.Text(
+                'Classe : ${student.className}',
+                style: pw.TextStyle(fontSize: 16),
+              ),
               pw.Text('ID : ${student.id}', style: pw.TextStyle(fontSize: 14)),
               pw.SizedBox(height: 12),
-              pw.Text('Montant payé : ${p.amount.toStringAsFixed(2)} FCFA', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.Text('Date : ${p.date.replaceFirst('T', ' ').substring(0, 16)}', style: pw.TextStyle(fontSize: 14)),
+              pw.Text(
+                'Montant payé : ${p.amount.toStringAsFixed(2)} FCFA',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.Text(
+                'Date : ${p.date.replaceFirst('T', ' ').substring(0, 16)}',
+                style: pw.TextStyle(fontSize: 14),
+              ),
               if (p.comment != null && p.comment!.isNotEmpty)
                 pw.Padding(
                   padding: const pw.EdgeInsets.only(top: 8),
-                  child: pw.Text('Commentaire : ${p.comment!}', style: pw.TextStyle(fontSize: 14, fontStyle: pw.FontStyle.italic)),
+                  child: pw.Text(
+                    'Commentaire : ${p.comment!}',
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontStyle: pw.FontStyle.italic,
+                    ),
+                  ),
                 ),
               if (p.isCancelled)
                 pw.Padding(
                   padding: const pw.EdgeInsets.only(top: 8),
-                  child: pw.Text('ANNULÉ le ${p.cancelledAt?.replaceFirst('T', ' ').substring(0, 16) ?? ''}', style: pw.TextStyle(color: PdfColor.fromInt(0xFFFF0000), fontWeight: pw.FontWeight.bold)),
+                  child: pw.Text(
+                    'ANNULÉ le ${p.cancelledAt?.replaceFirst('T', ' ').substring(0, 16) ?? ''}',
+                    style: pw.TextStyle(
+                      color: PdfColor.fromInt(0xFFFF0000),
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
                 ),
               pw.SizedBox(height: 24),
-              pw.Text('Signature : ___________________________', style: pw.TextStyle(fontSize: 14)),
+              pw.Text(
+                'Signature : ___________________________',
+                style: pw.TextStyle(fontSize: 14),
+              ),
             ],
           ),
         ),
@@ -1428,7 +1742,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label : ', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            '$label : ',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           Expanded(child: Text(value)),
         ],
       ),
@@ -1459,13 +1776,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         Flexible(
                           child: ElevatedButton.icon(
                             onPressed: _exportGradesTemplateExcel,
-                            icon: const Icon(Icons.table_view, color: Colors.white),
+                            icon: const Icon(
+                              Icons.table_view,
+                              color: Colors.white,
+                            ),
                             label: const Text('Générer modèle Excel'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0EA5E9),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
@@ -1473,13 +1798,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         Flexible(
                           child: ElevatedButton.icon(
                             onPressed: _exportStudentsPdf,
-                            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                            icon: const Icon(
+                              Icons.picture_as_pdf,
+                              color: Colors.white,
+                            ),
                             label: const Text('Exporter PDF'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF6366F1),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
@@ -1487,13 +1820,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         Flexible(
                           child: ElevatedButton.icon(
                             onPressed: _exportStudentsExcel,
-                            icon: const Icon(Icons.grid_on, color: Colors.white),
+                            icon: const Icon(
+                              Icons.grid_on,
+                              color: Colors.white,
+                            ),
                             label: const Text('Exporter Excel'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF10B981),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
@@ -1501,32 +1842,45 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         Flexible(
                           child: ElevatedButton.icon(
                             onPressed: _exportStudentsWord,
-                            icon: const Icon(Icons.description, color: Colors.white),
+                            icon: const Icon(
+                              Icons.description,
+                              color: Colors.white,
+                            ),
                             label: const Text('Exporter Word'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF3B82F6),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    _buildModernSectionTitle('Informations sur la classe', Icons.class_rounded),
+                    _buildModernSectionTitle(
+                      'Informations sur la classe',
+                      Icons.class_rounded,
+                    ),
                     _buildModernFormCard([
                       CustomFormField(
                         controller: _nameController,
                         labelText: AppStrings.classNameDialog,
                         hintText: 'Entrez le nom de la classe',
-                        validator: (value) => value!.isEmpty ? AppStrings.required : null,
+                        validator: (value) =>
+                            value!.isEmpty ? AppStrings.required : null,
                       ),
                       CustomFormField(
                         controller: _yearController,
                         labelText: AppStrings.academicYearDialog,
                         hintText: "Entrez l'année scolaire",
-                        validator: (value) => value!.isEmpty ? AppStrings.required : null,
+                        validator: (value) =>
+                            value!.isEmpty ? AppStrings.required : null,
                       ),
                       CustomFormField(
                         controller: _titulaireController,
@@ -1538,7 +1892,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         labelText: "Frais d'école",
                         hintText: "Montant des frais d'école",
                         validator: (value) {
-                          if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                          if (value != null &&
+                              value.isNotEmpty &&
+                              double.tryParse(value) == null) {
                             return 'Veuillez entrer un montant valide';
                           }
                           return null;
@@ -1549,7 +1905,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         labelText: 'Frais de cotisation parallèle',
                         hintText: 'Montant des frais de cotisation parallèle',
                         validator: (value) {
-                          if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                          if (value != null &&
+                              value.isNotEmpty &&
+                              double.tryParse(value) == null) {
                             return 'Veuillez entrer un montant valide';
                           }
                           return null;
@@ -1557,7 +1915,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                       ),
                     ]),
                     const SizedBox(height: 32),
-                    _buildModernSectionTitle('Élèves de la classe', Icons.people_rounded),
+                    _buildModernSectionTitle(
+                      'Élèves de la classe',
+                      Icons.people_rounded,
+                    ),
                     Row(
                       children: [
                         ElevatedButton.icon(
@@ -1566,11 +1927,18 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3182CE),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                           onPressed: () async {
-                            final GlobalKey<StudentRegistrationFormState> studentFormKey = GlobalKey<StudentRegistrationFormState>();
+                            final GlobalKey<StudentRegistrationFormState>
+                            studentFormKey =
+                                GlobalKey<StudentRegistrationFormState>();
                             await showDialog(
                               context: context,
                               builder: (context) => CustomDialog(
@@ -1578,18 +1946,22 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                                 content: StudentRegistrationForm(
                                   key: studentFormKey,
                                   className: _nameController.text, // pré-rempli
-                                  classFieldReadOnly: true, // à gérer dans le form
+                                  classFieldReadOnly:
+                                      true, // à gérer dans le form
                                   onSubmit: () async {
-                                    final refreshedStudents = await _dbService.getStudentsByClassAndClassYear(
-                                      _nameController.text,
-                                      _yearController.text,
-                                    );
+                                    final refreshedStudents = await _dbService
+                                        .getStudentsByClassAndClassYear(
+                                          _nameController.text,
+                                          _yearController.text,
+                                        );
                                     setState(() {
                                       _students = refreshedStudents;
                                     });
                                     // Ne pas fermer le dialog, juste vider le formulaire
                                     studentFormKey.currentState?.resetForm();
-                                    _showModernSnackBar('Élève ajouté avec succès !');
+                                    _showModernSnackBar(
+                                      'Élève ajouté avec succès !',
+                                    );
                                   },
                                 ),
                                 fields: const [],
@@ -1598,11 +1970,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                                 },
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
                                     child: const Text('Fermer'),
                                   ),
                                   ElevatedButton(
-                                    onPressed: () => studentFormKey.currentState?.submitForm(),
+                                    onPressed: () => studentFormKey.currentState
+                                        ?.submitForm(),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF10B981),
                                       foregroundColor: Colors.white,
@@ -1632,8 +2006,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF8B5CF6),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ],
@@ -1643,7 +2022,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                       future: _getFilteredAndSortedStudentsAsync(),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
                         final filteredStudents = snapshot.data!;
                         if (filteredStudents.isEmpty) {
@@ -1663,7 +2044,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                       },
                     ),
                     const SizedBox(height: 32),
-                    _buildModernSectionTitle('Matières de la classe', Icons.book),
+                    _buildModernSectionTitle(
+                      'Matières de la classe',
+                      Icons.book,
+                    ),
                     FutureBuilder<List<Course>>(
                       future: _dbService.getCoursesForClass(
                         _nameController.text,
@@ -1676,101 +2060,171 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                           children: [
                             if (classCourses.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                child: Text('Aucune matière associée à cette classe.', style: TextStyle(color: Colors.grey)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  'Aucune matière associée à cette classe.',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
                               ),
-                            ...classCourses.map((course) => ListTile(
-                              title: Text(course.name),
-                              subtitle: course.description != null && course.description!.isNotEmpty ? Text(course.description!) : null,
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.edit_outlined, color: Colors.blue),
-                                    tooltip: 'Modifier cette matière',
-                                    onPressed: () async {
-                                      final nameController = TextEditingController(text: course.name);
-                                      final descController = TextEditingController(text: course.description ?? '');
-                                      await showDialog(
-                                        context: context,
-                                        builder: (context) => AlertDialog(
-                                          title: Text('Modifier la matière'),
-                                          content: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              TextField(
-                                                controller: nameController,
-                                                decoration: InputDecoration(labelText: 'Nom'),
+                            ...classCourses.map(
+                              (course) => ListTile(
+                                title: Text(course.name),
+                                subtitle:
+                                    course.description != null &&
+                                        course.description!.isNotEmpty
+                                    ? Text(course.description!)
+                                    : null,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.edit_outlined,
+                                        color: Colors.blue,
+                                      ),
+                                      tooltip: 'Modifier cette matière',
+                                      onPressed: () async {
+                                        final nameController =
+                                            TextEditingController(
+                                              text: course.name,
+                                            );
+                                        final descController =
+                                            TextEditingController(
+                                              text: course.description ?? '',
+                                            );
+                                        await showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: Text('Modifier la matière'),
+                                            content: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                TextField(
+                                                  controller: nameController,
+                                                  decoration: InputDecoration(
+                                                    labelText: 'Nom',
+                                                  ),
+                                                ),
+                                                TextField(
+                                                  controller: descController,
+                                                  decoration: InputDecoration(
+                                                    labelText: 'Description',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context).pop(),
+                                                child: Text('Annuler'),
                                               ),
-                                              TextField(
-                                                controller: descController,
-                                                decoration: InputDecoration(labelText: 'Description'),
-                    ),
-                  ],
-                ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () => Navigator.of(context).pop(),
-                                              child: Text('Annuler'),
-                                            ),
-                                            ElevatedButton(
-                                              onPressed: () async {
-                                                final newName = nameController.text.trim();
-                                                final newDesc = descController.text.trim();
-                                                if (newName.isEmpty) return;
-                                                final updated = Course(id: course.id, name: newName, description: newDesc.isNotEmpty ? newDesc : null);
-                                                await _dbService.updateCourse(course.id, updated);
-                                                Navigator.of(context).pop();
-                                                setState(() {});
-                                              },
-                                              child: Text('Enregistrer'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                    tooltip: 'Retirer cette matière',
-                                    onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          backgroundColor: Theme.of(context).cardColor,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                          title: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: const [
-                                              Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
-                                              SizedBox(width: 8),
-                                              Text('Retirer la matière ?', style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.bold)),
+                                              ElevatedButton(
+                                                onPressed: () async {
+                                                  final newName = nameController
+                                                      .text
+                                                      .trim();
+                                                  final newDesc = descController
+                                                      .text
+                                                      .trim();
+                                                  if (newName.isEmpty) return;
+                                                  final updated = Course(
+                                                    id: course.id,
+                                                    name: newName,
+                                                    description:
+                                                        newDesc.isNotEmpty
+                                                        ? newDesc
+                                                        : null,
+                                                  );
+                                                  await _dbService.updateCourse(
+                                                    course.id,
+                                                    updated,
+                                                  );
+                                                  Navigator.of(context).pop();
+                                                  setState(() {});
+                                                },
+                                                child: Text('Enregistrer'),
+                                              ),
                                             ],
                                           ),
-                                          content: Text('Voulez-vous retirer "${course.name}" de cette classe ?'),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-                                            ElevatedButton(
-                                              onPressed: () => Navigator.pop(ctx, true),
-                                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
-                                              child: const Text('Retirer'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true) {
-                                        await _dbService.removeCourseFromClass(
-                                          _nameController.text,
-                                          _yearController.text,
-                                          course.id,
                                         );
-                                        setState(() {});
-                                      }
-                                    },
-                                  ),
-                                ],
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.red,
+                                      ),
+                                      tooltip: 'Retirer cette matière',
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            backgroundColor: Theme.of(
+                                              context,
+                                            ).cardColor,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                            title: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: const [
+                                                Icon(
+                                                  Icons.warning_amber_rounded,
+                                                  color: Color(0xFFE11D48),
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Retirer la matière ?',
+                                                  style: TextStyle(
+                                                    color: Color(0xFFE11D48),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            content: Text(
+                                              'Voulez-vous retirer "${course.name}" de cette classe ?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, false),
+                                                child: const Text('Annuler'),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, true),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(
+                                                    0xFFE11D48,
+                                                  ),
+                                                  foregroundColor: Colors.white,
+                                                ),
+                                                child: const Text('Retirer'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          await _dbService
+                                              .removeCourseFromClass(
+                                                _nameController.text,
+                                                _yearController.text,
+                                                course.id,
+                                              );
+                                          setState(() {});
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
-                            )),
+                            ),
                             const SizedBox(height: 8),
                             ElevatedButton.icon(
                               icon: Icon(Icons.add_outlined),
@@ -1778,73 +2232,121 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Color(0xFF6366F1),
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
-                            onPressed: () async {
-                              final allCourses = await _dbService.getCourses();
-                                final classCourseIds = classCourses.map((c) => c.id).toSet();
-                                final availableCourses = allCourses.where((c) => !classCourseIds.contains(c.id)).toList();
+                              onPressed: () async {
+                                final allCourses = await _dbService
+                                    .getCourses();
+                                final classCourseIds = classCourses
+                                    .map((c) => c.id)
+                                    .toSet();
+                                final availableCourses = allCourses
+                                    .where(
+                                      (c) => !classCourseIds.contains(c.id),
+                                    )
+                                    .toList();
                                 if (availableCourses.isEmpty) {
                                   // Utiliser un simple AlertDialog car on est dans un CustomDialog sans Scaffold
                                   await showDialog(
                                     context: context,
                                     builder: (ctx) => AlertDialog(
                                       title: const Text('Information'),
-                                      content: const Text('Aucune matière disponible à ajouter.'),
+                                      content: const Text(
+                                        'Aucune matière disponible à ajouter.',
+                                      ),
                                       actions: [
-                                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx),
+                                          child: const Text('OK'),
+                                        ),
                                       ],
                                     ),
                                   );
                                   return;
                                 }
                                 final Map<String, bool> selected = {
-                                  for (final course in availableCourses) course.id: false
+                                  for (final course in availableCourses)
+                                    course.id: false,
                                 };
                                 await showDialog(
                                   context: context,
                                   builder: (context) => StatefulBuilder(
-                                    builder: (context, setStateDialog) => AlertDialog(
-                                      title: Text('Ajouter des matières à la classe'),
-                                      content: SizedBox(
-                                        width: 350,
-                                        child: ListView(
-                                          shrinkWrap: true,
-                                          children: availableCourses.map((course) => CheckboxListTile(
-                                            value: selected[course.id],
-                                            title: Text(course.name),
-                                            subtitle: course.description != null && course.description!.isNotEmpty ? Text(course.description!) : null,
-                                            onChanged: (val) {
-                                              setStateDialog(() => selected[course.id] = val ?? false);
-                                            },
-                                          )).toList(),
-                                        ),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.of(context).pop(),
-                                          child: Text('Annuler'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: selected.values.any((v) => v)
-                                              ? () async {
-                                                  for (final entry in selected.entries) {
-                                                    if (entry.value) {
-                                                      await _dbService.addCourseToClass(
-                                                        _nameController.text,
-                                                        _yearController.text,
-                                                        entry.key,
-                                                      );
+                                    builder: (context, setStateDialog) =>
+                                        AlertDialog(
+                                          title: Text(
+                                            'Ajouter des matières à la classe',
+                                          ),
+                                          content: SizedBox(
+                                            width: 350,
+                                            child: ListView(
+                                              shrinkWrap: true,
+                                              children: availableCourses
+                                                  .map(
+                                                    (
+                                                      course,
+                                                    ) => CheckboxListTile(
+                                                      value:
+                                                          selected[course.id],
+                                                      title: Text(course.name),
+                                                      subtitle:
+                                                          course.description !=
+                                                                  null &&
+                                                              course
+                                                                  .description!
+                                                                  .isNotEmpty
+                                                          ? Text(
+                                                              course
+                                                                  .description!,
+                                                            )
+                                                          : null,
+                                                      onChanged: (val) {
+                                                        setStateDialog(
+                                                          () =>
+                                                              selected[course
+                                                                      .id] =
+                                                                  val ?? false,
+                                                        );
+                                                      },
+                                                    ),
+                                                  )
+                                                  .toList(),
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context).pop(),
+                                              child: Text('Annuler'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed:
+                                                  selected.values.any((v) => v)
+                                                  ? () async {
+                                                      for (final entry
+                                                          in selected.entries) {
+                                                        if (entry.value) {
+                                                          await _dbService
+                                                              .addCourseToClass(
+                                                                _nameController
+                                                                    .text,
+                                                                _yearController
+                                                                    .text,
+                                                                entry.key,
+                                                              );
+                                                        }
+                                                      }
+                                                      Navigator.of(
+                                                        context,
+                                                      ).pop();
+                                                      setState(() {});
                                                     }
-                                                  }
-                                                  Navigator.of(context).pop();
-                                                  setState(() {});
-                                                }
-                                              : null,
-                                          child: Text('Ajouter'),
+                                                  : null,
+                                              child: Text('Ajouter'),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
                                   ),
                                 );
                               },
@@ -1854,7 +2356,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                       },
                     ),
                     const SizedBox(height: 24),
-                    _buildModernSectionTitle('Pondération des matières (cette classe uniquement)', Icons.tune),
+                    _buildModernSectionTitle(
+                      'Pondération des matières (cette classe uniquement)',
+                      Icons.tune,
+                    ),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1867,59 +2372,129 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.tune, color: Theme.of(context).colorScheme.primary),
+                              Icon(
+                                Icons.tune,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                               const SizedBox(width: 8),
-                              Expanded(child: Text('Définissez le coefficient de chaque matière. La somme doit faire 20.', style: Theme.of(context).textTheme.bodyMedium)),
+                              Expanded(
+                                child: Text(
+                                  'Définissez le coefficient de chaque matière. La somme doit faire 20.',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: ((_sumCoeffs - 20).abs() < 1e-6) ? Colors.green.shade50 : Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: ((_sumCoeffs - 20).abs() < 1e-6) ? Colors.green.shade200 : Colors.red.shade200),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
                                 ),
-                                child: Text('Somme: ${_sumCoeffs.toStringAsFixed(2)} / 20', style: TextStyle(color: ((_sumCoeffs - 20).abs() < 1e-6) ? Colors.green.shade700 : Colors.red.shade700, fontWeight: FontWeight.bold)),
+                                decoration: BoxDecoration(
+                                  color: ((_sumCoeffs - 20).abs() < 1e-6)
+                                      ? Colors.green.shade50
+                                      : Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: ((_sumCoeffs - 20).abs() < 1e-6)
+                                        ? Colors.green.shade200
+                                        : Colors.red.shade200,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Somme: ${_sumCoeffs.toStringAsFixed(2)} / 20',
+                                  style: TextStyle(
+                                    color: ((_sumCoeffs - 20).abs() < 1e-6)
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
                           FutureBuilder<List<Course>>(
-                            future: _dbService.getCoursesForClass(_nameController.text, _yearController.text),
+                            future: _dbService.getCoursesForClass(
+                              _nameController.text,
+                              _yearController.text,
+                            ),
                             builder: (context, snapshot) {
                               final subs = snapshot.data ?? _classSubjects;
                               if (subs.isEmpty) {
-                                return Text('Aucune matière pour ${_nameController.text}.');
+                                return Text(
+                                  'Aucune matière pour ${_nameController.text}.',
+                                );
                               }
                               return Column(
                                 children: [
                                   Table(
-                                    border: TableBorder.all(color: Colors.blue.shade100),
-                                    columnWidths: const { 0: FlexColumnWidth(3), 1: FlexColumnWidth(1) },
+                                    border: TableBorder.all(
+                                      color: Colors.blue.shade100,
+                                    ),
+                                    columnWidths: const {
+                                      0: FlexColumnWidth(3),
+                                      1: FlexColumnWidth(1),
+                                    },
                                     children: [
                                       TableRow(
-                                        decoration: BoxDecoration(color: Colors.blue.shade50),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade50,
+                                        ),
                                         children: const [
-                                          Padding(padding: EdgeInsets.all(8), child: Text('Matière', style: TextStyle(fontWeight: FontWeight.bold))),
-                                          Padding(padding: EdgeInsets.all(8), child: Text('Coeff.', style: TextStyle(fontWeight: FontWeight.bold))),
+                                          Padding(
+                                            padding: EdgeInsets.all(8),
+                                            child: Text(
+                                              'Matière',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: EdgeInsets.all(8),
+                                            child: Text(
+                                              'Coeff.',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                       ...subs.map((c) {
-                                        final ctrl = _coeffCtrls[c.id] ?? TextEditingController();
+                                        final ctrl =
+                                            _coeffCtrls[c.id] ??
+                                            TextEditingController();
                                         if (!_coeffCtrls.containsKey(c.id)) {
                                           _coeffCtrls[c.id] = ctrl;
                                         }
-                                        return TableRow(children: [
-                                          Padding(padding: const EdgeInsets.all(8), child: Text(c.name)),
-                                          Padding(
-                                            padding: const EdgeInsets.all(8),
-                                            child: TextField(
-                                              controller: ctrl,
-                                              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), hintText: 'ex: 2'),
-                                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                              onChanged: (_) => _recomputeSum(),
+                                        return TableRow(
+                                          children: [
+                                            Padding(
+                                              padding: const EdgeInsets.all(8),
+                                              child: Text(c.name),
                                             ),
-                                          ),
-                                        ]);
+                                            Padding(
+                                              padding: const EdgeInsets.all(8),
+                                              child: TextField(
+                                                controller: ctrl,
+                                                decoration:
+                                                    const InputDecoration(
+                                                      isDense: true,
+                                                      border:
+                                                          OutlineInputBorder(),
+                                                      hintText: 'ex: 2',
+                                                    ),
+                                                keyboardType:
+                                                    const TextInputType.numberWithOptions(
+                                                      decimal: true,
+                                                    ),
+                                                onChanged: (_) =>
+                                                    _recomputeSum(),
+                                              ),
+                                            ),
+                                          ],
+                                        );
                                       }).toList(),
                                     ],
                                   ),
@@ -1971,10 +2546,16 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         'Voulez-vous vraiment supprimer la classe "${_nameController.text}" ?\nCette action est irréversible.',
                       ),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Annuler'),
+                        ),
                         ElevatedButton(
                           onPressed: () => Navigator.pop(ctx, true),
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE53E3E), foregroundColor: Colors.white),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE53E3E),
+                            foregroundColor: Colors.white,
+                          ),
                           child: const Text('Supprimer'),
                         ),
                       ],
@@ -1987,9 +2568,18 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                       final deleted = Class(
                         name: _nameController.text,
                         academicYear: _yearController.text,
-                        titulaire: _titulaireController.text.isNotEmpty ? _titulaireController.text : null,
-                        fraisEcole: _fraisEcoleController.text.isNotEmpty ? double.tryParse(_fraisEcoleController.text) : null,
-                        fraisCotisationParallele: _fraisCotisationParalleleController.text.isNotEmpty ? double.tryParse(_fraisCotisationParalleleController.text) : null,
+                        titulaire: _titulaireController.text.isNotEmpty
+                            ? _titulaireController.text
+                            : null,
+                        fraisEcole: _fraisEcoleController.text.isNotEmpty
+                            ? double.tryParse(_fraisEcoleController.text)
+                            : null,
+                        fraisCotisationParallele:
+                            _fraisCotisationParalleleController.text.isNotEmpty
+                            ? double.tryParse(
+                                _fraisCotisationParalleleController.text,
+                              )
+                            : null,
                       );
                       await _dbService.deleteClassByName(
                         _nameController.text,
@@ -2004,9 +2594,17 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                             onPressed: () async {
                               try {
                                 await _dbService.insertClass(deleted);
-                                showRootSnackBar(const SnackBar(content: Text('Suppression annulée')));
+                                showRootSnackBar(
+                                  const SnackBar(
+                                    content: Text('Suppression annulée'),
+                                  ),
+                                );
                               } catch (e) {
-                                showRootSnackBar(SnackBar(content: Text('Annulation impossible: $e')));
+                                showRootSnackBar(
+                                  SnackBar(
+                                    content: Text('Annulation impossible: $e'),
+                                  ),
+                                );
                               }
                             },
                           ),
@@ -2021,7 +2619,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                         builder: (ctx) => AlertDialog(
                           title: const Text('Impossible de supprimer'),
                           content: Text(e.toString()),
-                          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('OK'),
+                            ),
+                          ],
                         ),
                       );
                     }
@@ -2029,7 +2632,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
                 },
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             side: const BorderSide(color: Color(0xFFE53E3E)),
             foregroundColor: const Color(0xFFE53E3E),
           ),
@@ -2042,7 +2647,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             side: BorderSide(color: Theme.of(context).dividerColor),
           ),
           child: const Text(
@@ -2056,7 +2663,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
             backgroundColor: const Color(0xFF3182CE),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             elevation: 0,
           ),
           child: const Text(
@@ -2064,7 +2673,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),
-        
       ],
     );
   }
@@ -2083,25 +2691,50 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
             Container(
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(8)),
-              child: Text('Payé : $nbPayes', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Payé : $nbPayes',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             Container(
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(8)),
-              child: Text('En attente : $nbAttente', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'En attente : $nbAttente',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-            Text('Paiement global : ${percent.toStringAsFixed(1)}%', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Paiement global : ${percent.toStringAsFixed(1)}%',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const Spacer(),
             DropdownButton<String>(
               value: _studentStatusFilter,
               items: const [
                 DropdownMenuItem(value: 'Tous', child: Text('Tous')),
                 DropdownMenuItem(value: 'Payé', child: Text('Payé')),
-                DropdownMenuItem(value: 'En attente', child: Text('En attente')),
+                DropdownMenuItem(
+                  value: 'En attente',
+                  child: Text('En attente'),
+                ),
               ],
-              onChanged: (value) => setState(() => _studentStatusFilter = value!),
+              onChanged: (value) =>
+                  setState(() => _studentStatusFilter = value!),
             ),
           ],
         );
@@ -2113,7 +2746,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
     int nbPayes = 0;
     int nbAttente = 0;
     final double fraisEcole = double.tryParse(_fraisEcoleController.text) ?? 0;
-    final double fraisCotisation = double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
+    final double fraisCotisation =
+        double.tryParse(_fraisCotisationParalleleController.text) ?? 0;
     final double montantMax = fraisEcole + fraisCotisation;
     for (final s in _students) {
       final totalPaid = await _dbService.getTotalPaidForStudent(s.id);
@@ -2142,21 +2776,27 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         return {'student': student, 'classe': classe};
       }).toList();
 
-      final pdfBytes = await PdfService.exportStudentsListPdf(students: studentsList);
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final pdfBytes = await PdfService.exportStudentsListPdf(
+        students: studentsList,
+      );
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return; // Annulé
 
       // Nom de fichier plus descriptif avec date formatée
       final now = DateTime.now();
-      final formattedDate = '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
-      final fileName = 'liste_eleves_${widget.classe.name}_${formattedDate}.pdf';
+      final formattedDate =
+          '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
+      final fileName =
+          'liste_eleves_${widget.classe.name}_${formattedDate}.pdf';
       final file = File('$dirPath/$fileName');
-      
+
       await file.writeAsBytes(pdfBytes);
-      
+
       // Ouvrir automatiquement le fichier
       await OpenFile.open(file.path);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Export PDF réussi : ${file.path}'),
@@ -2194,20 +2834,24 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         final classe = widget.classe;
         return {'student': student, 'classe': classe};
       }).toList();
-      
+
       // Trie par nom
-      studentsList.sort((a, b) => ((a['student'] as Student).name).compareTo((b['student'] as Student).name));
-      
+      studentsList.sort(
+        (a, b) => ((a['student'] as Student).name).compareTo(
+          (b['student'] as Student).name,
+        ),
+      );
+
       final excel = Excel.createExcel();
       final sheet = excel['Élèves'];
-      
+
       // En-têtes avec formatage
       final headerStyle = CellStyle(
         bold: true,
         backgroundColorHex: ExcelColor.blue50,
         fontColorHex: ExcelColor.blue900,
       );
-      
+
       final headerRow = [
         TextCellValue('N°'),
         TextCellValue('ID'),
@@ -2230,12 +2874,15 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         TextCellValue('Photo'),
       ];
       sheet.appendRow(headerRow);
-      
+
       // Appliquer le style aux en-têtes
       for (int i = 0; i < headerRow.length; i++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).cellStyle = headerStyle;
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+                .cellStyle =
+            headerStyle;
       }
-      
+
       // Données des élèves
       for (int i = 0; i < studentsList.length; i++) {
         final student = studentsList[i]['student'] as Student;
@@ -2244,7 +2891,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         // Dans le formulaire, le prénom est saisi en premier, donc c'est le premier élément
         final prenom = names.isNotEmpty ? names[0] : '';
         final nom = names.length > 1 ? names.sublist(1).join(' ') : '';
-        
+
         sheet.appendRow([
           IntCellValue(i + 1),
           TextCellValue(student.id),
@@ -2267,27 +2914,31 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           TextCellValue(student.photoPath ?? ''),
         ]);
       }
-      
+
       // Ajuster la largeur des colonnes
       for (int i = 0; i < headerRow.length; i++) {
         sheet.setColumnWidth(i, 15);
       }
-      
+
       final bytes = excel.encode()!;
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return; // Annulé
-      
+
       // Nom de fichier plus descriptif avec date formatée
       final now = DateTime.now();
-      final formattedDate = '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
-      final fileName = 'liste_eleves_${widget.classe.name}_${formattedDate}.xlsx';
+      final formattedDate =
+          '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
+      final fileName =
+          'liste_eleves_${widget.classe.name}_${formattedDate}.xlsx';
       final file = File('$dirPath/$fileName');
-      
+
       await file.writeAsBytes(bytes);
-      
+
       // Ouvrir automatiquement le fichier
       await OpenFile.open(file.path);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Export Excel réussi : ${file.path}'),
@@ -2321,22 +2972,25 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         ),
       );
 
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return; // Annulé
-      
+
       final docx = await _generateStudentsDocx();
-      
+
       // Nom de fichier plus descriptif avec date formatée
       final now = DateTime.now();
-      final formattedDate = '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
+      final formattedDate =
+          '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
       final fileName = 'liste_eleves_${widget.classe.name}_$formattedDate.docx';
       final file = File('$dirPath/$fileName');
-      
+
       await file.writeAsBytes(docx);
-      
+
       // Ouvrir automatiquement le fichier
       await OpenFile.open(file.path);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Export Word réussi : ${file.path}'),
@@ -2370,7 +3024,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         ),
       );
 
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return; // Annulé
 
       // Générer une fiche profil pour chaque élève
@@ -2380,17 +3036,20 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           student: student,
           classe: widget.classe,
         );
-        
+
         // Nom de fichier avec le nom de l'élève
-        final fileName = 'fiche_profil_${student.name.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final fileName =
+            'fiche_profil_${student.name.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final file = File('$dirPath/$fileName');
-        
+
         await file.writeAsBytes(pdfBytes);
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${_students.length} fiches profil générées avec succès dans : $dirPath'),
+          content: Text(
+            '${_students.length} fiches profil générées avec succès dans : $dirPath',
+          ),
           backgroundColor: Theme.of(context).colorScheme.primary,
           duration: const Duration(seconds: 4),
         ),
@@ -2408,7 +3067,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
 
   Future<List<int>> _generateStudentsDocx() async {
     try {
-      final bytes = await DefaultAssetBundle.of(context).load('assets/empty.docx');
+      final bytes = await DefaultAssetBundle.of(
+        context,
+      ).load('assets/empty.docx');
       final docx = await DocxTemplate.fromBytes(bytes.buffer.asUint8List());
       final studentsList = List<Map<String, dynamic>>.from(
         _students.map((student) {
@@ -2416,7 +3077,11 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
           return {'student': student, 'classe': classe};
         }),
       );
-      studentsList.sort((a, b) => ((a['student'] as Student).name).compareTo((b['student'] as Student).name));
+      studentsList.sort(
+        (a, b) => ((a['student'] as Student).name).compareTo(
+          (b['student'] as Student).name,
+        ),
+      );
       final rows = List<RowContent>.generate(studentsList.length, (i) {
         final student = studentsList[i]['student'] as Student;
         final classe = studentsList[i]['classe'] as Class;
@@ -2464,7 +3129,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         _yearController.text,
       );
       if (classSubjects.isEmpty) {
-        _showModernSnackBar("Aucune matière n'est associée à cette classe", isError: true);
+        _showModernSnackBar(
+          "Aucune matière n'est associée à cette classe",
+          isError: true,
+        );
         return;
       }
 
@@ -2544,25 +3212,28 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         final moyClasseCol = col++;
         setHeader(moyClasseCol, 'MoyClasse [$subjectName]');
 
-        subjectColumns.add(_SubjectColumnMeta(
-          name: subjectName,
-          devoirCol: devoirCol,
-          coeffDevoirCol: coeffDevCol,
-          surDevoirCol: surDevCol,
-          compoCol: compoCol,
-          coeffCompoCol: coeffCompCol,
-          surCompoCol: surCompCol,
-          profCol: profCol,
-          appCol: appCol,
-          moyClasseCol: moyClasseCol,
-        ));
+        subjectColumns.add(
+          _SubjectColumnMeta(
+            name: subjectName,
+            devoirCol: devoirCol,
+            coeffDevoirCol: coeffDevCol,
+            surDevoirCol: surDevCol,
+            compoCol: compoCol,
+            coeffCompoCol: coeffCompCol,
+            surCompoCol: surCompCol,
+            profCol: profCol,
+            appCol: appCol,
+            moyClasseCol: moyClasseCol,
+          ),
+        );
       }
 
       // Charger les coefficients de matières définis au niveau de la classe
-      final Map<String, double> subjectCoeffs = await _dbService.getClassSubjectCoefficients(
-        _nameController.text,
-        _yearController.text,
-      );
+      final Map<String, double> subjectCoeffs = await _dbService
+          .getClassSubjectCoefficients(
+            _nameController.text,
+            _yearController.text,
+          );
 
       // Remplir les lignes élèves
       for (int i = 0; i < _students.length; i++) {
@@ -2590,9 +3261,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
         // Valeurs par défaut pour coeff (matière) et "sur"
         for (final meta in subjectColumns) {
           final double coeffMatiere = subjectCoeffs[meta.name] ?? 1;
-          sheet.getRangeByIndex(row, meta.coeffDevoirCol).setNumber(coeffMatiere);
+          sheet
+              .getRangeByIndex(row, meta.coeffDevoirCol)
+              .setNumber(coeffMatiere);
           sheet.getRangeByIndex(row, meta.surDevoirCol).setNumber(20);
-          sheet.getRangeByIndex(row, meta.coeffCompoCol).setNumber(coeffMatiere);
+          sheet
+              .getRangeByIndex(row, meta.coeffCompoCol)
+              .setNumber(coeffMatiere);
           sheet.getRangeByIndex(row, meta.surCompoCol).setNumber(20);
         }
       }
@@ -2601,27 +3276,87 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       int lastRow = _students.length + 1;
       // Validations assiduité
       try {
-        final absJRange = sheet.getRangeByIndex(2, absJustCol, lastRow, absJustCol);
-        final absIRange = sheet.getRangeByIndex(2, absInjCol, lastRow, absInjCol);
-        final retRange = sheet.getRangeByIndex(2, retardsCol, lastRow, retardsCol);
-        final presRange = sheet.getRangeByIndex(2, presenceCol, lastRow, presenceCol);
+        final absJRange = sheet.getRangeByIndex(
+          2,
+          absJustCol,
+          lastRow,
+          absJustCol,
+        );
+        final absIRange = sheet.getRangeByIndex(
+          2,
+          absInjCol,
+          lastRow,
+          absInjCol,
+        );
+        final retRange = sheet.getRangeByIndex(
+          2,
+          retardsCol,
+          lastRow,
+          retardsCol,
+        );
+        final presRange = sheet.getRangeByIndex(
+          2,
+          presenceCol,
+          lastRow,
+          presenceCol,
+        );
         for (final r in [absJRange, absIRange, retRange]) {
           final dv = r.dataValidation;
-          try { (dv as dynamic).allowType = 2; } catch (_) {}
-          try { (dv as dynamic).operator = 6; } catch (_) { try { (dv as dynamic).compareOperator = 6; } catch (_) {} }
-          try { (dv as dynamic).firstFormula = '0'; (dv as dynamic).secondFormula = '999'; } catch (_) {}
-          try { (dv as dynamic).promptBoxTitle = 'Validation'; (dv as dynamic).promptBoxText = 'Entrez un entier >= 0'; (dv as dynamic).showPromptBox = true; } catch (_) {}
+          try {
+            (dv as dynamic).allowType = 2;
+          } catch (_) {}
+          try {
+            (dv as dynamic).operator = 6;
+          } catch (_) {
+            try {
+              (dv as dynamic).compareOperator = 6;
+            } catch (_) {}
+          }
+          try {
+            (dv as dynamic).firstFormula = '0';
+            (dv as dynamic).secondFormula = '999';
+          } catch (_) {}
+          try {
+            (dv as dynamic).promptBoxTitle = 'Validation';
+            (dv as dynamic).promptBoxText = 'Entrez un entier >= 0';
+            (dv as dynamic).showPromptBox = true;
+          } catch (_) {}
         }
         final dvp = presRange.dataValidation;
-        try { (dvp as dynamic).allowType = 2; } catch (_) {}
-        try { (dvp as dynamic).operator = 6; } catch (_) { try { (dvp as dynamic).compareOperator = 6; } catch (_) {} }
-        try { (dvp as dynamic).firstFormula = '0'; (dvp as dynamic).secondFormula = '100'; } catch (_) {}
-        try { (dvp as dynamic).promptBoxTitle = 'Validation'; (dvp as dynamic).promptBoxText = '0 à 100'; (dvp as dynamic).showPromptBox = true; } catch (_) {}
+        try {
+          (dvp as dynamic).allowType = 2;
+        } catch (_) {}
+        try {
+          (dvp as dynamic).operator = 6;
+        } catch (_) {
+          try {
+            (dvp as dynamic).compareOperator = 6;
+          } catch (_) {}
+        }
+        try {
+          (dvp as dynamic).firstFormula = '0';
+          (dvp as dynamic).secondFormula = '100';
+        } catch (_) {}
+        try {
+          (dvp as dynamic).promptBoxTitle = 'Validation';
+          (dvp as dynamic).promptBoxText = '0 à 100';
+          (dvp as dynamic).showPromptBox = true;
+        } catch (_) {}
       } catch (_) {}
 
       for (final meta in subjectColumns) {
-        final dvRange = sheet.getRangeByIndex(2, meta.devoirCol, lastRow, meta.devoirCol);
-        final compRange = sheet.getRangeByIndex(2, meta.compoCol, lastRow, meta.compoCol);
+        final dvRange = sheet.getRangeByIndex(
+          2,
+          meta.devoirCol,
+          lastRow,
+          meta.devoirCol,
+        );
+        final compRange = sheet.getRangeByIndex(
+          2,
+          meta.compoCol,
+          lastRow,
+          meta.compoCol,
+        );
 
         try {
           final dv = dvRange.dataValidation;
@@ -2670,20 +3405,24 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       final bytes = workbook.saveAsStream();
       workbook.dispose();
 
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return;
-      
+
       // Nom de fichier plus descriptif avec date formatée
       final now = DateTime.now();
-      final formattedDate = '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
-      final fileName = 'modele_notes_${_nameController.text}_${_yearController.text}_$formattedDate.xlsx';
+      final formattedDate =
+          '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
+      final fileName =
+          'modele_notes_${_nameController.text}_${_yearController.text}_$formattedDate.xlsx';
       final file = File('$dirPath/$fileName');
-      
+
       await file.writeAsBytes(bytes, flush: true);
-      
+
       // Ouvrir automatiquement le fichier
       await OpenFile.open(file.path);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Modèle Excel généré : ${file.path}'),
@@ -2705,7 +3444,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage> with TickerProvider
       );
     }
   }
-
 }
 
 String _formatIsoToDisplay(String iso) {
@@ -2724,7 +3462,8 @@ String _calculateAgeFromIso(String iso) {
     final birth = DateTime.parse(iso);
     final now = DateTime.now();
     int age = now.year - birth.year;
-    if (now.month < birth.month || (now.month == birth.month && now.day < birth.day)) {
+    if (now.month < birth.month ||
+        (now.month == birth.month && now.day < birth.day)) {
       age--;
     }
     return '$age ans';

@@ -82,7 +82,9 @@ class _PaymentsPageState extends State<PaymentsPage>
     final currentAcademicYear = await getCurrentAcademicYear();
 
     // Filtrer les classes pour l'année courante
-    final filteredClasses = classes.where((c) => c.academicYear == currentAcademicYear).toList();
+    final filteredClasses = classes
+        .where((c) => c.academicYear == currentAcademicYear)
+        .toList();
 
     final studentsById = {for (var s in students) s.id: s};
     // Construire map name->Class en prenant en compte l'année académique (la clé student.className n'inclut pas l'année),
@@ -90,7 +92,9 @@ class _PaymentsPageState extends State<PaymentsPage>
     final classesByName = {for (var c in filteredClasses) c.name: c};
 
     // Filtrer les paiements pour n'inclure que ceux de l'année académique courante
-    final filteredPayments = payments.where((p) => p.classAcademicYear == currentAcademicYear).toList();
+    final filteredPayments = payments
+        .where((p) => p.classAcademicYear == currentAcademicYear)
+        .toList();
 
     setState(() {
       _payments = filteredPayments;
@@ -112,7 +116,9 @@ class _PaymentsPageState extends State<PaymentsPage>
     // Associe chaque élève à son dernier paiement (ou null si aucun)
     final List<Map<String, dynamic>> rows = [];
     for (final student in _studentsById.values) {
-      final studentPayments = _payments.where((p) => p.studentId == student.id && !p.isCancelled).toList();
+      final studentPayments = _payments
+          .where((p) => p.studentId == student.id && !p.isCancelled)
+          .toList();
       Payment? lastPayment;
       if (studentPayments.isNotEmpty) {
         studentPayments.sort((a, b) => b.date.compareTo(a.date));
@@ -126,7 +132,12 @@ class _PaymentsPageState extends State<PaymentsPage>
   List<Map<String, dynamic>> get filteredRows {
     List<Map<String, dynamic>> rows = allRows;
     if (_selectedClassFilter != null) {
-      rows = rows.where((row) => (row['student'] as Student).className == _selectedClassFilter).toList();
+      rows = rows
+          .where(
+            (row) =>
+                (row['student'] as Student).className == _selectedClassFilter,
+          )
+          .toList();
     }
     if (_selectedYearFilter != null) {
       // Filtrer à la fois par année de la classe ET année de l'élève
@@ -142,22 +153,30 @@ class _PaymentsPageState extends State<PaymentsPage>
       }).toList();
     }
     if (_selectedGenderFilter != null) {
-      rows = rows.where((row) => (row['student'] as Student).gender == _selectedGenderFilter).toList();
+      rows = rows
+          .where(
+            (row) =>
+                (row['student'] as Student).gender == _selectedGenderFilter,
+          )
+          .toList();
     }
     if (_searchQuery.isNotEmpty) {
       rows = rows.where((row) {
         final student = row['student'] as Student;
         final name = student.name.toLowerCase();
         final classe = student.className.toLowerCase();
-      return name.contains(_searchQuery.toLowerCase()) || classe.contains(_searchQuery.toLowerCase());
-    }).toList();
+        return name.contains(_searchQuery.toLowerCase()) ||
+            classe.contains(_searchQuery.toLowerCase());
+      }).toList();
     }
     // Filtrage par statut via tab
     if (_currentTab == 1) {
       // Impayés (aucun paiement)
       rows = rows.where((row) {
         final student = row['student'] as Student;
-        final studentPayments = _payments.where((p) => p.studentId == student.id && !p.isCancelled).toList();
+        final studentPayments = _payments
+            .where((p) => p.studentId == student.id && !p.isCancelled)
+            .toList();
         return studentPayments.isEmpty;
       }).toList();
     } else if (_currentTab == 2) {
@@ -165,18 +184,28 @@ class _PaymentsPageState extends State<PaymentsPage>
       rows = rows.where((row) {
         final student = row['student'] as Student;
         final classe = _classesByName[student.className];
-        final montantMax = (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
-        final studentPayments = _payments.where((p) => p.studentId == student.id && !p.isCancelled).toList();
-        final totalPaid = studentPayments.fold<double>(0, (sum, pay) => sum + pay.amount);
-        return studentPayments.isNotEmpty && (montantMax == 0 || totalPaid < montantMax);
+        final montantMax =
+            (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
+        final studentPayments = _payments
+            .where((p) => p.studentId == student.id && !p.isCancelled)
+            .toList();
+        final totalPaid = studentPayments.fold<double>(
+          0,
+          (sum, pay) => sum + pay.amount,
+        );
+        return studentPayments.isNotEmpty &&
+            (montantMax == 0 || totalPaid < montantMax);
       }).toList();
     } else if (_currentTab == 3) {
       // Payés
       rows = rows.where((row) {
         final student = row['student'] as Student;
         final classe = _classesByName[student.className];
-        final montantMax = (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
-        final totalPaid = _payments.where((pay) => pay.studentId == student.id && !pay.isCancelled).fold<double>(0, (sum, pay) => sum + pay.amount);
+        final montantMax =
+            (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
+        final totalPaid = _payments
+            .where((pay) => pay.studentId == student.id && !pay.isCancelled)
+            .fold<double>(0, (sum, pay) => sum + pay.amount);
         return montantMax > 0 && totalPaid >= montantMax;
       }).toList();
     }
@@ -194,7 +223,7 @@ class _PaymentsPageState extends State<PaymentsPage>
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     final isDesktop = MediaQuery.of(context).size.width > 900;
-    
+
     return Scaffold(
       body: Container(
         color: theme.scaffoldBackgroundColor,
@@ -266,7 +295,9 @@ class _PaymentsPageState extends State<PaymentsPage>
                         'Gérez les frais de scolarité, générez des reçus et suivez les soldes impayés.',
                         style: TextStyle(
                           fontSize: isDesktop ? 16 : 14,
-                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.7,
+                          ),
                           height: 1.5,
                         ),
                       ),
@@ -301,9 +332,13 @@ class _PaymentsPageState extends State<PaymentsPage>
             onChanged: (value) => setState(() => _searchQuery = value),
             decoration: InputDecoration(
               hintText: 'Rechercher par nom d\'étudiant ou classe',
-              hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6)),
+              hintStyle: TextStyle(
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+              ),
               prefixIcon: Icon(Icons.search, color: theme.iconTheme.color),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
             ),
             style: TextStyle(color: theme.textTheme.bodyLarge?.color),
@@ -313,10 +348,16 @@ class _PaymentsPageState extends State<PaymentsPage>
     );
   }
 
-  Widget _buildPaymentsTable(BuildContext context, bool isDarkMode, ThemeData theme) {
+  Widget _buildPaymentsTable(
+    BuildContext context,
+    bool isDarkMode,
+    ThemeData theme,
+  ) {
     final totalPages = (filteredRows.length / _rowsPerPage).ceil();
     final classList = _classesByName.keys.toList()..sort();
-    final yearList = _classesByName.values.map((c) => c.academicYear).toSet().toList()..sort();
+    final yearList =
+        _classesByName.values.map((c) => c.academicYear).toSet().toList()
+          ..sort();
     final genderList = ['M', 'F'];
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 24),
@@ -337,7 +378,12 @@ class _PaymentsPageState extends State<PaymentsPage>
           children: [
             // TabBar pour filtrer par statut
             Container(
-              margin: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 0),
+              margin: const EdgeInsets.only(
+                top: 16,
+                left: 16,
+                right: 16,
+                bottom: 0,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -372,8 +418,14 @@ class _PaymentsPageState extends State<PaymentsPage>
                         dividerColor: Colors.transparent,
                         labelColor: Colors.white,
                         unselectedLabelColor: theme.textTheme.bodyMedium?.color,
-                        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        unselectedLabelStyle: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
                         tabs: const [
                           Tab(text: 'Tous'),
                           Tab(text: 'Impayés'),
@@ -392,8 +444,13 @@ class _PaymentsPageState extends State<PaymentsPage>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6366F1),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -404,8 +461,13 @@ class _PaymentsPageState extends State<PaymentsPage>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -416,8 +478,13 @@ class _PaymentsPageState extends State<PaymentsPage>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3B82F6),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                 ],
@@ -430,12 +497,36 @@ class _PaymentsPageState extends State<PaymentsPage>
                   // Filtre classe
                   DropdownButton<String?>(
                     value: _selectedClassFilter,
-                    hint: Text('Classe', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                    hint: Text(
+                      'Classe',
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                    ),
                     items: [
-                      DropdownMenuItem<String?>(value: null, child: Text('Toutes les classes', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                      ...classList.map((c) => DropdownMenuItem<String?>(value: c, child: Text(c, style: TextStyle(color: theme.textTheme.bodyMedium?.color)))),
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text(
+                          'Toutes les classes',
+                          style: TextStyle(
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                      ),
+                      ...classList.map(
+                        (c) => DropdownMenuItem<String?>(
+                          value: c,
+                          child: Text(
+                            c,
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
-                    onChanged: (value) => setState(() => _selectedClassFilter = value),
+                    onChanged: (value) =>
+                        setState(() => _selectedClassFilter = value),
                     dropdownColor: theme.cardColor,
                     iconEnabledColor: theme.iconTheme.color,
                     style: TextStyle(color: theme.textTheme.bodyMedium?.color),
@@ -447,16 +538,52 @@ class _PaymentsPageState extends State<PaymentsPage>
                     builder: (context, currentYear, _) {
                       return DropdownButton<String?>(
                         value: _selectedYearFilter,
-                        hint: Text('Année', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                        hint: Text(
+                          'Année',
+                          style: TextStyle(
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
                         items: [
-                          DropdownMenuItem<String?>(value: null, child: Text('Toutes les années', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                          DropdownMenuItem<String?>(value: currentYear, child: Text('Année courante ($currentYear)', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                          ...yearList.where((y) => y != currentYear).map((y) => DropdownMenuItem<String?>(value: y, child: Text(y, style: TextStyle(color: theme.textTheme.bodyMedium?.color)))),
+                          DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text(
+                              'Toutes les années',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                            ),
+                          ),
+                          DropdownMenuItem<String?>(
+                            value: currentYear,
+                            child: Text(
+                              'Année courante ($currentYear)',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                            ),
+                          ),
+                          ...yearList
+                              .where((y) => y != currentYear)
+                              .map(
+                                (y) => DropdownMenuItem<String?>(
+                                  value: y,
+                                  child: Text(
+                                    y,
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyMedium?.color,
+                                    ),
+                                  ),
+                                ),
+                              ),
                         ],
-                        onChanged: (value) => setState(() => _selectedYearFilter = value),
+                        onChanged: (value) =>
+                            setState(() => _selectedYearFilter = value),
                         dropdownColor: theme.cardColor,
                         iconEnabledColor: theme.iconTheme.color,
-                        style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
                       );
                     },
                   ),
@@ -464,13 +591,43 @@ class _PaymentsPageState extends State<PaymentsPage>
                   // Filtre sexe
                   DropdownButton<String?>(
                     value: _selectedGenderFilter,
-                    hint: Text('Sexe', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                    hint: Text(
+                      'Sexe',
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                    ),
                     items: [
-                      DropdownMenuItem<String?>(value: null, child: Text('Tous', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                      DropdownMenuItem<String?>(value: 'M', child: Text('Garçons', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                      DropdownMenuItem<String?>(value: 'F', child: Text('Filles', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text(
+                          'Tous',
+                          style: TextStyle(
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'M',
+                        child: Text(
+                          'Garçons',
+                          style: TextStyle(
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'F',
+                        child: Text(
+                          'Filles',
+                          style: TextStyle(
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                      ),
                     ],
-                    onChanged: (value) => setState(() => _selectedGenderFilter = value),
+                    onChanged: (value) =>
+                        setState(() => _selectedGenderFilter = value),
                     dropdownColor: theme.cardColor,
                     iconEnabledColor: theme.iconTheme.color,
                     style: TextStyle(color: theme.textTheme.bodyMedium?.color),
@@ -502,7 +659,12 @@ class _PaymentsPageState extends State<PaymentsPage>
                           ? () => setState(() => _currentPage--)
                           : null,
                     ),
-                    Text('Page ${_currentPage + 1} / $totalPages', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                    Text(
+                      'Page ${_currentPage + 1} / $totalPages',
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                    ),
                     IconButton(
                       icon: Icon(Icons.chevron_right),
                       onPressed: _currentPage < totalPages - 1
@@ -510,8 +672,8 @@ class _PaymentsPageState extends State<PaymentsPage>
                           : null,
                     ),
                   ],
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -523,12 +685,7 @@ class _PaymentsPageState extends State<PaymentsPage>
       padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor,
-            width: 1,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: theme.dividerColor, width: 1)),
       ),
       child: Row(
         children: [
@@ -544,7 +701,11 @@ class _PaymentsPageState extends State<PaymentsPage>
     );
   }
 
-  Widget _buildHeaderCell(String text, {int flex = 1, required ThemeData theme}) {
+  Widget _buildHeaderCell(
+    String text, {
+    int flex = 1,
+    required ThemeData theme,
+  }) {
     return Expanded(
       flex: flex,
       child: Text(
@@ -559,7 +720,13 @@ class _PaymentsPageState extends State<PaymentsPage>
     );
   }
 
-  Widget _buildCell(String text, {int flex = 1, bool isName = false, required bool isDarkMode, required ThemeData theme}) {
+  Widget _buildCell(
+    String text, {
+    int flex = 1,
+    bool isName = false,
+    required bool isDarkMode,
+    required ThemeData theme,
+  }) {
     return Expanded(
       flex: flex,
       child: Text(
@@ -575,10 +742,18 @@ class _PaymentsPageState extends State<PaymentsPage>
     );
   }
 
-  Widget _buildTableRowV2(Student student, Payment? p, bool isDarkMode, ThemeData theme) {
+  Widget _buildTableRowV2(
+    Student student,
+    Payment? p,
+    bool isDarkMode,
+    ThemeData theme,
+  ) {
     final classe = _classesByName[student.className];
-    final montantMax = (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
-    final totalPaid = _payments.where((pay) => pay.studentId == student.id && !pay.isCancelled).fold<double>(0, (sum, pay) => sum + pay.amount);
+    final montantMax =
+        (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
+    final totalPaid = _payments
+        .where((pay) => pay.studentId == student.id && !pay.isCancelled)
+        .fold<double>(0, (sum, pay) => sum + pay.amount);
     final bool isPaid = montantMax > 0 && totalPaid >= montantMax;
     final bool hasPayment = p != null;
     return Container(
@@ -586,49 +761,71 @@ class _PaymentsPageState extends State<PaymentsPage>
       decoration: BoxDecoration(
         color: theme.cardColor,
         border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor,
-            width: 0.5,
-          ),
+          bottom: BorderSide(color: theme.dividerColor, width: 0.5),
         ),
       ),
       child: Row(
         children: [
-          _buildCell(student.name, flex: 3, isName: true, isDarkMode: isDarkMode, theme: theme),
-          _buildCell(student.className, flex: 2, isDarkMode: isDarkMode, theme: theme),
-          _buildCell(hasPayment ? p!.date.replaceFirst('T', ' ').substring(0, 16) : '', flex: 2, isDarkMode: isDarkMode, theme: theme),
-          _buildCell(hasPayment ? '${p!.amount.toStringAsFixed(2)} FCFA' : '', flex: 2, isDarkMode: isDarkMode, theme: theme),
-          _buildCell(hasPayment ? (p!.comment ?? '') : '', flex: 3, isDarkMode: isDarkMode, theme: theme),
+          _buildCell(
+            student.name,
+            flex: 3,
+            isName: true,
+            isDarkMode: isDarkMode,
+            theme: theme,
+          ),
+          _buildCell(
+            student.className,
+            flex: 2,
+            isDarkMode: isDarkMode,
+            theme: theme,
+          ),
+          _buildCell(
+            hasPayment ? p!.date.replaceFirst('T', ' ').substring(0, 16) : '',
+            flex: 2,
+            isDarkMode: isDarkMode,
+            theme: theme,
+          ),
+          _buildCell(
+            hasPayment ? '${p!.amount.toStringAsFixed(2)} FCFA' : '',
+            flex: 2,
+            isDarkMode: isDarkMode,
+            theme: theme,
+          ),
+          _buildCell(
+            hasPayment ? (p!.comment ?? '') : '',
+            flex: 3,
+            isDarkMode: isDarkMode,
+            theme: theme,
+          ),
           Expanded(
             flex: 2,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
                   colors: isPaid
                       ? [Color(0xFF10B981), Color(0xFF059669)]
                       : [Color(0xFFEF4444), Color(0xFFDC2626)],
-          ),
-          boxShadow: [
-            BoxShadow(
-                    color: (isPaid ? Color(0xFF10B981) : Color(0xFFEF4444)).withOpacity(0.3),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Text(
-                isPaid
-                    ? 'Payé'
-                    : (hasPayment ? 'En attente' : 'Impayé'),
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (isPaid ? Color(0xFF10B981) : Color(0xFFEF4444))
+                        .withOpacity(0.3),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                isPaid ? 'Payé' : (hasPayment ? 'En attente' : 'Impayé'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
           _buildActionCellV2(student, p, isDarkMode, theme),
@@ -637,7 +834,12 @@ class _PaymentsPageState extends State<PaymentsPage>
     );
   }
 
-  Widget _buildActionCellV2(Student student, Payment? p, bool isDarkMode, ThemeData theme) {
+  Widget _buildActionCellV2(
+    Student student,
+    Payment? p,
+    bool isDarkMode,
+    ThemeData theme,
+  ) {
     return Expanded(
       flex: 2,
       child: Align(
@@ -652,7 +854,7 @@ class _PaymentsPageState extends State<PaymentsPage>
             } else if (value == 'ajouter') {
               _showAddPaymentDialog(student, theme);
             } else if (value == 'details') {
-               _showStudentDetailsDialog(student, theme);
+              _showStudentDetailsDialog(student, theme);
             } else if (value == 'profile') {
               showDialog(
                 context: context,
@@ -660,16 +862,23 @@ class _PaymentsPageState extends State<PaymentsPage>
               );
             }
           },
-        
-            itemBuilder: (context) => [
+
+          itemBuilder: (context) => [
             PopupMenuItem(
               value: 'view_recu',
               enabled: p != null,
               child: Row(
                 children: [
-                  Icon(Icons.receipt_rounded, color: p != null ? theme.colorScheme.primary : Colors.grey, size: 18),
+                  Icon(
+                    Icons.receipt_rounded,
+                    color: p != null ? theme.colorScheme.primary : Colors.grey,
+                    size: 18,
+                  ),
                   SizedBox(width: 8),
-                  Text('Voir reçu', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                  Text(
+                    'Voir reçu',
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  ),
                 ],
               ),
             ),
@@ -678,9 +887,16 @@ class _PaymentsPageState extends State<PaymentsPage>
               enabled: p != null,
               child: Row(
                 children: [
-                  Icon(Icons.save_alt, color: p != null ? theme.colorScheme.primary : Colors.grey, size: 18),
+                  Icon(
+                    Icons.save_alt,
+                    color: p != null ? theme.colorScheme.primary : Colors.grey,
+                    size: 18,
+                  ),
                   SizedBox(width: 8),
-                  Text('Enregistrer reçu', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                  Text(
+                    'Enregistrer reçu',
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  ),
                 ],
               ),
             ),
@@ -688,9 +904,16 @@ class _PaymentsPageState extends State<PaymentsPage>
               value: 'ajouter',
               child: Row(
                 children: [
-                  Icon(Icons.add_circle_outline, color: theme.colorScheme.secondary, size: 18),
+                  Icon(
+                    Icons.add_circle_outline,
+                    color: theme.colorScheme.secondary,
+                    size: 18,
+                  ),
                   SizedBox(width: 8),
-                  Text('Ajouter paiement', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                  Text(
+                    'Ajouter paiement',
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  ),
                 ],
               ),
             ),
@@ -698,9 +921,16 @@ class _PaymentsPageState extends State<PaymentsPage>
               value: 'details',
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: theme.colorScheme.onSurface, size: 18),
+                  Icon(
+                    Icons.info_outline,
+                    color: theme.colorScheme.onSurface,
+                    size: 18,
+                  ),
                   SizedBox(width: 8),
-                  Text('Voir détails', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                  Text(
+                    'Voir détails',
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  ),
                 ],
               ),
             ),
@@ -708,9 +938,16 @@ class _PaymentsPageState extends State<PaymentsPage>
               value: 'profile',
               child: Row(
                 children: [
-                  Icon(Icons.person_search, color: theme.colorScheme.primary, size: 18),
+                  Icon(
+                    Icons.person_search,
+                    color: theme.colorScheme.primary,
+                    size: 18,
+                  ),
                   SizedBox(width: 8),
-                  Text('Voir profil élève', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                  Text(
+                    'Voir profil élève',
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  ),
                 ],
               ),
             ),
@@ -719,10 +956,6 @@ class _PaymentsPageState extends State<PaymentsPage>
         ),
       ),
     );
-    
-    
-     
-    
   }
 
   void _showAddPaymentDialog(Student student, ThemeData theme) async {
@@ -735,13 +968,19 @@ class _PaymentsPageState extends State<PaymentsPage>
         context: context,
         builder: (context) => CustomDialog(
           title: 'Alerte',
-          content: Text('Veuillez renseigner un montant de frais d\'école ou de cotisation dans la fiche classe avant d\'enregistrer un paiement.', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+          content: Text(
+            'Veuillez renseigner un montant de frais d\'école ou de cotisation dans la fiche classe avant d\'enregistrer un paiement.',
+            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+          ),
           fields: const [],
           onSubmit: () => Navigator.of(context).pop(),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+              child: Text(
+                'OK',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+              ),
             ),
           ],
         ),
@@ -757,13 +996,19 @@ class _PaymentsPageState extends State<PaymentsPage>
         context: context,
         builder: (context) => CustomDialog(
           title: 'Alerte',
-          content: Text('L\'élève a déjà tout payé pour cette classe.', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+          content: Text(
+            'L\'élève a déjà tout payé pour cette classe.',
+            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+          ),
           fields: const [],
           onSubmit: () => Navigator.of(context).pop(),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+              child: Text(
+                'OK',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+              ),
             ),
           ],
         ),
@@ -775,18 +1020,25 @@ class _PaymentsPageState extends State<PaymentsPage>
         context: context,
         builder: (context) => CustomDialog(
           title: 'Montant trop élevé',
-          content: Text('Le montant saisi dépasse le solde dû (${reste.toStringAsFixed(2)} FCFA).', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+          content: Text(
+            'Le montant saisi dépasse le solde dû (${reste.toStringAsFixed(2)} FCFA).',
+            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+          ),
           fields: const [],
           onSubmit: () => Navigator.of(context).pop(),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+              child: Text(
+                'OK',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+              ),
             ),
           ],
         ),
       );
     }
+
     showDialog(
       context: context,
       builder: (context) => CustomDialog(
@@ -795,9 +1047,18 @@ class _PaymentsPageState extends State<PaymentsPage>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Montant maximum autorisé : ${reste.toStringAsFixed(2)} FCFA', style: TextStyle(fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color)),
+            Text(
+              'Montant maximum autorisé : ${reste.toStringAsFixed(2)} FCFA',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: theme.textTheme.bodyLarge?.color,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('Déjà payé : ${totalPaid.toStringAsFixed(2)} FCFA', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+            Text(
+              'Déjà payé : ${totalPaid.toStringAsFixed(2)} FCFA',
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            ),
             const SizedBox(height: 12),
             CustomFormField(
               controller: montantController,
@@ -835,24 +1096,35 @@ class _PaymentsPageState extends State<PaymentsPage>
               classAcademicYear: student.academicYear,
               amount: val,
               date: DateTime.now().toIso8601String(),
-              comment: commentController.text.isNotEmpty ? commentController.text : null,
+              comment: commentController.text.isNotEmpty
+                  ? commentController.text
+                  : null,
             );
             await _dbService.insertPayment(payment);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Paiement enregistré avec succès'), backgroundColor: Colors.green),
+              const SnackBar(
+                content: Text('Paiement enregistré avec succès'),
+                backgroundColor: Colors.green,
+              ),
             );
             Navigator.of(context).pop();
             _fetchPayments();
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erreur lors de l\'enregistrement: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+              SnackBar(
+                content: Text('Erreur lors de l\'enregistrement: $e'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
             );
           }
         },
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Annuler', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+            child: Text(
+              'Annuler',
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -873,17 +1145,25 @@ class _PaymentsPageState extends State<PaymentsPage>
                   classAcademicYear: student.academicYear,
                   amount: val,
                   date: DateTime.now().toIso8601String(),
-                  comment: commentController.text.isNotEmpty ? commentController.text : null,
+                  comment: commentController.text.isNotEmpty
+                      ? commentController.text
+                      : null,
                 );
                 await _dbService.insertPayment(payment);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Paiement enregistré avec succès'), backgroundColor: Colors.green),
+                  const SnackBar(
+                    content: Text('Paiement enregistré avec succès'),
+                    backgroundColor: Colors.green,
+                  ),
                 );
                 Navigator.of(context).pop();
                 _fetchPayments();
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Erreur lors de l\'enregistrement: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+                  SnackBar(
+                    content: Text('Erreur lors de l\'enregistrement: $e'),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  ),
                 );
               }
             },
@@ -901,7 +1181,9 @@ class _PaymentsPageState extends State<PaymentsPage>
     final double montantMax = fraisEcole + fraisCotisation;
     final totalPaid = await _dbService.getTotalPaidForStudent(student.id);
     final reste = montantMax - totalPaid;
-    final status = (montantMax > 0 && totalPaid >= montantMax) ? 'Payé' : 'En attente';
+    final status = (montantMax > 0 && totalPaid >= montantMax)
+        ? 'Payé'
+        : 'En attente';
     final payments = await _dbService.getPaymentsForStudent(student.id);
     showDialog(
       context: context,
@@ -922,85 +1204,176 @@ class _PaymentsPageState extends State<PaymentsPage>
                       width: double.infinity,
                       height: 120,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.error, color: Colors.red)),
+                      errorBuilder: (context, error, stackTrace) =>
+                          Center(child: Icon(Icons.error, color: Colors.red)),
                     ),
                   ),
                 ),
               _buildDetailRow('Nom complet', student.name, theme),
               _buildDetailRow('ID', student.id, theme),
               _buildDetailRow('Date de naissance', student.dateOfBirth, theme),
-              _buildDetailRow('Sexe', student.gender == 'M' ? 'Garçon' : 'Fille', theme),
+              _buildDetailRow(
+                'Sexe',
+                student.gender == 'M' ? 'Garçon' : 'Fille',
+                theme,
+              ),
               _buildDetailRow('Classe', student.className, theme),
               _buildDetailRow('Adresse', student.address, theme),
               _buildDetailRow('Contact', student.contactNumber, theme),
               _buildDetailRow('Email', student.email, theme),
-              _buildDetailRow('Contact d\'urgence', student.emergencyContact, theme),
+              _buildDetailRow(
+                'Contact d\'urgence',
+                student.emergencyContact,
+                theme,
+              ),
               _buildDetailRow('Tuteur', student.guardianName, theme),
               _buildDetailRow('Contact tuteur', student.guardianContact, theme),
-              if (student.medicalInfo != null && student.medicalInfo!.isNotEmpty)
+              if (student.medicalInfo != null &&
+                  student.medicalInfo!.isNotEmpty)
                 _buildDetailRow('Infos médicales', student.medicalInfo!, theme),
               const SizedBox(height: 16),
               Divider(color: theme.dividerColor),
-              Text('Paiement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.textTheme.bodyLarge?.color)),
+              Text(
+                'Paiement',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: theme.textTheme.bodyLarge?.color,
+                ),
+              ),
               const SizedBox(height: 8),
-              _buildDetailRow('Montant dû', '${montantMax.toStringAsFixed(2)} FCFA', theme),
-              _buildDetailRow('Déjà payé', '${totalPaid.toStringAsFixed(2)} FCFA', theme),
-              _buildDetailRow('Reste à payer', '${reste.toStringAsFixed(2)} FCFA', theme),
+              _buildDetailRow(
+                'Montant dû',
+                '${montantMax.toStringAsFixed(2)} FCFA',
+                theme,
+              ),
+              _buildDetailRow(
+                'Déjà payé',
+                '${totalPaid.toStringAsFixed(2)} FCFA',
+                theme,
+              ),
+              _buildDetailRow(
+                'Reste à payer',
+                '${reste.toStringAsFixed(2)} FCFA',
+                theme,
+              ),
               _buildDetailRow('Statut', status, theme),
               const SizedBox(height: 8),
               if (payments.isNotEmpty) ...[
-                Text('Historique des paiements', style: TextStyle(fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color)),
+                Text(
+                  'Historique des paiements',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: theme.textTheme.bodyLarge?.color,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                ...payments.map((p) => Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  color: theme.cardColor,
-                  child: ListTile(
-                    leading: Icon(Icons.attach_money, color: p.isCancelled ? Colors.grey : Colors.green),
-                    title: Row(
-                      children: [
-                        Text('${p.amount.toStringAsFixed(2)} FCFA', style: TextStyle(
-                          color: p.isCancelled ? Colors.grey : theme.textTheme.bodyLarge?.color,
-                          decoration: p.isCancelled ? TextDecoration.lineThrough : null,
-                        )),
-                        if (p.isCancelled)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Text('(Annulé)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12)),
-                          ),
-                      ],
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${p.date.replaceFirst('T', ' ').substring(0, 16)}', style: TextStyle(color: p.isCancelled ? Colors.grey : theme.textTheme.bodyMedium?.color)),
-                        if (p.comment != null && p.comment!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text('Commentaire : ${p.comment!}', style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontStyle: FontStyle.italic)),
-                          ),
-                        if (p.isCancelled && p.cancelledAt != null)
-                          Text('Annulé le ${p.cancelledAt!.replaceFirst('T', ' ').substring(0, 16)}', style: TextStyle(color: Colors.red, fontSize: 12)),
-                      ],
-                    ),
-                    trailing: p.isCancelled
-                      ? Icon(Icons.block, color: Colors.grey)
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.picture_as_pdf, color: Colors.blue),
-                              tooltip: 'Voir le reçu',
-                              onPressed: () => _handleReceiptPdf(p, student, theme, saveOnly: false),
+                ...payments.map(
+                  (p) => Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: theme.cardColor,
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.attach_money,
+                        color: p.isCancelled ? Colors.grey : Colors.green,
+                      ),
+                      title: Row(
+                        children: [
+                          Text(
+                            '${p.amount.toStringAsFixed(2)} FCFA',
+                            style: TextStyle(
+                              color: p.isCancelled
+                                  ? Colors.grey
+                                  : theme.textTheme.bodyLarge?.color,
+                              decoration: p.isCancelled
+                                  ? TextDecoration.lineThrough
+                                  : null,
                             ),
-                            IconButton(
-                              icon: Icon(Icons.save_alt, color: Colors.blueGrey),
-                              tooltip: 'Enregistrer le reçu',
-                              onPressed: () => _handleReceiptPdf(p, student, theme, saveOnly: true),
+                          ),
+                          if (p.isCancelled)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Text(
+                                '(Annulé)',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
-              ]),
-                )),
-          )] else ...[
-                Text('Aucun paiement enregistré.', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${p.date.replaceFirst('T', ' ').substring(0, 16)}',
+                            style: TextStyle(
+                              color: p.isCancelled
+                                  ? Colors.grey
+                                  : theme.textTheme.bodyMedium?.color,
+                            ),
+                          ),
+                          if (p.comment != null && p.comment!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Commentaire : ${p.comment!}',
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyMedium?.color,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          if (p.isCancelled && p.cancelledAt != null)
+                            Text(
+                              'Annulé le ${p.cancelledAt!.replaceFirst('T', ' ').substring(0, 16)}',
+                              style: TextStyle(color: Colors.red, fontSize: 12),
+                            ),
+                        ],
+                      ),
+                      trailing: p.isCancelled
+                          ? Icon(Icons.block, color: Colors.grey)
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.picture_as_pdf,
+                                    color: Colors.blue,
+                                  ),
+                                  tooltip: 'Voir le reçu',
+                                  onPressed: () => _handleReceiptPdf(
+                                    p,
+                                    student,
+                                    theme,
+                                    saveOnly: false,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.save_alt,
+                                    color: Colors.blueGrey,
+                                  ),
+                                  tooltip: 'Enregistrer le reçu',
+                                  onPressed: () => _handleReceiptPdf(
+                                    p,
+                                    student,
+                                    theme,
+                                    saveOnly: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  'Aucun paiement enregistré.',
+                  style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                ),
               ],
             ],
           ),
@@ -1010,22 +1383,33 @@ class _PaymentsPageState extends State<PaymentsPage>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Fermer', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+            child: Text(
+              'Fermer',
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _handleReceiptPdf(Payment p, Student? student, ThemeData theme, {bool saveOnly = false}) async {
+  Future<void> _handleReceiptPdf(
+    Payment p,
+    Student? student,
+    ThemeData theme, {
+    bool saveOnly = false,
+  }) async {
     if (student == null) return;
 
     final classe = _classesByName[student.className];
     if (classe == null) return; // Should not happen
 
     final allPayments = await _dbService.getPaymentsForStudent(student.id);
-    final totalPaid = allPayments.where((p) => !p.isCancelled).fold(0.0, (sum, item) => sum + item.amount);
-    final totalDue = (classe.fraisEcole ?? 0) + (classe.fraisCotisationParallele ?? 0);
+    final totalPaid = allPayments
+        .where((p) => !p.isCancelled)
+        .fold(0.0, (sum, item) => sum + item.amount);
+    final totalDue =
+        (classe.fraisEcole ?? 0) + (classe.fraisCotisationParallele ?? 0);
 
     final schoolInfo = await loadSchoolInfo();
     final pdfBytes = await PdfService.generatePaymentReceiptPdf(
@@ -1039,21 +1423,34 @@ class _PaymentsPageState extends State<PaymentsPage>
     );
 
     if (saveOnly) {
-      String? directoryPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisir le dossier de sauvegarde');
+      String? directoryPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisir le dossier de sauvegarde',
+      );
       if (directoryPath != null) {
-        final fileName = 'Recu_Paiement_${student.name.replaceAll(' ', '_')}_${p.date.substring(0, 10)}.pdf';
+        final fileName =
+            'Recu_Paiement_${student.name.replaceAll(' ', '_')}_${p.date.substring(0, 10)}.pdf';
         final file = File('$directoryPath/$fileName');
         await file.writeAsBytes(pdfBytes);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Reçu enregistré dans $directoryPath'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('Reçu enregistré dans $directoryPath'),
+            backgroundColor: Colors.green,
+          ),
         );
         // Ouvrir le PDF immédiatement
-        try { await OpenFile.open(file.path); } catch (_) {}
+        try {
+          await OpenFile.open(file.path);
+        } catch (_) {}
       }
     } else {
-      await Printing.layoutPdf(onLayout: (format) async => Uint8List.fromList(pdfBytes));
+      await Printing.layoutPdf(
+        onLayout: (format) async => Uint8List.fromList(pdfBytes),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aperçu du reçu ouvert'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Aperçu du reçu ouvert'),
+          backgroundColor: Colors.green,
+        ),
       );
     }
   }
@@ -1064,8 +1461,19 @@ class _PaymentsPageState extends State<PaymentsPage>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label : ', style: TextStyle(fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color)),
-          Expanded(child: Text(value, style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
+          Text(
+            '$label : ',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: theme.textTheme.bodyLarge?.color,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            ),
+          ),
         ],
       ),
     );
@@ -1074,14 +1482,20 @@ class _PaymentsPageState extends State<PaymentsPage>
   void _exportToPdf(ThemeData theme) async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export PDF en cours...'), backgroundColor: theme.colorScheme.primary),
+        SnackBar(
+          content: Text('Export PDF en cours...'),
+          backgroundColor: theme.colorScheme.primary,
+        ),
       );
       final rows = filteredRows.map((row) {
         final student = row['student'] as Student;
         final payment = row['payment'] as Payment?;
         final classe = _classesByName[student.className];
-        final montantMax = (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
-        final totalPaid = _payments.where((pay) => pay.studentId == student.id && !pay.isCancelled).fold<double>(0, (sum, pay) => sum + pay.amount);
+        final montantMax =
+            (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
+        final totalPaid = _payments
+            .where((pay) => pay.studentId == student.id && !pay.isCancelled)
+            .fold<double>(0, (sum, pay) => sum + pay.amount);
         return {
           'student': student,
           'payment': payment,
@@ -1090,19 +1504,31 @@ class _PaymentsPageState extends State<PaymentsPage>
         };
       }).toList();
       final pdfBytes = await PdfService.exportPaymentsListPdf(rows: rows);
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return;
-      final file = File('$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final file = File(
+        '$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
       await file.writeAsBytes(pdfBytes);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export PDF réussi : ${file.path}'), backgroundColor: theme.colorScheme.primary),
+        SnackBar(
+          content: Text('Export PDF réussi : ${file.path}'),
+          backgroundColor: theme.colorScheme.primary,
+        ),
       );
       // Ouvrir le PDF immédiatement
-      try { await OpenFile.open(file.path); } catch (_) {}
+      try {
+        await OpenFile.open(file.path);
+      } catch (_) {}
     } catch (e) {
       print('Erreur export PDF : $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur export PDF : $e'), backgroundColor: theme.colorScheme.error),
+        SnackBar(
+          content: Text('Erreur export PDF : $e'),
+          backgroundColor: theme.colorScheme.error,
+        ),
       );
     }
   }
@@ -1110,7 +1536,10 @@ class _PaymentsPageState extends State<PaymentsPage>
   void _exportToExcel(ThemeData theme) async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export Excel en cours...'), backgroundColor: theme.colorScheme.primary),
+        SnackBar(
+          content: Text('Export Excel en cours...'),
+          backgroundColor: theme.colorScheme.primary,
+        ),
       );
       final excel = Excel.createExcel();
       final sheet = excel['Paiements'];
@@ -1128,8 +1557,11 @@ class _PaymentsPageState extends State<PaymentsPage>
         final student = row['student'] as Student;
         final payment = row['payment'] as Payment?;
         final classe = _classesByName[student.className];
-        final montantMax = (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
-        final totalPaid = _payments.where((pay) => pay.studentId == student.id && !pay.isCancelled).fold<double>(0, (sum, pay) => sum + pay.amount);
+        final montantMax =
+            (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
+        final totalPaid = _payments
+            .where((pay) => pay.studentId == student.id && !pay.isCancelled)
+            .fold<double>(0, (sum, pay) => sum + pay.amount);
         String statut;
         if (montantMax > 0 && totalPaid >= montantMax) {
           statut = 'Payé';
@@ -1142,24 +1574,40 @@ class _PaymentsPageState extends State<PaymentsPage>
           TextCellValue(student.name),
           TextCellValue(student.className),
           TextCellValue(classe?.academicYear ?? ''),
-          payment?.amount != null ? DoubleCellValue(payment!.amount) : TextCellValue(''),
-          payment != null ? TextCellValue(payment.date.replaceFirst('T', ' ').substring(0, 16)) : TextCellValue(''),
+          payment?.amount != null
+              ? DoubleCellValue(payment!.amount)
+              : TextCellValue(''),
+          payment != null
+              ? TextCellValue(
+                  payment.date.replaceFirst('T', ' ').substring(0, 16),
+                )
+              : TextCellValue(''),
           TextCellValue(statut),
           TextCellValue(payment?.comment ?? ''),
         ]);
       }
       final bytes = excel.encode()!;
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return;
-      final file = File('$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.xlsx');
+      final file = File(
+        '$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+      );
       await file.writeAsBytes(bytes);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export Excel réussi : ${file.path}'), backgroundColor: theme.colorScheme.primary),
+        SnackBar(
+          content: Text('Export Excel réussi : ${file.path}'),
+          backgroundColor: theme.colorScheme.primary,
+        ),
       );
     } catch (e) {
       print('Erreur export Excel : $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur export Excel : $e'), backgroundColor: theme.colorScheme.error),
+        SnackBar(
+          content: Text('Erreur export Excel : $e'),
+          backgroundColor: theme.colorScheme.error,
+        ),
       );
     }
   }
@@ -1167,88 +1615,113 @@ class _PaymentsPageState extends State<PaymentsPage>
   void _exportToWord(ThemeData theme) async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export Word en cours...'), backgroundColor: theme.colorScheme.primary),
+        SnackBar(
+          content: Text('Export Word en cours...'),
+          backgroundColor: theme.colorScheme.primary,
+        ),
       );
-      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choisissez un dossier de sauvegarde');
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
       if (dirPath == null) return;
       final docx = await _generatePaymentsDocx(theme);
-      final file = File('$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.docx');
+      final file = File(
+        '$dirPath/export_paiements_${DateTime.now().millisecondsSinceEpoch}.docx',
+      );
       await file.writeAsBytes(docx);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export Word réussi : ${file.path}'), backgroundColor: theme.colorScheme.primary),
+        SnackBar(
+          content: Text('Export Word réussi : ${file.path}'),
+          backgroundColor: theme.colorScheme.primary,
+        ),
       );
     } catch (e) {
       print('Erreur export Word : $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur export Word : $e'), backgroundColor: theme.colorScheme.error),
+        SnackBar(
+          content: Text('Erreur export Word : $e'),
+          backgroundColor: theme.colorScheme.error,
+        ),
       );
     }
   }
 
-Future<List<int>> _generatePaymentsDocx(ThemeData theme) async {
-  try {
-    final bytes = await DefaultAssetBundle.of(context).load('assets/empty.docx');
-    final docx = await DocxTemplate.fromBytes(bytes.buffer.asUint8List());
-    
-    // Créer une nouvelle liste modifiable
-    final List<Map<String, String>> rows = [];
-    
-    for (final row in filteredRows) {
-      final student = row['student'] as Student;
-      final payment = row['payment'] as Payment?;
-      final classe = _classesByName[student.className];
-      final montantMax = (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
-      final totalPaid = _payments
-          .where((pay) => pay.studentId == student.id && !pay.isCancelled)
-          .fold<double>(0, (sum, pay) => sum + pay.amount);
-          
-      String statut;
-      if (montantMax > 0 && totalPaid >= montantMax) {
-        statut = 'Payé';
-      } else if (payment != null && totalPaid > 0) {
-        statut = 'En attente';
-      } else {
-        statut = 'Impayé';
+  Future<List<int>> _generatePaymentsDocx(ThemeData theme) async {
+    try {
+      final bytes = await DefaultAssetBundle.of(
+        context,
+      ).load('assets/empty.docx');
+      final docx = await DocxTemplate.fromBytes(bytes.buffer.asUint8List());
+
+      // Créer une nouvelle liste modifiable
+      final List<Map<String, String>> rows = [];
+
+      for (final row in filteredRows) {
+        final student = row['student'] as Student;
+        final payment = row['payment'] as Payment?;
+        final classe = _classesByName[student.className];
+        final montantMax =
+            (classe?.fraisEcole ?? 0) + (classe?.fraisCotisationParallele ?? 0);
+        final totalPaid = _payments
+            .where((pay) => pay.studentId == student.id && !pay.isCancelled)
+            .fold<double>(0, (sum, pay) => sum + pay.amount);
+
+        String statut;
+        if (montantMax > 0 && totalPaid >= montantMax) {
+          statut = 'Payé';
+        } else if (payment != null && totalPaid > 0) {
+          statut = 'En attente';
+        } else {
+          statut = 'Impayé';
+        }
+
+        // Ajouter les données dans un Map
+        rows.add({
+          'nom': student.name,
+          'classe': student.className,
+          'annee': classe?.academicYear ?? '',
+          'montant': payment?.amount?.toString() ?? '',
+          'date': payment != null
+              ? payment.date.replaceFirst('T', ' ').substring(0, 16)
+              : '',
+          'statut': statut,
+          'commentaire': payment?.comment ?? '',
+        });
       }
 
-      // Ajouter les données dans un Map
-      rows.add({
-        'nom': student.name,
-        'classe': student.className,
-        'annee': classe?.academicYear ?? '',
-        'montant': payment?.amount?.toString() ?? '',
-        'date': payment != null ? payment.date.replaceFirst('T', ' ').substring(0, 16) : '',
-        'statut': statut,
-        'commentaire': payment?.comment ?? ''
-      });
-    }
+      // Créer le contenu du document
+      final content = Content();
 
-    // Créer le contenu du document
-    final content = Content();
-    
-    // Ajouter les données au template
-    content.add(TableContent('paiements', 
-      rows.map((row) => RowContent()
-        ..add(TextContent('nom', row['nom'] ?? ''))
-        ..add(TextContent('classe', row['classe'] ?? ''))
-        ..add(TextContent('annee', row['annee'] ?? ''))
-        ..add(TextContent('montant', row['montant'] ?? ''))
-        ..add(TextContent('date', row['date'] ?? ''))
-        ..add(TextContent('statut', row['statut'] ?? ''))
-        ..add(TextContent('commentaire', row['commentaire'] ?? ''))
-      ).toList()
-    ));
+      // Ajouter les données au template
+      content.add(
+        TableContent(
+          'paiements',
+          rows
+              .map(
+                (row) => RowContent()
+                  ..add(TextContent('nom', row['nom'] ?? ''))
+                  ..add(TextContent('classe', row['classe'] ?? ''))
+                  ..add(TextContent('annee', row['annee'] ?? ''))
+                  ..add(TextContent('montant', row['montant'] ?? ''))
+                  ..add(TextContent('date', row['date'] ?? ''))
+                  ..add(TextContent('statut', row['statut'] ?? ''))
+                  ..add(TextContent('commentaire', row['commentaire'] ?? '')),
+              )
+              .toList(),
+        ),
+      );
 
-    // Générer le document
-    final generatedDoc = await docx.generate(content);
-    if (generatedDoc == null) {
-      throw Exception('Échec de la génération du document Word');
+      // Générer le document
+      final generatedDoc = await docx.generate(content);
+      if (generatedDoc == null) {
+        throw Exception('Échec de la génération du document Word');
+      }
+
+      // Convertir en List<int> modifiable
+      return List<int>.from(generatedDoc);
+    } catch (e) {
+      print('Erreur génération Word : $e');
+      rethrow;
     }
-    
-    // Convertir en List<int> modifiable
-    return List<int>.from(generatedDoc);
-  } catch (e) {
-    print('Erreur génération Word : $e');
-    rethrow;
   }
-}}
+}

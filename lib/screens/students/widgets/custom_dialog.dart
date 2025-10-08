@@ -32,25 +32,23 @@ class CustomDialog extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
             ),
           ),
           if (showCloseIcon)
             IconButton(
-              icon: Icon(Icons.close, color: Theme.of(context).iconTheme.color, size: 20),
+              icon: Icon(
+                Icons.close,
+                color: Theme.of(context).iconTheme.color,
+                size: 20,
+              ),
               tooltip: 'Fermer',
               onPressed: () => Navigator.of(context).pop(),
             ),
         ],
       ),
       content: SingleChildScrollView(
-        child: Container(
-          width: AppSizes.dialogWidth,
-          child: content,
-        ),
+        child: Container(width: AppSizes.dialogWidth, child: content),
       ),
       actions: actions ?? _buildDefaultActions(context),
     );
@@ -63,7 +61,9 @@ class CustomDialog extends StatelessWidget {
         onPressed: () => Navigator.pop(context),
         child: Text(
           'Fermer',
-          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color),
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium!.color,
+          ),
         ),
       ),
     );
@@ -74,7 +74,9 @@ class CustomDialog extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryBlue,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           child: const Text('Valider'),
         ),

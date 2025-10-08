@@ -46,7 +46,8 @@ class LicenseService {
     'V3ZP-8Q1N-R6JL-D5TC',
   ];
 
-  static String _normalize(String input) => input.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+  static String _normalize(String input) =>
+      input.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
   static final Set<String> _validNormalized = validKeys.map(_normalize).toSet();
 
   // Special test keys: single-use, custom validity (months), do not count towards the 12-license quota
@@ -78,10 +79,14 @@ class LicenseService {
     DateTime? regAt;
     DateTime? expiry;
     if (regStr != null && regStr.isNotEmpty) {
-      try { regAt = DateTime.parse(regStr); } catch (_) {}
+      try {
+        regAt = DateTime.parse(regStr);
+      } catch (_) {}
     }
     if (expiryStr != null && expiryStr.isNotEmpty) {
-      try { expiry = DateTime.parse(expiryStr); } catch (_) {}
+      try {
+        expiry = DateTime.parse(expiryStr);
+      } catch (_) {}
     }
     return LicenseStatus(key: key, registeredAt: regAt, expiry: expiry);
   }
@@ -134,7 +139,8 @@ class LicenseService {
   }
 
   // Internal notifier impl
-  static final _LicenseActiveNotifier _licenseNotifier = _LicenseActiveNotifier();
+  static final _LicenseActiveNotifier _licenseNotifier =
+      _LicenseActiveNotifier();
 
   // Verify SupAdmin using the build-time secret
   Future<bool> verifySupAdmin(String password) async {
@@ -154,7 +160,8 @@ class LicenseService {
   }
 }
 
-class _LicenseActiveNotifier extends ValueNotifier<bool> implements ValueListenable<bool> {
+class _LicenseActiveNotifier extends ValueNotifier<bool>
+    implements ValueListenable<bool> {
   _LicenseActiveNotifier() : super(false);
   void update(bool v) {
     if (value != v) value = v;

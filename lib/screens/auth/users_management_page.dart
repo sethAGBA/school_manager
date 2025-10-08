@@ -34,7 +34,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     'view_license': 'Voir la licence',
     'view_subjects': 'Voir les matières',
   };
-  
+
   List<AppUser> get _filteredUsers {
     if (_filterRole == null) return _users;
     return _users.where((u) => u.role == _filterRole).toList();
@@ -63,11 +63,13 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     final passwordCtrl = TextEditingController();
     final passwordConfirmCtrl = TextEditingController();
     bool enable2FA = false;
-    Set<String> selectedPerms = Set<String>.from(PermissionService.defaultForRole(role));
+    Set<String> selectedPerms = Set<String>.from(
+      PermissionService.defaultForRole(role),
+    );
     bool obscurePwd = true;
     bool obscureConfirm = true;
 
-        final ok = await showDialog<bool>(
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setStateSB) => AlertDialog(
@@ -80,10 +82,16 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF34D399)]),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF10B981), Color(0xFF34D399)],
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.person_add, color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.person_add,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     const Text('Créer un nouvel utilisateur'),
@@ -132,16 +140,30 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                       DropdownButton<String>(
                         value: role,
                         items: const [
-                          DropdownMenuItem(value: 'admin', child: Text('Administrateur')),
-                          DropdownMenuItem(value: 'staff', child: Text('Personnel')),
-                          DropdownMenuItem(value: 'prof', child: Text('Professeur')),
-                          DropdownMenuItem(value: 'viewer', child: Text('Observateur')),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Administrateur'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'staff',
+                            child: Text('Personnel'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'prof',
+                            child: Text('Professeur'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'viewer',
+                            child: Text('Observateur'),
+                          ),
                         ],
                         onChanged: (val) {
                           if (val == null) return;
                           setStateSB(() {
                             role = val;
-                            selectedPerms = Set<String>.from(PermissionService.defaultForRole(role));
+                            selectedPerms = Set<String>.from(
+                              PermissionService.defaultForRole(role),
+                            );
                           });
                         },
                       ),
@@ -159,8 +181,11 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         tooltip: obscurePwd ? 'Afficher' : 'Masquer',
-                        onPressed: () => setStateSB(() => obscurePwd = !obscurePwd),
-                        icon: Icon(obscurePwd ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () =>
+                            setStateSB(() => obscurePwd = !obscurePwd),
+                        icon: Icon(
+                          obscurePwd ? Icons.visibility : Icons.visibility_off,
+                        ),
                       ),
                       border: const OutlineInputBorder(),
                       helperText: 'Minimum 8 caractères',
@@ -178,8 +203,13 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         tooltip: obscureConfirm ? 'Afficher' : 'Masquer',
-                        onPressed: () => setStateSB(() => obscureConfirm = !obscureConfirm),
-                        icon: Icon(obscureConfirm ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () =>
+                            setStateSB(() => obscureConfirm = !obscureConfirm),
+                        icon: Icon(
+                          obscureConfirm
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
                       ),
                       border: const OutlineInputBorder(),
                     ),
@@ -195,7 +225,10 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                   const Divider(),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Permissions', style: Theme.of(ctx).textTheme.titleMedium),
+                    child: Text(
+                      'Permissions',
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -217,7 +250,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                               selectedPerms.remove(p);
                             }
                           }),
-                        )
+                        ),
                     ],
                   ),
                 ],
@@ -250,7 +283,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
       if (username.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Le nom d\'utilisateur est obligatoire.')),
+            const SnackBar(
+              content: Text('Le nom d\'utilisateur est obligatoire.'),
+            ),
           );
         }
         return;
@@ -266,7 +301,11 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
       if (password.length < 8) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Le mot de passe doit contenir au moins 8 caractères.')),
+            const SnackBar(
+              content: Text(
+                'Le mot de passe doit contenir au moins 8 caractères.',
+              ),
+            ),
           );
         }
         return;
@@ -274,7 +313,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
       if (password != confirm) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Les mots de passe ne correspondent pas.')),
+            const SnackBar(
+              content: Text('Les mots de passe ne correspondent pas.'),
+            ),
           );
         }
         return;
@@ -306,7 +347,11 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
         if (adminsCount <= 1) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Impossible de supprimer le dernier compte admin.')),
+              const SnackBar(
+                content: Text(
+                  'Impossible de supprimer le dernier compte admin.',
+                ),
+              ),
             );
           }
           return;
@@ -349,7 +394,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
             onPressed: () => Navigator.pop(ctx, false),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               side: BorderSide(color: Theme.of(context).dividerColor),
             ),
             child: const Text(
@@ -363,7 +410,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               elevation: 0,
             ),
             child: const Text(
@@ -376,7 +425,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     );
 
     if (confirmed == true) {
-      final userToDelete = _users.firstWhere((u) => u.username == username); // Get the user object before deletion
+      final userToDelete = _users.firstWhere(
+        (u) => u.username == username,
+      ); // Get the user object before deletion
       await DatabaseService().deleteUserByUsername(username);
       await _load();
       if (mounted) {
@@ -392,15 +443,25 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                   username: userToDelete.username,
                   displayName: userToDelete.displayName,
                   role: userToDelete.role,
-                  password: '', // Password cannot be re-inserted directly, user will need to set a new one
+                  password:
+                      '', // Password cannot be re-inserted directly, user will need to set a new one
                   enable2FA: userToDelete.isTwoFactorEnabled,
-                  permissions: PermissionService.decodePermissions(userToDelete.permissions, role: userToDelete.role),
-                  secret2FA: userToDelete.totpSecret, // Pass the original totpSecret
+                  permissions: PermissionService.decodePermissions(
+                    userToDelete.permissions,
+                    role: userToDelete.role,
+                  ),
+                  secret2FA:
+                      userToDelete.totpSecret, // Pass the original totpSecret
                 );
                 await _load();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Suppression annulée. L\'utilisateur a été restauré (le mot de passe peut nécessiter une réinitialisation).'), backgroundColor: Colors.blue),
+                    const SnackBar(
+                      content: Text(
+                        'Suppression annulée. L\'utilisateur a été restauré (le mot de passe peut nécessiter une réinitialisation).',
+                      ),
+                      backgroundColor: Colors.blue,
+                    ),
                   );
                 }
               },
@@ -417,7 +478,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     final passwordCtrl = TextEditingController();
     final passwordConfirmCtrl = TextEditingController();
     bool enable2FA = user.isTwoFactorEnabled;
-    Set<String> selectedPerms = Set<String>.from(PermissionService.decodePermissions(user.permissions, role: role));
+    Set<String> selectedPerms = Set<String>.from(
+      PermissionService.decodePermissions(user.permissions, role: role),
+    );
     bool obscurePwd = true;
     bool obscureConfirm = true;
 
@@ -434,10 +497,16 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.edit, color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.edit,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Text('Modifier ${user.username}'),
@@ -477,16 +546,30 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                       DropdownButton<String>(
                         value: role,
                         items: const [
-                          DropdownMenuItem(value: 'admin', child: Text('Administrateur')),
-                          DropdownMenuItem(value: 'staff', child: Text('Personnel')),
-                          DropdownMenuItem(value: 'prof', child: Text('Professeur')),
-                          DropdownMenuItem(value: 'viewer', child: Text('Observateur')),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Administrateur'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'staff',
+                            child: Text('Personnel'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'prof',
+                            child: Text('Professeur'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'viewer',
+                            child: Text('Observateur'),
+                          ),
                         ],
                         onChanged: (val) {
                           if (val == null) return;
                           setStateSB(() {
                             role = val;
-                            selectedPerms = Set<String>.from(PermissionService.defaultForRole(role));
+                            selectedPerms = Set<String>.from(
+                              PermissionService.defaultForRole(role),
+                            );
                           });
                         },
                       ),
@@ -500,15 +583,20 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                     autocorrect: false,
                     keyboardType: TextInputType.visiblePassword,
                     decoration: InputDecoration(
-                      labelText: 'Nouveau mot de passe (laisser vide pour conserver)',
+                      labelText:
+                          'Nouveau mot de passe (laisser vide pour conserver)',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         tooltip: obscurePwd ? 'Afficher' : 'Masquer',
-                        onPressed: () => setStateSB(() => obscurePwd = !obscurePwd),
-                        icon: Icon(obscurePwd ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () =>
+                            setStateSB(() => obscurePwd = !obscurePwd),
+                        icon: Icon(
+                          obscurePwd ? Icons.visibility : Icons.visibility_off,
+                        ),
                       ),
                       border: const OutlineInputBorder(),
-                      helperText: 'Laissez vide pour conserver le mot de passe actuel',
+                      helperText:
+                          'Laissez vide pour conserver le mot de passe actuel',
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -523,8 +611,13 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         tooltip: obscureConfirm ? 'Afficher' : 'Masquer',
-                        onPressed: () => setStateSB(() => obscureConfirm = !obscureConfirm),
-                        icon: Icon(obscureConfirm ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () =>
+                            setStateSB(() => obscureConfirm = !obscureConfirm),
+                        icon: Icon(
+                          obscureConfirm
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
                       ),
                       border: const OutlineInputBorder(),
                     ),
@@ -540,7 +633,10 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                   const Divider(),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Permissions', style: Theme.of(ctx).textTheme.titleMedium),
+                    child: Text(
+                      'Permissions',
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -562,7 +658,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                               selectedPerms.remove(p);
                             }
                           }),
-                        )
+                        ),
                     ],
                   ),
                 ],
@@ -597,7 +693,11 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
         if (adminsCount <= 1) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Impossible de rétrograder le dernier compte admin.')),
+              const SnackBar(
+                content: Text(
+                  'Impossible de rétrograder le dernier compte admin.',
+                ),
+              ),
             );
           }
           return;
@@ -606,10 +706,18 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Confirmation'),
-            content: const Text('Êtes-vous sûr de vouloir rétrograder cet administrateur ?'),
+            content: const Text(
+              'Êtes-vous sûr de vouloir rétrograder cet administrateur ?',
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer')),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Confirmer'),
+              ),
             ],
           ),
         );
@@ -619,7 +727,11 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
         if (newPwd.length < 8) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Le mot de passe doit contenir au moins 8 caractères.')),
+              const SnackBar(
+                content: Text(
+                  'Le mot de passe doit contenir au moins 8 caractères.',
+                ),
+              ),
             );
           }
           return;
@@ -627,7 +739,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
         if (newPwd != confirm) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Les mots de passe ne correspondent pas.')),
+              const SnackBar(
+                content: Text('Les mots de passe ne correspondent pas.'),
+              ),
             );
           }
           return;
@@ -656,15 +770,16 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     return rows.where((r) => (r['role'] as String?) == 'admin').length;
   }
 
-
-
   @override
   Widget build(BuildContext context) {
-    final perms = PermissionService.decodePermissions(_current?.permissions, role: _current?.role ?? 'staff');
+    final perms = PermissionService.decodePermissions(
+      _current?.permissions,
+      role: _current?.role ?? 'staff',
+    );
     final bool isAdmin = _current?.role == 'admin';
     final bool canManage = isAdmin || perms.contains('manage_users');
     final bool allowed = canManage || perms.contains('view_users');
-    
+
     if (!allowed) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -680,7 +795,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                   Icon(
                     Icons.lock,
                     size: 64,
-                    color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.5),
+                    color: Theme.of(
+                      context,
+                    ).textTheme.bodyLarge?.color?.withOpacity(0.5),
                   ),
                   SizedBox(height: 16),
                   Text(
@@ -693,7 +810,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                   Text(
                     'Vous n\'avez pas les permissions nécessaires pour accéder à cette page.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -721,9 +840,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
               _buildHeader(context, isDesktop),
               SizedBox(height: AppSizes.padding),
               Expanded(
-                child: SingleChildScrollView(
-                  child: _buildUsersList(context),
-                ),
+                child: SingleChildScrollView(child: _buildUsersList(context)),
               ),
             ],
           ),
@@ -784,7 +901,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                         'Gérez les comptes utilisateurs, leurs rôles et permissions.',
                         style: TextStyle(
                           fontSize: isDesktop ? 16 : 14,
-                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.7,
+                          ),
                           height: 1.5,
                         ),
                       ),
@@ -794,7 +913,11 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
               ),
               Row(
                 children: [
-                  if (_current?.role == 'admin' || PermissionService.decodePermissions(_current?.permissions, role: _current?.role ?? 'staff').contains('manage_users'))
+                  if (_current?.role == 'admin' ||
+                      PermissionService.decodePermissions(
+                        _current?.permissions,
+                        role: _current?.role ?? 'staff',
+                      ).contains('manage_users'))
                     ElevatedButton.icon(
                       onPressed: _showCreateUserDialog,
                       icon: Icon(Icons.add),
@@ -802,7 +925,10 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBlue,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -840,13 +966,56 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                 // Filtre rôle
                 DropdownButton<String?>(
                   value: _filterRole,
-                  hint: Text('Rôle', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                  hint: Text(
+                    'Rôle',
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  ),
                   items: [
-                    DropdownMenuItem<String?>(value: null, child: Text('Tous les rôles', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                    DropdownMenuItem<String?>(value: 'admin', child: Text('Administrateurs', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                    DropdownMenuItem<String?>(value: 'staff', child: Text('Personnel', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                    DropdownMenuItem<String?>(value: 'prof', child: Text('Professeurs', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                    DropdownMenuItem<String?>(value: 'viewer', child: Text('Observateurs', style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text(
+                        'Tous les rôles',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'admin',
+                      child: Text(
+                        'Administrateurs',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'staff',
+                      child: Text(
+                        'Personnel',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'prof',
+                      child: Text(
+                        'Professeurs',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'viewer',
+                      child: Text(
+                        'Observateurs',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
                   ],
                   onChanged: (value) => setState(() => _filterRole = value),
                   dropdownColor: theme.cardColor,
@@ -868,11 +1037,12 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     );
   }
 
-
-
   Widget _buildUsersList(BuildContext context) {
     final theme = Theme.of(context);
-    final perms = PermissionService.decodePermissions(_current?.permissions, role: _current?.role ?? 'staff');
+    final perms = PermissionService.decodePermissions(
+      _current?.permissions,
+      role: _current?.role ?? 'staff',
+    );
     final bool isAdmin = _current?.role == 'admin';
     final bool canManage = isAdmin || perms.contains('manage_users');
 
@@ -880,9 +1050,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
       return Container(
         height: 400,
         child: Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primaryBlue,
-          ),
+          child: CircularProgressIndicator(color: AppColors.primaryBlue),
         ),
       );
     }
@@ -923,10 +1091,14 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
             separatorBuilder: (_, __) => Divider(height: 1),
             itemBuilder: (ctx, i) {
               final u = _filteredUsers[i];
-              final raw = (u.displayName.trim().isNotEmpty ? u.displayName.trim() : u.username.trim());
-              final initial = raw.isNotEmpty ? raw.substring(0, 1).toUpperCase() : '?';
+              final raw = (u.displayName.trim().isNotEmpty
+                  ? u.displayName.trim()
+                  : u.username.trim());
+              final initial = raw.isNotEmpty
+                  ? raw.substring(0, 1).toUpperCase()
+                  : '?';
               final titleText = raw.isNotEmpty ? raw : 'Utilisateur';
-              
+
               return Container(
                 padding: EdgeInsets.all(16),
                 child: Row(
@@ -975,7 +1147,8 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                           Text(
                             '${u.username}${u.isTwoFactorEnabled ? '  •  2FA activé' : ''}',
                             style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                              color: theme.textTheme.bodyMedium?.color
+                                  ?.withOpacity(0.7),
                               fontSize: 14,
                             ),
                           ),
@@ -985,7 +1158,10 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                     if (canManage) ...[
                       IconButton(
                         tooltip: 'Modifier',
-                        icon: Icon(Icons.edit_outlined, color: AppColors.primaryBlue),
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          color: AppColors.primaryBlue,
+                        ),
                         onPressed: () => _showEditUserDialog(u),
                       ),
                       if (u.isTwoFactorEnabled)
@@ -993,7 +1169,8 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                           tooltip: 'Voir la configuration 2FA',
                           icon: Icon(Icons.key_outlined, color: Colors.orange),
                           onPressed: () async {
-                            final uri = await AuthService.instance.getTotpProvisioningUri(u.username);
+                            final uri = await AuthService.instance
+                                .getTotpProvisioningUri(u.username);
                             if (!mounted) return;
                             showDialog(
                               context: context,
@@ -1031,27 +1208,49 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
                         ),
                       IconButton(
                         tooltip: 'Supprimer',
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
                               backgroundColor: Theme.of(context).cardColor,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                               title: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: const [
-                                  Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Color(0xFFE11D48),
+                                  ),
                                   SizedBox(width: 8),
-                                  Text('Supprimer cet utilisateur ?', style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.bold)),
+                                  Text(
+                                    'Supprimer cet utilisateur ?',
+                                    style: TextStyle(
+                                      color: Color(0xFFE11D48),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ],
                               ),
-                              content: const Text('Cette action est irréversible.'),
+                              content: const Text(
+                                'Cette action est irréversible.',
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Annuler'),
+                                ),
                                 ElevatedButton(
                                   onPressed: () => Navigator.pop(ctx, true),
-                                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFE11D48),
+                                    foregroundColor: Colors.white,
+                                  ),
                                   child: const Text('Supprimer'),
                                 ),
                               ],

@@ -86,7 +86,7 @@ class _StudentsPageState extends State<StudentsPage> {
     final yearDist = await _dbService.getAcademicYearDistribution();
     final students = await _dbService.getStudents();
     final classes = await _dbService.getClasses();
-    
+
     // Store all students for search functionality
     setState(() {
       _allStudents = students;
@@ -96,7 +96,12 @@ class _StudentsPageState extends State<StudentsPage> {
       final key = _classKey(cls);
       final label = _classLabel(cls);
       // Compter uniquement les élèves de l'année académique de la classe
-      final filteredStudents = students.where((s) => s.className == cls.name && s.academicYear == cls.academicYear).toList();
+      final filteredStudents = students
+          .where(
+            (s) =>
+                s.className == cls.name && s.academicYear == cls.academicYear,
+          )
+          .toList();
       final studentCount = filteredStudents.length;
       final boys = filteredStudents.where((s) => s.gender == 'M').length;
       final girls = filteredStudents.where((s) => s.gender == 'F').length;
@@ -116,7 +121,9 @@ class _StudentsPageState extends State<StudentsPage> {
       _academicYearDistribution = yearDist;
       _tableData = tableData;
       if (_selectedClassFilter != null) {
-        final exists = tableData.any((row) => row['classKey'] == _selectedClassFilter);
+        final exists = tableData.any(
+          (row) => row['classKey'] == _selectedClassFilter,
+        );
         if (!exists) {
           _selectedClassFilter = null;
         }
@@ -126,30 +133,33 @@ class _StudentsPageState extends State<StudentsPage> {
 
   List<Map<String, dynamic>> get _filteredTableData {
     return _tableData.where((data) {
-      final matchClass = _selectedClassFilter == null || data['classKey'] == _selectedClassFilter;
-      final matchYear = _selectedYearFilter == null || data['year'] == _selectedYearFilter;
+      final matchClass =
+          _selectedClassFilter == null ||
+          data['classKey'] == _selectedClassFilter;
+      final matchYear =
+          _selectedYearFilter == null || data['year'] == _selectedYearFilter;
       if (_selectedGenderFilter != null) {
         if (_selectedGenderFilter == 'M' && data['boys'] == '0') return false;
         if (_selectedGenderFilter == 'F' && data['girls'] == '0') return false;
       }
-      
+
       // Enhanced search: include student names
       final matchSearch = _searchQuery.isEmpty || _matchesSearchQuery(data);
-      
+
       return matchClass && matchYear && matchSearch;
     }).toList();
   }
-  
+
   bool _isSearchingByStudentName(String query) {
     if (query.isEmpty) return false;
-    
+
     final lowerQuery = query.toLowerCase();
-    
+
     // Check if query matches any student name
-    final matchingStudents = _allStudents.where((student) => 
-      student.name.toLowerCase().contains(lowerQuery)
-    ).toList();
-    
+    final matchingStudents = _allStudents
+        .where((student) => student.name.toLowerCase().contains(lowerQuery))
+        .toList();
+
     // If we found students and the query doesn't match class names, show student view
     if (matchingStudents.isNotEmpty) {
       // Check if query also matches class names
@@ -158,64 +168,73 @@ class _StudentsPageState extends State<StudentsPage> {
         final year = data['year'].toLowerCase();
         return classLabel.contains(lowerQuery) || year.contains(lowerQuery);
       }).toList();
-      
+
       // If no class matches, definitely show student view
       if (matchingClasses.isEmpty) {
         return true;
       }
-      
+
       // If both students and classes match, prefer student view for personal names
       // (assuming personal names are more specific than class names)
       return true;
     }
-    
+
     return false;
   }
 
   bool _matchesSearchQuery(Map<String, dynamic> data) {
     if (_searchQuery.isEmpty) return true;
-    
+
     final query = _searchQuery.toLowerCase();
-    
+
     // Search in class name and year
     final classLabel = (data['classLabel'] as String).toLowerCase();
     final year = data['year'].toLowerCase();
-    
+
     if (classLabel.contains(query) || year.contains(query)) {
       return true;
     }
-    
+
     // Search in student names for this class
     final className = data['className'] as String;
     final classYear = data['year'] as String;
-    
-    final studentsInClass = _allStudents.where((student) => 
-      student.className == className && student.academicYear == classYear
-    ).toList();
-    
-    return studentsInClass.any((student) => 
-      student.name.toLowerCase().contains(query)
+
+    final studentsInClass = _allStudents
+        .where(
+          (student) =>
+              student.className == className &&
+              student.academicYear == classYear,
+        )
+        .toList();
+
+    return studentsInClass.any(
+      (student) => student.name.toLowerCase().contains(query),
     );
   }
-  
+
   List<Student> get _filteredStudents {
     if (_searchQuery.isEmpty) return [];
-    
+
     final query = _searchQuery.toLowerCase();
     return _allStudents.where((student) {
       // Apply year filter
-      final matchYear = _selectedYearFilter == null || student.academicYear == _selectedYearFilter;
-      
+      final matchYear =
+          _selectedYearFilter == null ||
+          student.academicYear == _selectedYearFilter;
+
       // Apply gender filter
-      final matchGender = _selectedGenderFilter == null || student.gender == _selectedGenderFilter;
-      
+      final matchGender =
+          _selectedGenderFilter == null ||
+          student.gender == _selectedGenderFilter;
+
       // Apply class filter
-      final matchClass = _selectedClassFilter == null || 
-        _classFromKey(_selectedClassFilter, [])?.name == student.className;
-      
+      final matchClass =
+          _selectedClassFilter == null ||
+          _classFromKey(_selectedClassFilter, [])?.name == student.className;
+
       // Apply search query
       final matchSearch = student.name.toLowerCase().contains(query);
-      
+
       return matchYear && matchGender && matchClass && matchSearch;
     }).toList();
   }
@@ -279,9 +298,11 @@ class _StudentsPageState extends State<StudentsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // To push notification icon to the end
+            mainAxisAlignment: MainAxisAlignment
+                .spaceBetween, // To push notification icon to the end
             children: [
-              Row( // This inner Row contains the icon, title, and description
+              Row(
+                // This inner Row contains the icon, title, and description
                 children: [
                   Container(
                     padding: EdgeInsets.all(12),
@@ -298,7 +319,8 @@ class _StudentsPageState extends State<StudentsPage> {
                     ),
                   ),
                   SizedBox(width: 16),
-                  Column( // Title and description
+                  Column(
+                    // Title and description
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -306,7 +328,10 @@ class _StudentsPageState extends State<StudentsPage> {
                         style: TextStyle(
                           fontSize: isDesktop ? 32 : 24,
                           fontWeight: FontWeight.bold,
-                          color: theme.textTheme.bodyLarge?.color, // Use bodyLarge for title
+                          color: theme
+                              .textTheme
+                              .bodyLarge
+                              ?.color, // Use bodyLarge for title
                           letterSpacing: 1.2,
                         ),
                       ),
@@ -315,7 +340,9 @@ class _StudentsPageState extends State<StudentsPage> {
                         'Gérez les informations des élèves, leurs classes et leurs performances académiques.',
                         style: TextStyle(
                           fontSize: isDesktop ? 16 : 14,
-                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7), // Use bodyMedium for description
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.7,
+                          ), // Use bodyMedium for description
                           height: 1.5,
                         ),
                       ),
@@ -349,9 +376,13 @@ class _StudentsPageState extends State<StudentsPage> {
           TextField(
             decoration: InputDecoration(
               hintText: 'Rechercher par classe, année ou nom d\'élève...',
-              hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6)),
+              hintStyle: TextStyle(
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+              ),
               prefixIcon: Icon(Icons.search, color: theme.iconTheme.color),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
             ),
             onChanged: (value) {
@@ -374,7 +405,10 @@ class _StudentsPageState extends State<StudentsPage> {
       for (final row in _tableData)
         row['classKey'] as String: row['classLabel'] as String,
     };
-    final yearList = _tableData.map((e) => e['year'] as String).toSet().toList();
+    final yearList = _tableData
+        .map((e) => e['year'] as String)
+        .toSet()
+        .toList();
     return Wrap(
       spacing: AppSizes.smallSpacing,
       runSpacing: AppSizes.smallSpacing,
@@ -389,20 +423,41 @@ class _StudentsPageState extends State<StudentsPage> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String?>(
               value: _selectedClassFilter,
-              hint: Text(AppStrings.classFilter, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color)),
+              hint: Text(
+                AppStrings.classFilter,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium!.color,
+                ),
+              ),
               items: [
-                DropdownMenuItem<String?>(value: null, child: Text('Toutes les classes', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color))),
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(
+                    'Toutes les classes',
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium!.color,
+                    ),
+                  ),
+                ),
                 ...classMap.entries.map(
                   (entry) => DropdownMenuItem<String?>(
                     value: entry.key,
-                    child: Text(entry.value, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color)),
+                    child: Text(
+                      entry.value,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium!.color,
+                      ),
+                    ),
                   ),
                 ),
               ],
-              onChanged: (value) => setState(() => _selectedClassFilter = value),
+              onChanged: (value) =>
+                  setState(() => _selectedClassFilter = value),
               dropdownColor: Theme.of(context).cardColor,
               iconEnabledColor: Theme.of(context).iconTheme.color,
-              style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color),
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium!.color,
+              ),
             ),
           ),
         ),
@@ -416,16 +471,48 @@ class _StudentsPageState extends State<StudentsPage> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String?>(
               value: _selectedGenderFilter,
-              hint: Text(AppStrings.genderFilter, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color)),
+              hint: Text(
+                AppStrings.genderFilter,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium!.color,
+                ),
+              ),
               items: [
-                DropdownMenuItem<String?>(value: null, child: Text('Tous', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color))),
-                DropdownMenuItem<String?>(value: 'M', child: Text('Garçons', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color))),
-                DropdownMenuItem<String?>(value: 'F', child: Text('Filles', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color))),
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(
+                    'Tous',
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium!.color,
+                    ),
+                  ),
+                ),
+                DropdownMenuItem<String?>(
+                  value: 'M',
+                  child: Text(
+                    'Garçons',
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium!.color,
+                    ),
+                  ),
+                ),
+                DropdownMenuItem<String?>(
+                  value: 'F',
+                  child: Text(
+                    'Filles',
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium!.color,
+                    ),
+                  ),
+                ),
               ],
-              onChanged: (value) => setState(() => _selectedGenderFilter = value),
+              onChanged: (value) =>
+                  setState(() => _selectedGenderFilter = value),
               dropdownColor: Theme.of(context).cardColor,
               iconEnabledColor: Theme.of(context).iconTheme.color,
-              style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color),
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium!.color,
+              ),
             ),
           ),
         ),
@@ -442,30 +529,78 @@ class _StudentsPageState extends State<StudentsPage> {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String?>(
                   value: _selectedYearFilter,
-                  hint: Text(AppStrings.yearFilter, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color)),
+                  hint: Text(
+                    AppStrings.yearFilter,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium!.color,
+                    ),
+                  ),
                   items: [
-                    DropdownMenuItem<String?>(value: null, child: Text('Toutes les années', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color))),
-                    DropdownMenuItem<String?>(value: currentYear, child: Text('Année courante ($currentYear)', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color))),
-                    ...yearList.where((y) => y != currentYear).map((y) => DropdownMenuItem<String?>(value: y, child: Text(y, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color)))),
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text(
+                        'Toutes les années',
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium!.color,
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: currentYear,
+                      child: Text(
+                        'Année courante ($currentYear)',
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium!.color,
+                        ),
+                      ),
+                    ),
+                    ...yearList
+                        .where((y) => y != currentYear)
+                        .map(
+                          (y) => DropdownMenuItem<String?>(
+                            value: y,
+                            child: Text(
+                              y,
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium!.color,
+                              ),
+                            ),
+                          ),
+                        ),
                   ],
-                  onChanged: (value) => setState(() => _selectedYearFilter = value),
+                  onChanged: (value) =>
+                      setState(() => _selectedYearFilter = value),
                   dropdownColor: Theme.of(context).cardColor,
                   iconEnabledColor: Theme.of(context).iconTheme.color,
-                  style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color),
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium!.color,
+                  ),
                 ),
               ),
             );
           },
         ),
-        if (_selectedClassFilter != null || _selectedGenderFilter != null || _selectedYearFilter != null)
+        if (_selectedClassFilter != null ||
+            _selectedGenderFilter != null ||
+            _selectedYearFilter != null)
           TextButton.icon(
             onPressed: () => setState(() {
               _selectedClassFilter = null;
               _selectedGenderFilter = null;
               _selectedYearFilter = _currentAcademicYear;
             }),
-            icon: Icon(Icons.clear, color: Theme.of(context).textTheme.bodyMedium!.color),
-            label: Text('Réinitialiser', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium!.color)),
+            icon: Icon(
+              Icons.clear,
+              color: Theme.of(context).textTheme.bodyMedium!.color,
+            ),
+            label: Text(
+              'Réinitialiser',
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium!.color,
+              ),
+            ),
           ),
       ],
     );
@@ -478,11 +613,22 @@ class _StudentsPageState extends State<StudentsPage> {
               Expanded(
                 child: ChartCard(
                   title: AppStrings.classDistributionTitle,
-                  total: _classDistribution.values.fold(0, (a, b) => a + b).toString(),
+                  total: _classDistribution.values
+                      .fold(0, (a, b) => a + b)
+                      .toString(),
                   percentage: _classDistribution.isEmpty ? '0%' : '+12%',
-                  maxY: (_classDistribution.values.isEmpty ? 1 : _classDistribution.values.reduce((a, b) => a > b ? a : b)).toDouble() + 10,
+                  maxY:
+                      (_classDistribution.values.isEmpty
+                              ? 1
+                              : _classDistribution.values.reduce(
+                                  (a, b) => a > b ? a : b,
+                                ))
+                          .toDouble() +
+                      10,
                   bottomTitles: _classDistribution.keys.toList(),
-                  barValues: _classDistribution.values.map((e) => e.toDouble()).toList(),
+                  barValues: _classDistribution.values
+                      .map((e) => e.toDouble())
+                      .toList(),
                   aspectRatio: AppSizes.chartAspectRatio,
                 ),
               ),
@@ -490,11 +636,22 @@ class _StudentsPageState extends State<StudentsPage> {
               Expanded(
                 child: ChartCard(
                   title: AppStrings.academicYearTitle,
-                  total: _academicYearDistribution.values.fold(0, (a, b) => a + b).toString(),
+                  total: _academicYearDistribution.values
+                      .fold(0, (a, b) => a + b)
+                      .toString(),
                   percentage: _academicYearDistribution.isEmpty ? '0%' : '+5%',
-                  maxY: (_academicYearDistribution.values.isEmpty ? 1 : _academicYearDistribution.values.reduce((a, b) => a > b ? a : b)).toDouble() + 10,
+                  maxY:
+                      (_academicYearDistribution.values.isEmpty
+                              ? 1
+                              : _academicYearDistribution.values.reduce(
+                                  (a, b) => a > b ? a : b,
+                                ))
+                          .toDouble() +
+                      10,
                   bottomTitles: _academicYearDistribution.keys.toList(),
-                  barValues: _academicYearDistribution.values.map((e) => e.toDouble()).toList(),
+                  barValues: _academicYearDistribution.values
+                      .map((e) => e.toDouble())
+                      .toList(),
                   aspectRatio: AppSizes.chartAspectRatio,
                 ),
               ),
@@ -504,21 +661,43 @@ class _StudentsPageState extends State<StudentsPage> {
             children: [
               ChartCard(
                 title: AppStrings.classDistributionTitle,
-                total: _classDistribution.values.fold(0, (a, b) => a + b).toString(),
+                total: _classDistribution.values
+                    .fold(0, (a, b) => a + b)
+                    .toString(),
                 percentage: _classDistribution.isEmpty ? '0%' : '+12%',
-                maxY: (_classDistribution.values.isEmpty ? 1 : _classDistribution.values.reduce((a, b) => a > b ? a : b)).toDouble() + 10,
+                maxY:
+                    (_classDistribution.values.isEmpty
+                            ? 1
+                            : _classDistribution.values.reduce(
+                                (a, b) => a > b ? a : b,
+                              ))
+                        .toDouble() +
+                    10,
                 bottomTitles: _classDistribution.keys.toList(),
-                barValues: _classDistribution.values.map((e) => e.toDouble()).toList(),
+                barValues: _classDistribution.values
+                    .map((e) => e.toDouble())
+                    .toList(),
                 aspectRatio: AppSizes.chartAspectRatio,
               ),
               SizedBox(height: AppSizes.spacing),
               ChartCard(
                 title: AppStrings.academicYearTitle,
-                total: _academicYearDistribution.values.fold(0, (a, b) => a + b).toString(),
+                total: _academicYearDistribution.values
+                    .fold(0, (a, b) => a + b)
+                    .toString(),
                 percentage: _academicYearDistribution.isEmpty ? '0%' : '+5%',
-                maxY: (_academicYearDistribution.values.isEmpty ? 1 : _academicYearDistribution.values.reduce((a, b) => a > b ? a : b)).toDouble() + 10,
+                maxY:
+                    (_academicYearDistribution.values.isEmpty
+                            ? 1
+                            : _academicYearDistribution.values.reduce(
+                                (a, b) => a > b ? a : b,
+                              ))
+                        .toDouble() +
+                    10,
                 bottomTitles: _academicYearDistribution.keys.toList(),
-                barValues: _academicYearDistribution.values.map((e) => e.toDouble()).toList(),
+                barValues: _academicYearDistribution.values
+                    .map((e) => e.toDouble())
+                    .toList(),
                 aspectRatio: AppSizes.chartAspectRatio,
               ),
             ],
@@ -546,82 +725,86 @@ class _StudentsPageState extends State<StudentsPage> {
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: constraints.maxWidth),
               child: DataTable(
-          // Make the table visually larger and more readable
-          headingRowHeight: 60,
-          dataRowMinHeight: 56,
-          dataRowMaxHeight: 64,
-          columnSpacing: 32,
-          columns: [
-            DataColumn(
-              label: Text(
-                AppStrings.classLabel,
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyLarge!.color,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                AppStrings.totalStudentsLabel,
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyLarge!.color,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                AppStrings.boysLabel,
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyLarge!.color,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                AppStrings.girlsLabel,
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyLarge!.color,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                AppStrings.academicYearLabel,
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyLarge!.color,
-                ),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                AppStrings.actionsLabel,
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyMedium!.color,
-                ),
-              ),
-            ),
-          ],
-          rows: _filteredTableData.map((data) => _buildRow(
-            context,
-            data['classKey'] as String,
-            data['classLabel'] as String,
-            data['total'],
-            data['boys'],
-            data['girls'],
-            data['year'],
-          )).toList(),
+                // Make the table visually larger and more readable
+                headingRowHeight: 60,
+                dataRowMinHeight: 56,
+                dataRowMaxHeight: 64,
+                columnSpacing: 32,
+                columns: [
+                  DataColumn(
+                    label: Text(
+                      AppStrings.classLabel,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge!.color,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      AppStrings.totalStudentsLabel,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge!.color,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      AppStrings.boysLabel,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge!.color,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      AppStrings.girlsLabel,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge!.color,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      AppStrings.academicYearLabel,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge!.color,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      AppStrings.actionsLabel,
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyMedium!.color,
+                      ),
+                    ),
+                  ),
+                ],
+                rows: _filteredTableData
+                    .map(
+                      (data) => _buildRow(
+                        context,
+                        data['classKey'] as String,
+                        data['classLabel'] as String,
+                        data['total'],
+                        data['boys'],
+                        data['girls'],
+                        data['year'],
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ),
@@ -695,17 +878,17 @@ class _StudentsPageState extends State<StudentsPage> {
               TextButton(
                 onPressed: () async {
                   final classes = await DatabaseService().getClasses();
-                  final classObjFull = _classFromKey(classKey, classes) ?? Class(
-                    name: className,
-                    academicYear: classYear,
-                    titulaire: null,
-                    fraisEcole: null,
-                    fraisCotisationParallele: null,
-                  );
-                  final classStudents = await DatabaseService().getStudentsByClassAndClassYear(
-                    className,
-                    classYear,
-                  );
+                  final classObjFull =
+                      _classFromKey(classKey, classes) ??
+                      Class(
+                        name: className,
+                        academicYear: classYear,
+                        titulaire: null,
+                        fraisEcole: null,
+                        fraisCotisationParallele: null,
+                      );
+                  final classStudents = await DatabaseService()
+                      .getStudentsByClassAndClassYear(className, classYear);
                   await showDialog(
                     context: context,
                     builder: (context) => ClassDetailsPage(
@@ -724,7 +907,6 @@ class _StudentsPageState extends State<StudentsPage> {
                   ),
                 ),
               ),
-              
             ],
           ),
         ),
@@ -733,8 +915,9 @@ class _StudentsPageState extends State<StudentsPage> {
   }
 
   void _showEditStudentDialog(BuildContext context, Student student) {
-    final GlobalKey<StudentRegistrationFormState> studentFormKey = GlobalKey<StudentRegistrationFormState>();
-    
+    final GlobalKey<StudentRegistrationFormState> studentFormKey =
+        GlobalKey<StudentRegistrationFormState>();
+
     showDialog(
       context: context,
       builder: (context) => CustomDialog(
@@ -788,7 +971,8 @@ class _StudentsPageState extends State<StudentsPage> {
   }
 
   Widget _buildActionButtons(BuildContext context) {
-    final GlobalKey<StudentRegistrationFormState> studentFormKey = GlobalKey<StudentRegistrationFormState>();
+    final GlobalKey<StudentRegistrationFormState> studentFormKey =
+        GlobalKey<StudentRegistrationFormState>();
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
@@ -836,7 +1020,8 @@ class _StudentsPageState extends State<StudentsPage> {
                       child: const Text('Fermer'),
                     ),
                     ElevatedButton(
-                      onPressed: () => studentFormKey.currentState?.submitForm(),
+                      onPressed: () =>
+                          studentFormKey.currentState?.submitForm(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF10B981),
                         foregroundColor: Colors.white,
@@ -848,9 +1033,9 @@ class _StudentsPageState extends State<StudentsPage> {
               );
             } catch (e) {
               print('Error opening student dialog: $e');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Erreur: $e')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
             }
           },
           style: ElevatedButton.styleFrom(
@@ -864,7 +1049,10 @@ class _StudentsPageState extends State<StudentsPage> {
           ),
           child: const Text(
             'Ajouter un élève',
-            style: TextStyle(fontSize: AppSizes.textFontSize, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: AppSizes.textFontSize,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         const SizedBox(width: 16),
@@ -872,9 +1060,7 @@ class _StudentsPageState extends State<StudentsPage> {
           onPressed: () async {
             final ok = await showDialog<bool>(
               context: context,
-              builder: (context) => _ClassDialog(
-                onSubmit: () {},
-              ),
+              builder: (context) => _ClassDialog(onSubmit: () {}),
             );
             if (ok == true) {
               await _loadData();
@@ -899,7 +1085,10 @@ class _StudentsPageState extends State<StudentsPage> {
           ),
           child: const Text(
             'Ajouter une classe',
-            style: TextStyle(fontSize: AppSizes.textFontSize, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: AppSizes.textFontSize,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],
@@ -908,7 +1097,7 @@ class _StudentsPageState extends State<StudentsPage> {
 
   Widget _buildStudentListView(BuildContext context) {
     final filteredStudents = _filteredStudents;
-    
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -929,7 +1118,10 @@ class _StudentsPageState extends State<StudentsPage> {
             padding: EdgeInsets.all(20),
             child: Row(
               children: [
-                Icon(Icons.person_search, color: Theme.of(context).primaryColor),
+                Icon(
+                  Icons.person_search,
+                  color: Theme.of(context).primaryColor,
+                ),
                 SizedBox(width: 12),
                 Text(
                   'Élèves trouvés (${filteredStudents.length})',
@@ -972,7 +1164,7 @@ class _StudentsPageState extends State<StudentsPage> {
 
   Widget _buildStudentCard(BuildContext context, Student student) {
     final theme = Theme.of(context);
-    
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: EdgeInsets.all(16),
@@ -998,14 +1190,10 @@ class _StudentsPageState extends State<StudentsPage> {
               color: theme.primaryColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(25),
             ),
-            child: Icon(
-              Icons.person,
-              color: theme.primaryColor,
-              size: 24,
-            ),
+            child: Icon(Icons.person, color: theme.primaryColor, size: 24),
           ),
           SizedBox(width: 16),
-          
+
           // Student info
           Expanded(
             child: Column(
@@ -1022,7 +1210,11 @@ class _StudentsPageState extends State<StudentsPage> {
                 SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.class_, size: 16, color: theme.textTheme.bodyMedium!.color),
+                    Icon(
+                      Icons.class_,
+                      size: 16,
+                      color: theme.textTheme.bodyMedium!.color,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       '${student.className} (${student.academicYear})',
@@ -1050,10 +1242,16 @@ class _StudentsPageState extends State<StudentsPage> {
                       ),
                     ),
                     SizedBox(width: 16),
-                    Icon(Icons.phone, size: 16, color: theme.textTheme.bodyMedium!.color),
+                    Icon(
+                      Icons.phone,
+                      size: 16,
+                      color: theme.textTheme.bodyMedium!.color,
+                    ),
                     SizedBox(width: 4),
                     Text(
-                      student.contactNumber.isNotEmpty ? student.contactNumber : 'Non renseigné',
+                      student.contactNumber.isNotEmpty
+                          ? student.contactNumber
+                          : 'Non renseigné',
                       style: TextStyle(
                         fontSize: 14,
                         color: theme.textTheme.bodyMedium!.color,
@@ -1064,7 +1262,7 @@ class _StudentsPageState extends State<StudentsPage> {
               ],
             ),
           ),
-          
+
           // Action buttons
           Row(
             children: [
@@ -1072,7 +1270,9 @@ class _StudentsPageState extends State<StudentsPage> {
                 onPressed: () async {
                   final classes = await DatabaseService().getClasses();
                   final classObj = classes.firstWhere(
-                    (c) => c.name == student.className && c.academicYear == student.academicYear,
+                    (c) =>
+                        c.name == student.className &&
+                        c.academicYear == student.academicYear,
                     orElse: () => Class(
                       name: student.className,
                       academicYear: student.academicYear,
@@ -1081,10 +1281,11 @@ class _StudentsPageState extends State<StudentsPage> {
                       fraisCotisationParallele: null,
                     ),
                   );
-                  final classStudents = await DatabaseService().getStudentsByClassAndClassYear(
-                    student.className,
-                    student.academicYear,
-                  );
+                  final classStudents = await DatabaseService()
+                      .getStudentsByClassAndClassYear(
+                        student.className,
+                        student.academicYear,
+                      );
                   await showDialog(
                     context: context,
                     builder: (context) => ClassDetailsPage(
@@ -1103,7 +1304,8 @@ class _StudentsPageState extends State<StudentsPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => StudentProfilePage(student: student),
+                      builder: (context) =>
+                          StudentProfilePage(student: student),
                     ),
                   );
                 },
@@ -1193,7 +1395,9 @@ class __ClassDialogState extends State<_ClassDialog> {
               labelText: 'Frais d\'école',
               hintText: 'Montant des frais d\'école',
               validator: (value) {
-                if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                if (value != null &&
+                    value.isNotEmpty &&
+                    double.tryParse(value) == null) {
                   return 'Veuillez entrer un montant valide';
                 }
                 return null;
@@ -1205,7 +1409,9 @@ class __ClassDialogState extends State<_ClassDialog> {
               labelText: 'Frais de cotisation parallèle',
               hintText: 'Montant des frais de cotisation parallèle',
               validator: (value) {
-                if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                if (value != null &&
+                    value.isNotEmpty &&
+                    double.tryParse(value) == null) {
                   return 'Veuillez entrer un montant valide';
                 }
                 return null;
@@ -1221,9 +1427,16 @@ class __ClassDialogState extends State<_ClassDialog> {
             final cls = Class(
               name: classNameController.text,
               academicYear: academicYearController.text,
-              titulaire: titulaireController.text.isNotEmpty ? titulaireController.text : null,
-              fraisEcole: fraisEcoleController.text.isNotEmpty ? double.tryParse(fraisEcoleController.text) : null,
-              fraisCotisationParallele: fraisCotisationParalleleController.text.isNotEmpty ? double.tryParse(fraisCotisationParalleleController.text) : null,
+              titulaire: titulaireController.text.isNotEmpty
+                  ? titulaireController.text
+                  : null,
+              fraisEcole: fraisEcoleController.text.isNotEmpty
+                  ? double.tryParse(fraisEcoleController.text)
+                  : null,
+              fraisCotisationParallele:
+                  fraisCotisationParalleleController.text.isNotEmpty
+                  ? double.tryParse(fraisCotisationParalleleController.text)
+                  : null,
             );
             await _dbService.insertClass(cls);
             // Close dialog and notify parent for snackbar
@@ -1247,15 +1460,24 @@ class __ClassDialogState extends State<_ClassDialog> {
                 final cls = Class(
                   name: classNameController.text,
                   academicYear: academicYearController.text,
-                  titulaire: titulaireController.text.isNotEmpty ? titulaireController.text : null,
-                  fraisEcole: fraisEcoleController.text.isNotEmpty ? double.tryParse(fraisEcoleController.text) : null,
-                  fraisCotisationParallele: fraisCotisationParalleleController.text.isNotEmpty ? double.tryParse(fraisCotisationParalleleController.text) : null,
+                  titulaire: titulaireController.text.isNotEmpty
+                      ? titulaireController.text
+                      : null,
+                  fraisEcole: fraisEcoleController.text.isNotEmpty
+                      ? double.tryParse(fraisEcoleController.text)
+                      : null,
+                  fraisCotisationParallele:
+                      fraisCotisationParalleleController.text.isNotEmpty
+                      ? double.tryParse(fraisCotisationParalleleController.text)
+                      : null,
                 );
                 await _dbService.insertClass(cls);
                 Navigator.pop(context, true);
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Erreur lors de l\'enregistrement: $e')),
+                  SnackBar(
+                    content: Text('Erreur lors de l\'enregistrement: $e'),
+                  ),
                 );
               }
             }

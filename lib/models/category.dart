@@ -33,13 +33,8 @@ class Category {
     );
   }
 
-  factory Category.empty() => Category(
-    id: '', 
-    name: '', 
-    description: '', 
-    color: '#6366F1', 
-    order: 0
-  );
+  factory Category.empty() =>
+      Category(id: '', name: '', description: '', color: '#6366F1', order: 0);
 
   Category copyWith({
     String? id,

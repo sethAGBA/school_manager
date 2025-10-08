@@ -21,6 +21,39 @@ import 'package:school_manager/models/user.dart';
 import 'screens/license_page.dart' as app_license;
 import 'services/license_service.dart';
 import 'screens/subjects_page.dart';
+import 'screens/finance_and_inventory_page.dart';
+
+const List<String> kFontFallback = [
+  // Common system fonts with broad glyph coverage
+  'Helvetica Neue', 'Helvetica', 'Arial', 'Times New Roman', 'Georgia',
+  // Symbols/emoji fallbacks
+  'Apple Symbols', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Emoji',
+  // Noto families if present
+  'Noto Sans Symbols', 'Noto Sans Symbols 2', 'Noto Sans',
+  // Broad legacy unicode fonts
+  'Symbola', 'Arial Unicode MS',
+];
+
+TextTheme _textThemeWithFallback(TextTheme base) {
+  return TextTheme(
+    displayLarge: base.displayLarge?.copyWith(fontFamilyFallback: kFontFallback),
+    displayMedium: base.displayMedium?.copyWith(fontFamilyFallback: kFontFallback),
+    displaySmall: base.displaySmall?.copyWith(fontFamilyFallback: kFontFallback),
+    headlineLarge: base.headlineLarge?.copyWith(fontFamilyFallback: kFontFallback),
+    headlineMedium: base.headlineMedium?.copyWith(fontFamilyFallback: kFontFallback),
+    headlineSmall: base.headlineSmall?.copyWith(fontFamilyFallback: kFontFallback),
+    titleLarge: base.titleLarge?.copyWith(fontFamilyFallback: kFontFallback),
+    titleMedium: base.titleMedium?.copyWith(fontFamilyFallback: kFontFallback),
+    titleSmall: base.titleSmall?.copyWith(fontFamilyFallback: kFontFallback),
+    bodyLarge: base.bodyLarge?.copyWith(fontFamilyFallback: kFontFallback),
+    bodyMedium: base.bodyMedium?.copyWith(fontFamilyFallback: kFontFallback),
+    bodySmall: base.bodySmall?.copyWith(fontFamilyFallback: kFontFallback),
+    labelLarge: base.labelLarge?.copyWith(fontFamilyFallback: kFontFallback),
+    labelMedium: base.labelMedium?.copyWith(fontFamilyFallback: kFontFallback),
+    labelSmall: base.labelSmall?.copyWith(fontFamilyFallback: kFontFallback),
+  );
+}
+
 
 // Global navigator key to allow navigation from anywhere (e.g., logout)
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -65,23 +98,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   void _onLoginSuccess() async {
-    // After successful login (and 2FA if any), navigate to dashboard
-    final prefs = await SharedPreferences.getInstance();
-    final remember = prefs.getBool('remember_me') ?? false;
-    if (remember) {
-      appNavigatorKey.currentState?.pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => SchoolDashboard(
-            onThemeToggle: _toggleTheme,
-            isDarkMode: themeModeNotifier.value == ThemeMode.dark,
-          ),
+    // After successful login (and 2FA if any), always navigate to dashboard
+    // The "remember_me" preference only affects future app launches, not immediate navigation.
+    appNavigatorKey.currentState?.pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => SchoolDashboard(
+          onThemeToggle: _toggleTheme,
+          isDarkMode: themeModeNotifier.value == ThemeMode.dark,
         ),
-      );
-    } else {
-      appNavigatorKey.currentState?.pushReplacement(
-        MaterialPageRoute(builder: (_) => LoginPage(onSuccess: _onLoginSuccess)),
-      );
-    }
+      ),
+    );
   }
 
   void _onLogout() {
@@ -126,10 +152,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             fontFamily: 'Roboto',
             primarySwatch: Colors.blue,
             scaffoldBackgroundColor: Colors.white,
-            textTheme: TextTheme(
-              bodyLarge: TextStyle(color: Colors.grey[800]),
-              bodyMedium: TextStyle(color: Colors.grey[600]),
-            ),
+            textTheme: (() {
+              final base = _textThemeWithFallback(ThemeData.light().textTheme);
+              return base.copyWith(
+                bodyLarge: base.bodyLarge?.copyWith(color: Colors.grey[800]),
+                bodyMedium: base.bodyMedium?.copyWith(color: Colors.grey[600]),
+              );
+            })(),
             cardColor: Colors.white,
             dividerColor: Colors.grey[300],
             iconTheme: IconThemeData(color: Colors.grey[800]),
@@ -138,10 +167,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             fontFamily: 'Roboto',
             primarySwatch: Colors.blue,
             scaffoldBackgroundColor: Colors.grey[900],
-            textTheme: TextTheme(
-              bodyLarge: TextStyle(color: Colors.white),
-              bodyMedium: TextStyle(color: Colors.white70),
-            ),
+            textTheme: (() {
+              final base = _textThemeWithFallback(ThemeData.dark().textTheme);
+              return base.copyWith(
+                bodyLarge: base.bodyLarge?.copyWith(color: Colors.white),
+                bodyMedium: base.bodyMedium?.copyWith(color: Colors.white70),
+              );
+            })(),
             cardColor: Colors.grey[850],
             dividerColor: Colors.white24,
             iconTheme: IconThemeData(color: Colors.white),
@@ -173,8 +205,7 @@ Future<void> _ensureAdminExists() async {
         enable2FA: false,
       );
     }
-  }
- catch (_) {}
+  } catch (_) {}
 }
 
 class SchoolDashboard extends StatefulWidget {
@@ -195,7 +226,8 @@ Future<void> performGlobalLogout(BuildContext context) async {
   myAppKey.currentState?._onLogout();
 }
 
-class _SchoolDashboardState extends State<SchoolDashboard> with SingleTickerProviderStateMixin {
+class _SchoolDashboardState extends State<SchoolDashboard>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -230,6 +262,7 @@ class _SchoolDashboardState extends State<SchoolDashboard> with SingleTickerProv
       const TimetablePage(),
       const app_license.LicensePage(),
       const SubjectsPage(),
+      const FinanceAndInventoryPage(),
     ];
     _pagePermissions = [
       'view_dashboard',
@@ -242,6 +275,7 @@ class _SchoolDashboardState extends State<SchoolDashboard> with SingleTickerProv
       'view_timetables',
       'view_license',
       'view_subjects',
+      'view_finance_inventory',
     ];
     _loadCurrentRole();
     _initLicenseListener();
@@ -252,11 +286,14 @@ class _SchoolDashboardState extends State<SchoolDashboard> with SingleTickerProv
     if (!mounted) return;
     setState(() {
       _role = user?.role;
-      _permissions = user == null ? null : PermissionService.decodePermissions(user.permissions, role: user.role);
+      _permissions = user == null
+          ? null
+          : PermissionService.decodePermissions(
+              user.permissions,
+              role: user.role,
+            );
     });
   }
-
-  
 
   @override
   void dispose() {
@@ -350,13 +387,24 @@ Widget _buildAccessDenied(BuildContext context) {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.lock_outline, size: 64, color: theme.textTheme.bodyLarge?.color?.withOpacity(0.5)),
+        Icon(
+          Icons.lock_outline,
+          size: 64,
+          color: theme.textTheme.bodyLarge?.color?.withOpacity(0.5),
+        ),
         const SizedBox(height: 12),
-        Text('Accès refusé', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          'Accès refusé',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           'Vous n\'avez pas la permission d\'accéder à cet écran.',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+          ),
           textAlign: TextAlign.center,
         ),
       ],
@@ -372,16 +420,24 @@ Widget _buildNoAccessScreen(BuildContext context) {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.report_gmailerrorred_outlined, size: 72, color: theme.textTheme.bodyLarge?.color?.withOpacity(0.4)),
+          Icon(
+            Icons.report_gmailerrorred_outlined,
+            size: 72,
+            color: theme.textTheme.bodyLarge?.color?.withOpacity(0.4),
+          ),
           const SizedBox(height: 12),
           Text(
             'Aucun accès',
-            style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Votre compte n\'a accès à aucun écran. Veuillez contacter un administrateur.',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7)),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+            ),
             textAlign: TextAlign.center,
           ),
         ],

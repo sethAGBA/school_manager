@@ -29,7 +29,7 @@ class _WebcamCaptureState extends State<WebcamCapture> {
       if (cameras.isEmpty) {
         throw Exception('Aucune caméra trouvée');
       }
-      
+
       _controller = CameraController(
         cameras.first,
         ResolutionPreset.medium,
@@ -87,11 +87,11 @@ class _WebcamCaptureState extends State<WebcamCapture> {
               child: Center(child: CircularProgressIndicator()),
             )
           : _controller == null
-              ? const Text('Aucune caméra disponible')
-              : AspectRatio(
-                  aspectRatio: _controller!.value.aspectRatio,
-                  child: CameraPreview(_controller!),
-                ),
+          ? const Text('Aucune caméra disponible')
+          : AspectRatio(
+              aspectRatio: _controller!.value.aspectRatio,
+              child: CameraPreview(_controller!),
+            ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -99,7 +99,7 @@ class _WebcamCaptureState extends State<WebcamCapture> {
         ),
         ElevatedButton(
           onPressed: _isLoading || _isCapturing ? null : _capturePhoto,
-          child: _isCapturing 
+          child: _isCapturing
               ? const SizedBox(
                   width: 20,
                   height: 20,

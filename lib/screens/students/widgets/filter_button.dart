@@ -10,7 +10,10 @@ class FilterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: AppSizes.buttonHeight,
-      padding: EdgeInsets.symmetric(horizontal: AppSizes.spacing, vertical: AppSizes.smallSpacing / 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing,
+        vertical: AppSizes.smallSpacing / 2,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(8),

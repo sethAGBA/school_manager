@@ -43,7 +43,9 @@ class CustomFormField extends StatelessWidget {
             style: TextStyle(
               fontSize: AppSizes.textFontSize,
               fontWeight: FontWeight.w500,
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
             ),
           ),
           SizedBox(height: AppSizes.smallSpacing / 2),
@@ -58,37 +60,53 @@ class CustomFormField extends StatelessWidget {
                     }
 
                     // Use the provided dropdownValue only if it exists in the items
-                    final effectiveValue = (dropdownValue != null && uniqueItems.contains(dropdownValue))
+                    final effectiveValue =
+                        (dropdownValue != null &&
+                            uniqueItems.contains(dropdownValue))
                         ? dropdownValue
                         : null;
 
                     return DropdownButtonFormField<String>(
                       value: effectiveValue,
                       decoration: InputDecoration(
-                    hintText: hintText,
-                    hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7)),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
-                    ),
-                    contentPadding: EdgeInsets.all(AppSizes.spacing),
-                  ),
+                        hintText: hintText,
+                        hintStyle: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).cardColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: AppColors.primaryBlue,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: EdgeInsets.all(AppSizes.spacing),
+                      ),
                       items: uniqueItems.isEmpty
                           ? null
                           : uniqueItems.map((item) {
                               return DropdownMenuItem<String>(
                                 value: item,
-                                child: Text(item, style: TextStyle(color: Theme.of(context).textTheme.bodyLarge!.color)),
+                                child: Text(
+                                  item,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge!.color,
+                                  ),
+                                ),
                               );
                             }).toList(),
-                  onChanged: onDropdownChanged,
-                  validator: validator,
+                      onChanged: onDropdownChanged,
+                      validator: validator,
                     );
                   },
                 )
@@ -99,7 +117,11 @@ class CustomFormField extends StatelessWidget {
                   readOnly: readOnly,
                   decoration: InputDecoration(
                     hintText: hintText,
-                    hintStyle: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7)),
+                    hintStyle: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    ),
                     filled: true,
                     fillColor: Theme.of(context).cardColor,
                     border: OutlineInputBorder(
@@ -108,17 +130,25 @@ class CustomFormField extends StatelessWidget {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
+                      borderSide: BorderSide(
+                        color: AppColors.primaryBlue,
+                        width: 2,
+                      ),
                     ),
                     contentPadding: EdgeInsets.all(AppSizes.spacing),
                     suffixIcon: suffixIcon != null
                         ? Icon(
                             suffixIcon,
-                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : Colors.black,
                           )
                         : null,
                   ),
-                  style: TextStyle(color: Theme.of(context).textTheme.bodyLarge!.color),
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge!.color,
+                  ),
                   validator: validator,
                 ),
         ],

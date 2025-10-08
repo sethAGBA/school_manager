@@ -50,7 +50,9 @@ class AuthService {
   }) async {
     final salt = _generateSalt();
     final passwordHash = _hashPassword(password, salt);
-    final String? secret = enable2FA ? (secret2FA ?? OTP.randomSecret()) : null; // Use provided secret2FA or generate new
+    final String? secret = enable2FA
+        ? (secret2FA ?? OTP.randomSecret())
+        : null; // Use provided secret2FA or generate new
 
     final user = AppUser(
       username: username,
@@ -112,7 +114,11 @@ class AuthService {
       createdAt: currentUser.createdAt,
       lastLoginAt: currentUser.lastLoginAt,
       permissions: PermissionService.encodePermissions(
-        permissions ?? PermissionService.decodePermissions(currentUser.permissions, role: currentUser.role),
+        permissions ??
+            PermissionService.decodePermissions(
+              currentUser.permissions,
+              role: currentUser.role,
+            ),
       ),
     );
 
@@ -120,10 +126,14 @@ class AuthService {
     return updated;
   }
 
-  Future<({bool ok, bool requires2FA})> authenticatePassword(String username, String password) async {
+  Future<({bool ok, bool requires2FA})> authenticatePassword(
+    String username,
+    String password,
+  ) async {
     final row = await DatabaseService().getUserRowByUsername(username);
     if (row == null) return (ok: false, requires2FA: false);
-    if ((row['isActive'] as int? ?? 1) == 0) return (ok: false, requires2FA: false);
+    if ((row['isActive'] as int? ?? 1) == 0)
+      return (ok: false, requires2FA: false);
     final salt = row['salt'] as String;
     final expected = row['passwordHash'] as String;
     final provided = _hashPassword(password, salt);
@@ -169,7 +179,10 @@ class AuthService {
     return false;
   }
 
-  Future<String?> getTotpProvisioningUri(String username, {String issuer = 'EcoleManager'}) async {
+  Future<String?> getTotpProvisioningUri(
+    String username, {
+    String issuer = 'EcoleManager',
+  }) async {
     final row = await DatabaseService().getUserRowByUsername(username);
     if (row == null) return null;
     final secret = row['totpSecret'] as String?;

@@ -55,11 +55,14 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       TextEditingController();
   final TextEditingController _matriculeController = TextEditingController();
   final TextEditingController _academicYearController = TextEditingController();
-  final TextEditingController _enrollmentDateController = TextEditingController();
+  final TextEditingController _enrollmentDateController =
+      TextEditingController();
 
   String? _selectedClass;
   String? _selectedGender;
-  final TextEditingController _statusController = TextEditingController(text: 'Nouveau');
+  final TextEditingController _statusController = TextEditingController(
+    text: 'Nouveau',
+  );
   File? _studentPhoto;
   List<Class> _classes = [];
 
@@ -82,8 +85,9 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       // Sépare prénom/nom si possible
       final nameParts = s.name.split(' ');
       _studentNameController.text = nameParts.isNotEmpty ? nameParts.first : '';
-      _studentLastNameController.text =
-          nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+      _studentLastNameController.text = nameParts.length > 1
+          ? nameParts.sublist(1).join(' ')
+          : '';
       // dateOfBirth est stockée en ISO; afficher en jj/MM/aaaa
       DateTime? dob;
       try {
@@ -136,7 +140,9 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       final filtered = widget.student == null
           ? classes.where((c) => c.academicYear == currentYear).toList()
           : classes;
-      print('Loaded ${filtered.length} classes (currentYear=$currentYear, editing=${widget.student != null})');
+      print(
+        'Loaded ${filtered.length} classes (currentYear=$currentYear, editing=${widget.student != null})',
+      );
       setState(() {
         _classes = filtered;
       });
@@ -179,7 +185,9 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
         final filePath = result.files.single.path;
         if (filePath != null) {
           // Evict any cached image for this path before updating
-          try { await FileImage(File(filePath)).evict(); } catch (_) {}
+          try {
+            await FileImage(File(filePath)).evict();
+          } catch (_) {}
           setState(() {
             _studentPhoto = File(filePath);
           });
@@ -235,7 +243,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     _studentIdController.clear();
     _studentNameController.clear();
     _studentLastNameController.clear();
-  _matriculeController.clear();
+    _matriculeController.clear();
     _academicYearController.clear();
     _enrollmentDateController.clear();
     _dateOfBirthController.clear();
@@ -247,13 +255,13 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     _guardianContactController.clear();
     _medicalInfoController.clear();
     _statusController.text = 'Nouveau';
-    
+
     setState(() {
       _selectedClass = widget.className;
       _selectedGender = null;
       _studentPhoto = null;
     });
-    
+
     // Generate new UUID for new student
     if (widget.student == null) {
       _studentIdController.text = const Uuid().v4();
@@ -290,7 +298,9 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             (_studentLastNameController.text.isNotEmpty
                 ? ' ' + _studentLastNameController.text
                 : ''),
-        dateOfBirth: parseDdMmYyyy(_dateOfBirthController.text)!.toIso8601String(),
+        dateOfBirth: parseDdMmYyyy(
+          _dateOfBirthController.text,
+        )!.toIso8601String(),
         address: _addressController.text,
         gender: _selectedGender!,
         contactNumber: _contactNumberController.text,
@@ -298,18 +308,23 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
         emergencyContact: _emergencyContactController.text,
         guardianName: _guardianNameController.text,
         guardianContact: _guardianContactController.text,
-    className: _selectedClass!,
-    academicYear: _academicYearController.text.isNotEmpty
-      ? _academicYearController.text
-      : await getCurrentAcademicYear(),
-    enrollmentDate: (parseDdMmYyyy(_enrollmentDateController.text) ?? DateTime.now()).toIso8601String(),
-        status: _statusController.text.trim().isEmpty ? 'Nouveau' : _statusController.text.trim(),
-        medicalInfo:
-            _medicalInfoController.text.isEmpty
-                ? null
-                : _medicalInfoController.text,
+        className: _selectedClass!,
+        academicYear: _academicYearController.text.isNotEmpty
+            ? _academicYearController.text
+            : await getCurrentAcademicYear(),
+        enrollmentDate:
+            (parseDdMmYyyy(_enrollmentDateController.text) ?? DateTime.now())
+                .toIso8601String(),
+        status: _statusController.text.trim().isEmpty
+            ? 'Nouveau'
+            : _statusController.text.trim(),
+        medicalInfo: _medicalInfoController.text.isEmpty
+            ? null
+            : _medicalInfoController.text,
         photoPath: photoPath,
-        matricule: _matriculeController.text.isEmpty ? null : _matriculeController.text,
+        matricule: _matriculeController.text.isEmpty
+            ? null
+            : _matriculeController.text,
       );
       try {
         if (widget.student != null) {
@@ -333,7 +348,12 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           builder: (ctx) => AlertDialog(
             title: const Text('Erreur'),
             content: Text('Erreur lors de l\'enregistrement: $e'),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
       }
@@ -397,11 +417,10 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
               hintText: 'Sélectionnez le sexe',
               dropdownItems: const ['M', 'F'],
               dropdownValue: _selectedGender,
-              onDropdownChanged:
-                  (value) => setState(() => _selectedGender = value),
-              validator:
-                  (value) =>
-                      value == null ? 'Veuillez sélectionner le sexe' : null,
+              onDropdownChanged: (value) =>
+                  setState(() => _selectedGender = value),
+              validator: (value) =>
+                  value == null ? 'Veuillez sélectionner le sexe' : null,
             ),
             const SizedBox(height: AppSizes.spacing),
             _buildSectionTitle('Informations de Contact'),
@@ -437,19 +456,16 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             CustomFormField(
               isDropdown: true,
               labelText: AppStrings.classLabel,
-              hintText:
-                  _classes.isEmpty
-                      ? 'Aucune classe disponible'
-                      : 'Sélectionnez la classe',
+              hintText: _classes.isEmpty
+                  ? 'Aucune classe disponible'
+                  : 'Sélectionnez la classe',
               dropdownItems: _classes.map((cls) => cls.name).toList(),
               dropdownValue: _selectedClass,
-              onDropdownChanged:
-                  widget.classFieldReadOnly
-                      ? null
-                      : (value) => setState(() => _selectedClass = value),
-              validator:
-                  (value) =>
-                      value == null ? 'Veuillez sélectionner une classe' : null,
+              onDropdownChanged: widget.classFieldReadOnly
+                  ? null
+                  : (value) => setState(() => _selectedClass = value),
+              validator: (value) =>
+                  value == null ? 'Veuillez sélectionner une classe' : null,
               readOnly: widget.classFieldReadOnly,
             ),
             const SizedBox(height: AppSizes.smallSpacing),
@@ -542,59 +558,58 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Theme.of(context).dividerColor),
               ),
-              child:
-                  _studentPhoto != null
-                      ? Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              _studentPhoto!,
-                              key: ValueKey(_studentPhoto!.path),
-                              width: double.infinity,
-                              height: 150,
-                              fit: BoxFit.cover,
-                              errorBuilder:
-                                  (context, error, stackTrace) => const Center(
-                                    child: Icon(Icons.error, color: Colors.red),
-                                  ),
-                            ),
+              child: _studentPhoto != null
+                  ? Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            _studentPhoto!,
+                            key: ValueKey(_studentPhoto!.path),
+                            width: double.infinity,
+                            height: 150,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Center(
+                                  child: Icon(Icons.error, color: Colors.red),
+                                ),
                           ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GestureDetector(
-                              onTap: () => setState(() => _studentPhoto = null),
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _studentPhoto = null),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 16,
                               ),
                             ),
                           ),
-                        ],
-                      )
-                      : const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo, size: 40, color: Colors.grey),
-                          SizedBox(height: 4),
-                          Text(
-                            'Sélectionner une image',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: AppSizes.textFontSize - 2,
-                            ),
+                        ),
+                      ],
+                    )
+                  : const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo, size: 40, color: Colors.grey),
+                        SizedBox(height: 4),
+                        Text(
+                          'Sélectionner une image',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: AppSizes.textFontSize - 2,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
             ),
           ),
         ],

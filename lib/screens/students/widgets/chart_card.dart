@@ -108,7 +108,9 @@ class ChartCard extends StatelessWidget {
                         return Text(
                           bottomTitles[value.toInt()],
                           style: TextStyle(
-                            color: Theme.of(context).textTheme.bodyMedium!.color,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium!.color,
                             fontSize: AppSizes.smallTextFontSize,
                           ),
                         );
@@ -122,7 +124,9 @@ class ChartCard extends StatelessWidget {
                         return Text(
                           value.toInt().toString(),
                           style: TextStyle(
-                            color: Theme.of(context).textTheme.bodyMedium!.color,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium!.color,
                             fontSize: AppSizes.smallTextFontSize,
                           ),
                         );
@@ -138,7 +142,10 @@ class ChartCard extends StatelessWidget {
                       (entry) => BarChartGroupData(
                         x: entry.key,
                         barRods: [
-                          BarChartRodData(toY: entry.value, color: AppColors.primaryBlue),
+                          BarChartRodData(
+                            toY: entry.value,
+                            color: AppColors.primaryBlue,
+                          ),
                         ],
                       ),
                     )

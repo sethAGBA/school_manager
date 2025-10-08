@@ -59,7 +59,9 @@ class ActivityItem extends StatelessWidget {
           Text(
             time,
             style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium!.color?.withOpacity(0.7),
+              color: Theme.of(
+                context,
+              ).textTheme.bodyMedium!.color?.withOpacity(0.7),
               fontSize: 12,
             ),
           ),

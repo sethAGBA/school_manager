@@ -9,7 +9,8 @@ class LicensePage extends StatefulWidget {
   State<LicensePage> createState() => _LicensePageState();
 }
 
-class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin {
+class _LicensePageState extends State<LicensePage>
+    with TickerProviderStateMixin {
   final _keyController = TextEditingController();
 
   late AnimationController _animController;
@@ -25,7 +26,10 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
     _fade = CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
     _load();
   }
@@ -45,7 +49,9 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
 
   @override
   void dispose() {
-    try { _revealTimer?.cancel(); } catch (_) {}
+    try {
+      _revealTimer?.cancel();
+    } catch (_) {}
     _animController.dispose();
     _keyController.dispose();
     super.dispose();
@@ -70,7 +76,8 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
   Future<void> _clear() async {
     final st = await LicenseService.instance.getStatus();
     final controller = TextEditingController();
-    String normalize(String s) => s.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    String normalize(String s) =>
+        s.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
     final proceed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -80,7 +87,9 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Saisissez la clé de licence actuelle pour confirmer. La clé restera marquée comme utilisée.'),
+              const Text(
+                'Saisissez la clé de licence actuelle pour confirmer. La clé restera marquée comme utilisée.',
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
@@ -102,12 +111,17 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
                 final current = normalize(st.key ?? '');
                 if (input.isEmpty || input != current) {
                   Navigator.of(ctx).pop(false);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clé de licence incorrecte')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Clé de licence incorrecte')),
+                  );
                   return;
                 }
                 Navigator.of(ctx).pop(true);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE53E3E), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE53E3E),
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Supprimer'),
             ),
           ],
@@ -124,7 +138,9 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: isError ? const Color(0xFFE53E3E) : const Color(0xFF10B981),
+        backgroundColor: isError
+            ? const Color(0xFFE53E3E)
+            : const Color(0xFF10B981),
       ),
     );
   }
@@ -135,18 +151,32 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Mot de passe SupAdmin'),
-        content: TextField(controller: controller, obscureText: true, decoration: const InputDecoration(labelText: 'Mot de passe')),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Mot de passe'),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
-          ElevatedButton(onPressed: () async {
-            final valid = await LicenseService.instance.verifySupAdmin(controller.text);
-            Navigator.of(ctx).pop(valid);
-          }, child: const Text('Valider')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final valid = await LicenseService.instance.verifySupAdmin(
+                controller.text,
+              );
+              Navigator.of(ctx).pop(valid);
+            },
+            child: const Text('Valider'),
+          ),
         ],
       ),
     );
     if (ok == true) return true;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mot de passe SupAdmin incorrect')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Mot de passe SupAdmin incorrect')),
+    );
     return false;
   }
 
@@ -174,7 +204,10 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
                           const SizedBox(height: 8),
                           Text(
                             'La licence est valable 12 mois à partir de la date d\'enregistrement.',
-                            style: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8)),
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color
+                                  ?.withOpacity(0.8),
+                            ),
                           ),
                         ],
                       ),
@@ -199,7 +232,9 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.vpn_key_rounded, color: Colors.white),
@@ -208,8 +243,20 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Licence', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color)),
-              Text('Gérez votre clé et la validité', style: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7))),
+              Text(
+                'Licence',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: theme.textTheme.bodyLarge?.color,
+                ),
+              ),
+              Text(
+                'Gérez votre clé et la validité',
+                style: TextStyle(
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                ),
+              ),
             ],
           ),
           const Spacer(),
@@ -228,21 +275,25 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
                 fontWeight: FontWeight.w600,
               ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
   void _armRevealTimeout() {
-    try { _revealTimer?.cancel(); } catch (_) {}
+    try {
+      _revealTimer?.cancel();
+    } catch (_) {}
     _revealTimer = Timer(const Duration(minutes: 1), () {
       if (!mounted) return;
       setState(() {
         _showKey = false;
         _inputObscured = true;
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Affichage sensible masqué (timeout)')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Affichage sensible masqué (timeout)')),
+      );
     });
   }
 
@@ -256,9 +307,9 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
     final color = isActive
         ? const Color(0xFF10B981)
         : (isExpired ? const Color(0xFFE53E3E) : const Color(0xFFF59E0B));
-    
-    final label = isLifetime 
-        ? 'Active (à vie)' 
+
+    final label = isLifetime
+        ? 'Active (à vie)'
         : (isActive ? 'Active' : (isExpired ? 'Expirée' : 'Incomplète'));
 
     return Container(
@@ -283,14 +334,22 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Statut: $label', style: TextStyle(fontWeight: FontWeight.w600, color: theme.textTheme.bodyLarge?.color)),
+                Text(
+                  'Statut: $label',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: theme.textTheme.bodyLarge?.color,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         'Clé: ${_formatKeyForDisplay(_status?.key ?? '', masked: !_showKey)}',
-                        style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -307,38 +366,55 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
                         if (_showKey) {
                           _armRevealTimeout();
                         } else {
-                          try { _revealTimer?.cancel(); } catch (_) {}
+                          try {
+                            _revealTimer?.cancel();
+                          } catch (_) {}
                         }
                       },
-                      icon: Icon(_showKey ? Icons.visibility_off : Icons.visibility, size: 20, color: theme.iconTheme.color),
+                      icon: Icon(
+                        _showKey ? Icons.visibility_off : Icons.visibility,
+                        size: 20,
+                        color: theme.iconTheme.color,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 if (_status?.registeredAt != null)
-                  Text('Enregistrée le: ${_formatDate(_status!.registeredAt!)}', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                  Text(
+                    'Enregistrée le: ${_formatDate(_status!.registeredAt!)}',
+                    style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  ),
                 const SizedBox(height: 4),
                 Text(
                   'Expiration: ${isLifetime ? 'À vie' : (_status?.expiry != null ? _formatDate(_status!.expiry!) : '—')}',
-                  style: TextStyle(color: theme.textTheme.bodyMedium?.color)
+                  style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Jours restants: ${isLifetime ? 'Illimités' : (isActive ? days : (isExpired ? 0 : '—'))}',
-                  style: TextStyle(color: theme.textTheme.bodyMedium?.color)
+                  style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 ),
                 if (_allConsumed) ...[
                   const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF10B981).withOpacity(0.12),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                      border: Border.all(
+                        color: const Color(0xFF10B981).withOpacity(0.3),
+                      ),
                     ),
                     child: const Text(
                       'Lot de 12 licences consommé — application débloquée',
-                      style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -362,7 +438,14 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Mettre à jour la licence', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: theme.textTheme.bodyLarge?.color)),
+          Text(
+            'Mettre à jour la licence',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: theme.textTheme.bodyLarge?.color,
+            ),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _keyController,
@@ -372,10 +455,14 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
             decoration: InputDecoration(
               labelText: 'Clé de licence',
               prefixIcon: const Icon(Icons.vpn_key),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               suffixIcon: IconButton(
                 tooltip: _inputObscured ? 'Afficher (SupAdmin)' : 'Masquer',
-                icon: Icon(_inputObscured ? Icons.visibility : Icons.visibility_off),
+                icon: Icon(
+                  _inputObscured ? Icons.visibility : Icons.visibility_off,
+                ),
                 onPressed: () async {
                   if (_inputObscured) {
                     final ok = await _ensureSupAdmin();
@@ -387,7 +474,9 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
                   if (!_inputObscured) {
                     _armRevealTimeout();
                   } else {
-                    try { _revealTimer?.cancel(); } catch (_) {}
+                    try {
+                      _revealTimer?.cancel();
+                    } catch (_) {}
                   }
                 },
               ),
@@ -405,10 +494,13 @@ class _LicensePageState extends State<LicensePage> with TickerProviderStateMixin
               OutlinedButton.icon(
                 onPressed: _clear,
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
-                label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                label: const Text(
+                  'Supprimer',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );

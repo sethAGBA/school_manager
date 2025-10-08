@@ -13,7 +13,8 @@ class CategoriesPage extends StatefulWidget {
   State<CategoriesPage> createState() => _CategoriesPageState();
 }
 
-class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStateMixin {
+class _CategoriesPageState extends State<CategoriesPage>
+    with TickerProviderStateMixin {
   final DatabaseService _db = DatabaseService();
   List<Category> _categories = [];
   bool _loading = true;
@@ -25,10 +26,16 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
     _fade = CurvedAnimation(parent: _anim, curve: Curves.easeInOut);
     _load();
-    _searchController.addListener(() => setState(() => _query = _searchController.text.trim().toLowerCase()));
+    _searchController.addListener(
+      () =>
+          setState(() => _query = _searchController.text.trim().toLowerCase()),
+    );
   }
 
   @override
@@ -52,9 +59,15 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
     final isEdit = category != null;
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: category?.name ?? '');
-    final descController = TextEditingController(text: category?.description ?? '');
-    final orderController = TextEditingController(text: category?.order.toString() ?? '0');
-    Color selectedColor = category?.color != null ? Color(int.parse(category!.color.replaceFirst('#', '0xff'))) : const Color(0xFF6366F1);
+    final descController = TextEditingController(
+      text: category?.description ?? '',
+    );
+    final orderController = TextEditingController(
+      text: category?.order.toString() ?? '0',
+    );
+    Color selectedColor = category?.color != null
+        ? Color(int.parse(category!.color.replaceFirst('#', '0xff')))
+        : const Color(0xFF6366F1);
 
     await showDialog(
       context: context,
@@ -70,7 +83,8 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                   controller: nameController,
                   labelText: 'Nom de la catégorie',
                   hintText: 'Ex: Scientifiques',
-                  validator: (v) => v == null || v.isEmpty ? 'Champ requis' : null,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Champ requis' : null,
                 ),
                 CustomFormField(
                   controller: descController,
@@ -105,7 +119,8 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                             content: SingleChildScrollView(
                               child: ColorPicker(
                                 pickerColor: selectedColor,
-                                onColorChanged: (color) => selectedColor = color,
+                                onColorChanged: (color) =>
+                                    selectedColor = color,
                                 pickerAreaHeightPercent: 0.8,
                               ),
                             ),
@@ -115,7 +130,8 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                                 child: const Text('Annuler'),
                               ),
                               ElevatedButton(
-                                onPressed: () => Navigator.of(context).pop(selectedColor),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(selectedColor),
                                 child: const Text('Valider'),
                               ),
                             ],
@@ -136,7 +152,9 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text('#${selectedColor.value.toRadixString(16).substring(2).toUpperCase()}'),
+                    Text(
+                      '#${selectedColor.value.toRadixString(16).substring(2).toUpperCase()}',
+                    ),
                   ],
                 ),
               ],
@@ -147,26 +165,31 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
             final name = nameController.text.trim();
             final desc = descController.text.trim();
             final order = int.parse(orderController.text.trim());
-            final colorHex = '#${selectedColor.value.toRadixString(16).substring(2).toUpperCase()}';
-            
+            final colorHex =
+                '#${selectedColor.value.toRadixString(16).substring(2).toUpperCase()}';
+
             if (isEdit) {
               final updated = Category(
-                id: category.id, 
-                name: name, 
+                id: category.id,
+                name: name,
                 description: desc.isNotEmpty ? desc : null,
                 color: colorHex,
                 order: order,
               );
               await _db.updateCategory(category.id, updated);
             } else {
-              final exists = _categories.any((c) => c.name.toLowerCase() == name.toLowerCase());
+              final exists = _categories.any(
+                (c) => c.name.toLowerCase() == name.toLowerCase(),
+              );
               if (exists) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cette catégorie existe déjà.')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cette catégorie existe déjà.')),
+                );
                 return;
               }
               final created = Category(
-                id: const Uuid().v4(), 
-                name: name, 
+                id: const Uuid().v4(),
+                name: name,
                 description: desc.isNotEmpty ? desc : null,
                 color: colorHex,
                 order: order,
@@ -177,7 +200,10 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
             if (mounted) Navigator.of(context).pop();
           },
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuler')),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Annuler'),
+            ),
             if (isEdit)
               TextButton(
                 onPressed: () async {
@@ -185,12 +211,20 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                     context: context,
                     builder: (c) => AlertDialog(
                       title: const Text('Supprimer la catégorie ?'),
-                      content: const Text('Cette action est irréversible. Les matières de cette catégorie seront déclassées.'),
+                      content: const Text(
+                        'Cette action est irréversible. Les matières de cette catégorie seront déclassées.',
+                      ),
                       actions: [
-                        TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Annuler')),
+                        TextButton(
+                          onPressed: () => Navigator.of(c).pop(false),
+                          child: const Text('Annuler'),
+                        ),
                         ElevatedButton(
                           onPressed: () => Navigator.of(c).pop(true),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
                           child: const Text('Supprimer'),
                         ),
                       ],
@@ -202,7 +236,10 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                     if (mounted) Navigator.of(context).pop();
                   }
                 },
-                child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                child: const Text(
+                  'Supprimer',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ElevatedButton(
               onPressed: () async {
@@ -210,26 +247,33 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                 final name = nameController.text.trim();
                 final desc = descController.text.trim();
                 final order = int.parse(orderController.text.trim());
-                final colorHex = '#${selectedColor.value.toRadixString(16).substring(2).toUpperCase()}';
-                
+                final colorHex =
+                    '#${selectedColor.value.toRadixString(16).substring(2).toUpperCase()}';
+
                 if (isEdit) {
                   final updated = Category(
-                    id: category.id, 
-                    name: name, 
+                    id: category.id,
+                    name: name,
                     description: desc.isNotEmpty ? desc : null,
                     color: colorHex,
                     order: order,
                   );
                   await _db.updateCategory(category.id, updated);
                 } else {
-                  final exists = _categories.any((c) => c.name.toLowerCase() == name.toLowerCase());
+                  final exists = _categories.any(
+                    (c) => c.name.toLowerCase() == name.toLowerCase(),
+                  );
                   if (exists) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cette catégorie existe déjà.')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cette catégorie existe déjà.'),
+                      ),
+                    );
                     return;
                   }
                   final created = Category(
-                    id: const Uuid().v4(), 
-                    name: name, 
+                    id: const Uuid().v4(),
+                    name: name,
                     description: desc.isNotEmpty ? desc : null,
                     color: colorHex,
                     order: order,
@@ -239,7 +283,10 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                 await _load();
                 if (mounted) Navigator.of(context).pop();
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+              ),
               child: Text(isEdit ? 'Modifier' : 'Ajouter'),
             ),
           ],
@@ -252,8 +299,10 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDesktop = MediaQuery.of(context).size.width > 900;
-    final filtered = _categories.where((c) => _query.isEmpty || c.name.toLowerCase().contains(_query)).toList();
-    
+    final filtered = _categories
+        .where((c) => _query.isEmpty || c.name.toLowerCase().contains(_query))
+        .toList();
+
     return FadeTransition(
       opacity: _fade,
       child: Padding(
@@ -268,8 +317,14 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                 ElevatedButton.icon(
                   onPressed: () => _showAddEditDialog(),
                   icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text('Ajouter une catégorie', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+                  label: const Text(
+                    'Ajouter une catégorie',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -278,7 +333,9 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                     decoration: InputDecoration(
                       hintText: 'Rechercher une catégorie...',
                       prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
@@ -292,24 +349,49 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                       decoration: BoxDecoration(
                         color: theme.cardColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                        border: Border.all(
+                          color: theme.dividerColor.withOpacity(0.2),
+                        ),
                       ),
                       child: ListView.separated(
                         itemBuilder: (ctx, i) {
                           final c = filtered[i];
-                          final color = Color(int.parse(c.color.replaceFirst('#', '0xff')));
+                          final color = Color(
+                            int.parse(c.color.replaceFirst('#', '0xff')),
+                          );
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: color,
-                              child: const Icon(Icons.category, color: Colors.white),
+                              child: const Icon(
+                                Icons.category,
+                                color: Colors.white,
+                              ),
                             ),
-                            title: Text(c.name, style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.w600)),
+                            title: Text(
+                              c.name,
+                              style: TextStyle(
+                                color: theme.textTheme.bodyLarge?.color,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (c.description != null && c.description!.isNotEmpty)
-                                  Text(c.description!, style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
-                                Text('Ordre: ${c.order}', style: TextStyle(color: theme.textTheme.bodySmall?.color?.withOpacity(0.7))),
+                                if (c.description != null &&
+                                    c.description!.isNotEmpty)
+                                  Text(
+                                    c.description!,
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyMedium?.color,
+                                    ),
+                                  ),
+                                Text(
+                                  'Ordre: ${c.order}',
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodySmall?.color
+                                        ?.withOpacity(0.7),
+                                  ),
+                                ),
                               ],
                             ),
                             trailing: Row(
@@ -317,23 +399,42 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                               children: [
                                 IconButton(
                                   tooltip: 'Modifier',
-                                  icon: const Icon(Icons.edit, color: Color(0xFF6366F1)),
-                                  onPressed: () => _showAddEditDialog(category: c),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Color(0xFF6366F1),
+                                  ),
+                                  onPressed: () =>
+                                      _showAddEditDialog(category: c),
                                 ),
                                 IconButton(
                                   tooltip: 'Supprimer',
-                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
                                   onPressed: () async {
                                     final confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (d) => AlertDialog(
-                                        title: const Text('Supprimer la catégorie ?'),
-                                        content: const Text('Cette action est irréversible. Les matières de cette catégorie seront déclassées.'),
+                                        title: const Text(
+                                          'Supprimer la catégorie ?',
+                                        ),
+                                        content: const Text(
+                                          'Cette action est irréversible. Les matières de cette catégorie seront déclassées.',
+                                        ),
                                         actions: [
-                                          TextButton(onPressed: () => Navigator.of(d).pop(false), child: const Text('Annuler')),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(d).pop(false),
+                                            child: const Text('Annuler'),
+                                          ),
                                           ElevatedButton(
-                                            onPressed: () => Navigator.of(d).pop(true),
-                                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                            onPressed: () =>
+                                                Navigator.of(d).pop(true),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                            ),
                                             child: const Text('Supprimer'),
                                           ),
                                         ],
@@ -349,7 +450,10 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
                             ),
                           );
                         },
-                        separatorBuilder: (_, __) => Divider(color: theme.dividerColor.withOpacity(0.3), height: 1),
+                        separatorBuilder: (_, __) => Divider(
+                          color: theme.dividerColor.withOpacity(0.3),
+                          height: 1,
+                        ),
                         itemCount: filtered.length,
                       ),
                     ),
@@ -376,7 +480,9 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.category, color: Colors.white),
@@ -385,10 +491,24 @@ class _CategoriesPageState extends State<CategoriesPage> with TickerProviderStat
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Catégories de matières', style: TextStyle(fontSize: isDesktop ? 24 : 20, fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color)),
-                  Text('Gérez les catégories pour organiser vos matières', style: TextStyle(color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7))),
+                  Text(
+                    'Catégories de matières',
+                    style: TextStyle(
+                      fontSize: isDesktop ? 24 : 20,
+                      fontWeight: FontWeight.bold,
+                      color: theme.textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  Text(
+                    'Gérez les catégories pour organiser vos matières',
+                    style: TextStyle(
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                        0.7,
+                      ),
+                    ),
+                  ),
                 ],
-              )
+              ),
             ],
           ),
         ],

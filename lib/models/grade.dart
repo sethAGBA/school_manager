@@ -50,10 +50,20 @@ class Grade {
     subjectId: map['subjectId'] ?? '',
     subject: map['subject'] ?? '',
     term: map['term'],
-    value: map['value'] is int ? (map['value'] as int).toDouble() : map['value'],
+    value: map['value'] is int
+        ? (map['value'] as int).toDouble()
+        : map['value'],
     label: map['label'],
-    maxValue: map['maxValue'] != null ? (map['maxValue'] is int ? (map['maxValue'] as int).toDouble() : map['maxValue']) : 20.0,
-    coefficient: map['coefficient'] != null ? (map['coefficient'] is int ? (map['coefficient'] as int).toDouble() : map['coefficient']) : 1.0,
+    maxValue: map['maxValue'] != null
+        ? (map['maxValue'] is int
+              ? (map['maxValue'] as int).toDouble()
+              : map['maxValue'])
+        : 20.0,
+    coefficient: map['coefficient'] != null
+        ? (map['coefficient'] is int
+              ? (map['coefficient'] as int).toDouble()
+              : map['coefficient'])
+        : 1.0,
     type: map['type'] ?? 'Devoir',
   );
 
@@ -66,4 +76,4 @@ class Grade {
     term: '',
     value: 0,
   );
-} 
+}

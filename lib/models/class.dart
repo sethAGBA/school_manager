@@ -28,8 +28,12 @@ class Class {
       name: map['name'],
       academicYear: map['academicYear'],
       titulaire: map['titulaire'],
-      fraisEcole: map['fraisEcole'] != null ? (map['fraisEcole'] as num).toDouble() : null,
-      fraisCotisationParallele: map['fraisCotisationParallele'] != null ? (map['fraisCotisationParallele'] as num).toDouble() : null,
+      fraisEcole: map['fraisEcole'] != null
+          ? (map['fraisEcole'] as num).toDouble()
+          : null,
+      fraisCotisationParallele: map['fraisCotisationParallele'] != null
+          ? (map['fraisCotisationParallele'] as num).toDouble()
+          : null,
     );
   }
 

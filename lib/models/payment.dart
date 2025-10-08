@@ -41,8 +41,12 @@ class Payment {
       id: map['id'],
       studentId: map['studentId'],
       className: map['className'],
-      classAcademicYear: yearValue is String ? yearValue : yearValue?.toString() ?? '',
-      amount: map['amount'] is int ? (map['amount'] as int).toDouble() : map['amount'],
+      classAcademicYear: yearValue is String
+          ? yearValue
+          : yearValue?.toString() ?? '',
+      amount: map['amount'] is int
+          ? (map['amount'] as int).toDouble()
+          : map['amount'],
       date: map['date'],
       comment: map['comment'],
       isCancelled: map['isCancelled'] == 1,
@@ -56,8 +60,12 @@ class Payment {
       id: json['id'],
       studentId: json['studentId'],
       className: json['className'],
-      classAcademicYear: yearValue is String ? yearValue : yearValue?.toString() ?? '',
-      amount: json['amount'] is int ? (json['amount'] as int).toDouble() : json['amount'],
+      classAcademicYear: yearValue is String
+          ? yearValue
+          : yearValue?.toString() ?? '',
+      amount: json['amount'] is int
+          ? (json['amount'] as int).toDouble()
+          : json['amount'],
       date: json['date'],
       comment: json['comment'],
       isCancelled: json['isCancelled'] == true || json['isCancelled'] == 1,
@@ -78,4 +86,4 @@ class Payment {
       'cancelledAt': cancelledAt,
     };
   }
-} 
+}

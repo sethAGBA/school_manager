@@ -6,7 +6,9 @@ void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  testWidgets('App starts and renders without errors', (WidgetTester tester) async {
+  testWidgets('App starts and renders without errors', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(MyApp());
     expect(find.byType(MyApp), findsOneWidget);
     // You can add more specific assertions here if needed,

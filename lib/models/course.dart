@@ -29,7 +29,8 @@ class Course {
     );
   }
 
-  factory Course.empty() => Course(id: '', name: '', description: '', categoryId: null);
+  factory Course.empty() =>
+      Course(id: '', name: '', description: '', categoryId: null);
 
   Course copyWith({
     String? id,
@@ -44,4 +45,4 @@ class Course {
       categoryId: categoryId ?? this.categoryId,
     );
   }
-} 
+}

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:school_manager/models/class.dart';
 import 'package:school_manager/models/grade.dart';
@@ -58,12 +57,20 @@ class _StatisticsModalState extends State<StatisticsModal> {
   }
 
   Future<void> _loadStats() async {
-    if (widget.className == null || widget.academicYear == null || widget.term == null) {
+    if (widget.className == null ||
+        widget.academicYear == null ||
+        widget.term == null) {
       setState(() => isLoading = false);
       return;
     }
 
-    final classStudents = widget.students.where((s) => s.className == widget.className && s.academicYear == widget.academicYear).toList();
+    final classStudents = widget.students
+        .where(
+          (s) =>
+              s.className == widget.className &&
+              s.academicYear == widget.academicYear,
+        )
+        .toList();
     stats['student_count'] = classStudents.length;
 
     // Calculate general average for each student
@@ -71,11 +78,14 @@ class _StatisticsModalState extends State<StatisticsModal> {
     for (var student in classStudents) {
       double totalPoints = 0;
       double totalCoefficients = 0;
-      final studentGrades = widget.grades.where((g) => g.studentId == student.id && g.term == widget.term);
+      final studentGrades = widget.grades.where(
+        (g) => g.studentId == student.id && g.term == widget.term,
+      );
 
       for (var grade in studentGrades) {
         if (grade.value > 0 && grade.maxValue > 0 && grade.coefficient > 0) {
-          totalPoints += (grade.value / grade.maxValue) * 20 * grade.coefficient;
+          totalPoints +=
+              (grade.value / grade.maxValue) * 20 * grade.coefficient;
           totalCoefficients += grade.coefficient;
         }
       }
@@ -130,13 +140,19 @@ class _StatisticsModalState extends State<StatisticsModal> {
       int studentCountForSubject = 0;
 
       for (var student in classStudents) {
-        final subjectGrades = widget.grades.where((g) => g.studentId == student.id && g.subject == subject.name && g.term == widget.term);
+        final subjectGrades = widget.grades.where(
+          (g) =>
+              g.studentId == student.id &&
+              g.subject == subject.name &&
+              g.term == widget.term,
+        );
         double totalPoints = 0;
         double totalCoefficients = 0;
 
         for (var grade in subjectGrades) {
           if (grade.value > 0 && grade.maxValue > 0 && grade.coefficient > 0) {
-            totalPoints += (grade.value / grade.maxValue) * 20 * grade.coefficient;
+            totalPoints +=
+                (grade.value / grade.maxValue) * 20 * grade.coefficient;
             totalCoefficients += grade.coefficient;
           }
         }
@@ -152,21 +168,33 @@ class _StatisticsModalState extends State<StatisticsModal> {
       }
 
       if (classStudents.isNotEmpty) {
-        successRateBySubject[subject.name] = (studentsWithAverage / classStudents.length) * 100;
+        successRateBySubject[subject.name] =
+            (studentsWithAverage / classStudents.length) * 100;
       }
       if (studentCountForSubject > 0) {
-        classAverageBySubject[subject.name] = totalSubjectAverage / studentCountForSubject;
+        classAverageBySubject[subject.name] =
+            totalSubjectAverage / studentCountForSubject;
       }
     }
     stats['success_rate_by_subject'] = successRateBySubject;
     stats['class_average_by_subject'] = classAverageBySubject;
 
     // Nombre d'élèves par tranche de notes
-    stats['excellent_students'] = studentAverages.where((s) => s['average'] >= 16).length;
-    stats['bien_students'] = studentAverages.where((s) => s['average'] >= 14 && s['average'] < 16).length;
-    stats['assez_bien_students'] = studentAverages.where((s) => s['average'] >= 12 && s['average'] < 14).length;
-    stats['passable_students'] = studentAverages.where((s) => s['average'] >= 10 && s['average'] < 12).length;
-    stats['insuffisant_students'] = studentAverages.where((s) => s['average'] < 10).length;
+    stats['excellent_students'] = studentAverages
+        .where((s) => s['average'] >= 16)
+        .length;
+    stats['bien_students'] = studentAverages
+        .where((s) => s['average'] >= 14 && s['average'] < 16)
+        .length;
+    stats['assez_bien_students'] = studentAverages
+        .where((s) => s['average'] >= 12 && s['average'] < 14)
+        .length;
+    stats['passable_students'] = studentAverages
+        .where((s) => s['average'] >= 10 && s['average'] < 12)
+        .length;
+    stats['insuffisant_students'] = studentAverages
+        .where((s) => s['average'] < 10)
+        .length;
 
     setState(() => isLoading = false);
   }
@@ -177,10 +205,14 @@ class _StatisticsModalState extends State<StatisticsModal> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (widget.className == null || widget.academicYear == null || widget.term == null) {
+    if (widget.className == null ||
+        widget.academicYear == null ||
+        widget.term == null) {
       return const AlertDialog(
         title: Text("Statistiques"),
-        content: Text("Veuillez sélectionner une classe, une année académique et une période pour voir les statistiques."),
+        content: Text(
+          "Veuillez sélectionner une classe, une année académique et une période pour voir les statistiques.",
+        ),
       );
     }
 
@@ -195,7 +227,10 @@ class _StatisticsModalState extends State<StatisticsModal> {
               children: [
                 const Icon(Icons.analytics, color: Colors.blueAccent),
                 const SizedBox(width: 8),
-                Text("Statistiques - ${widget.className}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  "Statistiques - ${widget.className}",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -215,7 +250,11 @@ class _StatisticsModalState extends State<StatisticsModal> {
             Text("Année Académique: ${widget.academicYear}"),
             Text("Période: ${widget.term}"),
             const SizedBox(height: 20),
-            _buildStatCard("Nombre d'élèves", stats['student_count'].toString(), Icons.people),
+            _buildStatCard(
+              "Nombre d'élèves",
+              stats['student_count'].toString(),
+              Icons.people,
+            ),
             _buildDivider(),
             _buildRankingSection(),
             _buildDivider(),
@@ -236,7 +275,9 @@ class _StatisticsModalState extends State<StatisticsModal> {
             backgroundColor: const Color(0xFF10B981),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         ),
         ElevatedButton.icon(
@@ -247,7 +288,9 @@ class _StatisticsModalState extends State<StatisticsModal> {
             backgroundColor: const Color(0xFF6366F1),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         ),
       ],
@@ -262,58 +305,95 @@ class _StatisticsModalState extends State<StatisticsModal> {
     Sheet sheetObject = excel['Statistiques'];
 
     // Headers
-    sheetObject.appendRow([TextCellValue('Statistiques pour la classe ${widget.className}')]);
-    sheetObject.appendRow([TextCellValue('Année Académique: ${widget.academicYear}'), TextCellValue('Période: ${widget.term}')]);
+    sheetObject.appendRow([
+      TextCellValue('Statistiques pour la classe ${widget.className}'),
+    ]);
+    sheetObject.appendRow([
+      TextCellValue('Année Académique: ${widget.academicYear}'),
+      TextCellValue('Période: ${widget.term}'),
+    ]);
     sheetObject.appendRow([]);
 
     // Ranking
     sheetObject.appendRow([TextCellValue('Classement par mérite')]);
-    sheetObject.appendRow([TextCellValue('Rang'), TextCellValue('Élève'), TextCellValue('Moyenne'), TextCellValue('Ex æquo')]);
+    sheetObject.appendRow([
+      TextCellValue('Rang'),
+      TextCellValue('Élève'),
+      TextCellValue('Moyenne'),
+      TextCellValue('Ex æquo'),
+    ]);
     final List<Map<String, dynamic>> ranking = stats['merit_ranking'];
     for (var i = 0; i < ranking.length; i++) {
       sheetObject.appendRow([
         IntCellValue((ranking[i]['rank'] ?? (i + 1)) as int),
         TextCellValue(ranking[i]['student'].name),
         DoubleCellValue(ranking[i]['average']),
-        TextCellValue(((ranking[i]['exaequo'] as bool?) ?? false) ? 'Oui' : 'Non'),
+        TextCellValue(
+          ((ranking[i]['exaequo'] as bool?) ?? false) ? 'Oui' : 'Non',
+        ),
       ]);
     }
     sheetObject.appendRow([]);
 
     // Subject Stats
     sheetObject.appendRow([TextCellValue('Statistiques par matière')]);
-    sheetObject.appendRow([TextCellValue('Matière'), TextCellValue('Taux de réussite'), TextCellValue('Moyenne de classe')]);
+    sheetObject.appendRow([
+      TextCellValue('Matière'),
+      TextCellValue('Taux de réussite'),
+      TextCellValue('Moyenne de classe'),
+    ]);
     final Map<String, double> successRate = stats['success_rate_by_subject'];
     final Map<String, double> classAverage = stats['class_average_by_subject'];
     for (var subject in widget.subjects) {
       sheetObject.appendRow([
         TextCellValue(subject.name),
         DoubleCellValue(successRate[subject.name] ?? 0),
-        DoubleCellValue(classAverage[subject.name] ?? 0)
+        DoubleCellValue(classAverage[subject.name] ?? 0),
       ]);
     }
     sheetObject.appendRow([]);
 
     // Grade Distribution
     sheetObject.appendRow([TextCellValue('Répartition des notes')]);
-    sheetObject.appendRow([TextCellValue('Excellent (>= 16)'), IntCellValue(stats['excellent_students'])]);
-    sheetObject.appendRow([TextCellValue('Bien (14-16)'), IntCellValue(stats['bien_students'])]);
-    sheetObject.appendRow([TextCellValue('Assez Bien (12-14)'), IntCellValue(stats['assez_bien_students'])]);
-    sheetObject.appendRow([TextCellValue('Passable (10-12)'), IntCellValue(stats['passable_students'])]);
-    sheetObject.appendRow([TextCellValue('Insuffisant (< 10)'), IntCellValue(stats['insuffisant_students'])]);
+    sheetObject.appendRow([
+      TextCellValue('Excellent (>= 16)'),
+      IntCellValue(stats['excellent_students']),
+    ]);
+    sheetObject.appendRow([
+      TextCellValue('Bien (14-16)'),
+      IntCellValue(stats['bien_students']),
+    ]);
+    sheetObject.appendRow([
+      TextCellValue('Assez Bien (12-14)'),
+      IntCellValue(stats['assez_bien_students']),
+    ]);
+    sheetObject.appendRow([
+      TextCellValue('Passable (10-12)'),
+      IntCellValue(stats['passable_students']),
+    ]);
+    sheetObject.appendRow([
+      TextCellValue('Insuffisant (< 10)'),
+      IntCellValue(stats['insuffisant_students']),
+    ]);
     sheetObject.appendRow([]);
 
     // Top/Bottom 3
     sheetObject.appendRow([TextCellValue('Top 3 des élèves')]);
     final List<Map<String, dynamic>> top3 = stats['top_3_students'];
     for (var s in top3) {
-      sheetObject.appendRow([TextCellValue(s['student'].name), DoubleCellValue(s['average'])]);
+      sheetObject.appendRow([
+        TextCellValue(s['student'].name),
+        DoubleCellValue(s['average']),
+      ]);
     }
     sheetObject.appendRow([]);
     sheetObject.appendRow([TextCellValue('3 derniers élèves')]);
     final List<Map<String, dynamic>> bottom3 = stats['bottom_3_students'];
     for (var s in bottom3) {
-      sheetObject.appendRow([TextCellValue(s['student'].name), DoubleCellValue(s['average'])]);
+      sheetObject.appendRow([
+        TextCellValue(s['student'].name),
+        DoubleCellValue(s['average']),
+      ]);
     }
 
     // Save file
@@ -351,11 +431,14 @@ class _StatisticsModalState extends State<StatisticsModal> {
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  if (schoolInfo.logoPath != null && File(schoolInfo.logoPath!).existsSync())
+                  if (schoolInfo.logoPath != null &&
+                      File(schoolInfo.logoPath!).existsSync())
                     pw.Padding(
                       padding: const pw.EdgeInsets.only(right: 12),
                       child: pw.Image(
-                        pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
+                        pw.MemoryImage(
+                          File(schoolInfo.logoPath!).readAsBytesSync(),
+                        ),
                         width: 50,
                         height: 50,
                       ),
@@ -366,14 +449,33 @@ class _StatisticsModalState extends State<StatisticsModal> {
                       children: [
                         pw.Text(
                           schoolInfo.name,
-                          style: pw.TextStyle(font: timesBold, fontSize: 18, color: accent, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(
+                            font: timesBold,
+                            fontSize: 18,
+                            color: accent,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
                         ),
                         pw.SizedBox(height: 2),
-                        pw.Text(schoolInfo.address, style: pw.TextStyle(font: times, fontSize: 10, color: primary)),
+                        pw.Text(
+                          schoolInfo.address,
+                          style: pw.TextStyle(
+                            font: times,
+                            fontSize: 10,
+                            color: primary,
+                          ),
+                        ),
                         pw.SizedBox(height: 2),
                         pw.Text(
-                          'Année académique: ${widget.academicYear}  •  Généré le: ' + DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
-                          style: pw.TextStyle(font: times, fontSize: 10, color: primary),
+                          'Année académique: ${widget.academicYear}  •  Généré le: ' +
+                              DateFormat(
+                                'dd/MM/yyyy HH:mm',
+                              ).format(DateTime.now()),
+                          style: pw.TextStyle(
+                            font: times,
+                            fontSize: 10,
+                            color: primary,
+                          ),
                         ),
                       ],
                     ),
@@ -384,42 +486,75 @@ class _StatisticsModalState extends State<StatisticsModal> {
             pw.SizedBox(height: 16),
 
             // Title
-            pw.Text('Rapport de Statistiques - ${widget.className}', style: pw.TextStyle(font: timesBold, fontSize: 20, color: accent, fontWeight: pw.FontWeight.bold)),
+            pw.Text(
+              'Rapport de Statistiques - ${widget.className}',
+              style: pw.TextStyle(
+                font: timesBold,
+                fontSize: 20,
+                color: accent,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
             pw.SizedBox(height: 8),
 
             // Ranking
-            pw.Text('Classement par mérite', style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent)),
+            pw.Text(
+              'Classement par mérite',
+              style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent),
+            ),
             pw.SizedBox(height: 6),
             pw.Table.fromTextArray(
-              headerStyle: pw.TextStyle(font: timesBold, fontWeight: pw.FontWeight.bold),
+              headerStyle: pw.TextStyle(
+                font: timesBold,
+                fontWeight: pw.FontWeight.bold,
+              ),
               headerDecoration: pw.BoxDecoration(color: light),
               headers: ['Rang', 'Élève', 'Moyenne', 'Ex æquo'],
-              data: (stats['merit_ranking'] as List<Map<String, dynamic>>).map((e) => [
-                (e['rank'] ?? '').toString(),
-                e['student'].name,
-                (e['average'] as double).toStringAsFixed(2),
-                ((e['exaequo'] as bool?) ?? false) ? 'Oui' : 'Non',
-              ]).toList(),
+              data: (stats['merit_ranking'] as List<Map<String, dynamic>>)
+                  .map(
+                    (e) => [
+                      (e['rank'] ?? '').toString(),
+                      e['student'].name,
+                      (e['average'] as double).toStringAsFixed(2),
+                      ((e['exaequo'] as bool?) ?? false) ? 'Oui' : 'Non',
+                    ],
+                  )
+                  .toList(),
             ),
             pw.SizedBox(height: 16),
 
             // Subject Stats
-            pw.Text('Statistiques par matière', style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent)),
+            pw.Text(
+              'Statistiques par matière',
+              style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent),
+            ),
             pw.SizedBox(height: 6),
             pw.Table.fromTextArray(
-              headerStyle: pw.TextStyle(font: timesBold, fontWeight: pw.FontWeight.bold),
+              headerStyle: pw.TextStyle(
+                font: timesBold,
+                fontWeight: pw.FontWeight.bold,
+              ),
               headerDecoration: pw.BoxDecoration(color: light),
               headers: ['Matière', 'Taux de réussite', 'Moyenne de classe'],
-              data: widget.subjects.map((s) => [
-                s.name,
-                '${stats['success_rate_by_subject'][s.name]?.toStringAsFixed(2) ?? 'N/A'}%',
-                stats['class_average_by_subject'][s.name]?.toStringAsFixed(2) ?? 'N/A',
-              ]).toList(),
+              data: widget.subjects
+                  .map(
+                    (s) => [
+                      s.name,
+                      '${stats['success_rate_by_subject'][s.name]?.toStringAsFixed(2) ?? 'N/A'}%',
+                      stats['class_average_by_subject'][s.name]
+                              ?.toStringAsFixed(2) ??
+                          'N/A',
+                    ],
+                  )
+                  .toList(),
             ),
             pw.SizedBox(height: 16),
 
             // Grade Distribution
-            pw.Text('Répartition des notes', style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent)),
+            pw.Text(
+              'Répartition des notes',
+              style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent),
+            ),
             pw.SizedBox(height: 6),
             pw.Text('Excellent (>= 16): ${stats['excellent_students']}'),
             pw.Text('Bien (14-16): ${stats['bien_students']}'),
@@ -429,11 +564,25 @@ class _StatisticsModalState extends State<StatisticsModal> {
             pw.SizedBox(height: 16),
 
             // Top/Bottom 3
-            pw.Text('Top 3 des élèves', style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent)),
-            ...(stats['top_3_students'] as List<Map<String, dynamic>>).map((s) => pw.Text('${s['student'].name}: ${s['average'].toStringAsFixed(2)}')),
+            pw.Text(
+              'Top 3 des élèves',
+              style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent),
+            ),
+            ...(stats['top_3_students'] as List<Map<String, dynamic>>).map(
+              (s) => pw.Text(
+                '${s['student'].name}: ${s['average'].toStringAsFixed(2)}',
+              ),
+            ),
             pw.SizedBox(height: 10),
-            pw.Text('3 derniers élèves', style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent)),
-            ...(stats['bottom_3_students'] as List<Map<String, dynamic>>).map((s) => pw.Text('${s['student'].name}: ${s['average'].toStringAsFixed(2)}')),
+            pw.Text(
+              '3 derniers élèves',
+              style: pw.TextStyle(font: timesBold, fontSize: 14, color: accent),
+            ),
+            ...(stats['bottom_3_students'] as List<Map<String, dynamic>>).map(
+              (s) => pw.Text(
+                '${s['student'].name}: ${s['average'].toStringAsFixed(2)}',
+              ),
+            ),
           ];
         },
       ),
@@ -462,7 +611,10 @@ class _StatisticsModalState extends State<StatisticsModal> {
           children: const [
             Icon(Icons.emoji_events, color: Colors.amber),
             SizedBox(width: 8),
-            Text("Classement par mérite", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Classement par mérite",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         const SizedBox(height: 10),
@@ -501,7 +653,10 @@ class _StatisticsModalState extends State<StatisticsModal> {
           children: const [
             Icon(Icons.subject, color: Colors.blue),
             SizedBox(width: 8),
-            Text("Statistiques par matière", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Statistiques par matière",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         const SizedBox(height: 10),
@@ -515,8 +670,14 @@ class _StatisticsModalState extends State<StatisticsModal> {
             return DataRow(
               cells: [
                 DataCell(Text(subject.name)),
-                DataCell(Text("${successRate[subject.name]?.toStringAsFixed(2) ?? 'N/A'}%")),
-                DataCell(Text(classAverage[subject.name]?.toStringAsFixed(2) ?? 'N/A')),
+                DataCell(
+                  Text(
+                    "${successRate[subject.name]?.toStringAsFixed(2) ?? 'N/A'}%",
+                  ),
+                ),
+                DataCell(
+                  Text(classAverage[subject.name]?.toStringAsFixed(2) ?? 'N/A'),
+                ),
               ],
             );
           }).toList(),
@@ -533,15 +694,43 @@ class _StatisticsModalState extends State<StatisticsModal> {
           children: const [
             Icon(Icons.pie_chart, color: Colors.green),
             SizedBox(width: 8),
-            Text("Répartition des notes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Répartition des notes",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         const SizedBox(height: 10),
-        _buildStatCard("Excellent (>= 16)", stats['excellent_students'].toString(), Icons.star, color: Colors.amber),
-        _buildStatCard("Bien (14-16)", stats['bien_students'].toString(), Icons.thumb_up, color: Colors.lightGreen),
-        _buildStatCard("Assez Bien (12-14)", stats['assez_bien_students'].toString(), Icons.check_circle, color: Colors.blue),
-        _buildStatCard("Passable (10-12)", stats['passable_students'].toString(), Icons.check, color: Colors.orange),
-        _buildStatCard("Insuffisant (< 10)", stats['insuffisant_students'].toString(), Icons.warning, color: Colors.red),
+        _buildStatCard(
+          "Excellent (>= 16)",
+          stats['excellent_students'].toString(),
+          Icons.star,
+          color: Colors.amber,
+        ),
+        _buildStatCard(
+          "Bien (14-16)",
+          stats['bien_students'].toString(),
+          Icons.thumb_up,
+          color: Colors.lightGreen,
+        ),
+        _buildStatCard(
+          "Assez Bien (12-14)",
+          stats['assez_bien_students'].toString(),
+          Icons.check_circle,
+          color: Colors.blue,
+        ),
+        _buildStatCard(
+          "Passable (10-12)",
+          stats['passable_students'].toString(),
+          Icons.check,
+          color: Colors.orange,
+        ),
+        _buildStatCard(
+          "Insuffisant (< 10)",
+          stats['insuffisant_students'].toString(),
+          Icons.warning,
+          color: Colors.red,
+        ),
       ],
     );
   }
@@ -557,24 +746,41 @@ class _StatisticsModalState extends State<StatisticsModal> {
           children: const [
             Icon(Icons.arrow_upward, color: Colors.green),
             SizedBox(width: 8),
-            Text("Top 3 des élèves", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Top 3 des élèves",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
-        ...top3.map((s) => Text("${s['student'].name}: ${s['average'].toStringAsFixed(2)}")),
+        ...top3.map(
+          (s) =>
+              Text("${s['student'].name}: ${s['average'].toStringAsFixed(2)}"),
+        ),
         const SizedBox(height: 20),
         Row(
           children: const [
             Icon(Icons.arrow_downward, color: Colors.red),
             SizedBox(width: 8),
-            Text("3 derniers élèves", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "3 derniers élèves",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
-        ...bottom3.map((s) => Text("${s['student'].name}: ${s['average'].toStringAsFixed(2)}")),
+        ...bottom3.map(
+          (s) =>
+              Text("${s['student'].name}: ${s['average'].toStringAsFixed(2)}"),
+        ),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, {Color color = Colors.blue}) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon, {
+    Color color = Colors.blue,
+  }) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -584,9 +790,15 @@ class _StatisticsModalState extends State<StatisticsModal> {
           children: [
             Icon(icon, color: color),
             const SizedBox(width: 16),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const Spacer(),
-            Text(value, style: const TextStyle(fontSize: 18, color: Colors.blue)),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 18, color: Colors.blue),
+            ),
           ],
         ),
       ),

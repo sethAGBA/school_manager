@@ -14,6 +14,7 @@ class PermissionService {
     'view_timetables',
     'view_license',
     'view_subjects',
+    'view_finance_inventory',
   };
 
   static const defaultStaffPermissions = <String>{
@@ -22,15 +23,20 @@ class PermissionService {
     'view_grades',
     'view_payments',
     'view_subjects',
+    'view_finance_inventory',
   };
 
   static const defaultTeacherPermissions = <String>{
     'view_dashboard',
     'view_grades',
     'view_subjects',
+    'view_finance_inventory',
   };
 
-  static Set<String> decodePermissions(String? jsonStr, {required String role}) {
+  static Set<String> decodePermissions(
+    String? jsonStr, {
+    required String role,
+  }) {
     if (jsonStr == null || jsonStr.isEmpty) {
       return defaultForRole(role);
     }

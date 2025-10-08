@@ -99,7 +99,8 @@ Future<SchoolInfo> loadSchoolInfo() async {
     final prefs = await SharedPreferences.getInstance();
     final prefLogo = prefs.getString('school_logo');
     final dbLogo = schoolInfo.logoPath;
-    final dbLogoMissing = dbLogo == null || dbLogo.trim().isEmpty || !File(dbLogo).existsSync();
+    final dbLogoMissing =
+        dbLogo == null || dbLogo.trim().isEmpty || !File(dbLogo).existsSync();
     final prefLogoAvailable = prefLogo != null && prefLogo.trim().isNotEmpty;
 
     if (dbLogoMissing && prefLogoAvailable) {

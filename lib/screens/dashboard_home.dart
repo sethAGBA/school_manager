@@ -73,7 +73,9 @@ class _DashboardHomeState extends State<DashboardHome>
       final students = await _dbService.getStudents(academicYear: currentYear);
       final staff = await _dbService.getStaff();
       final allClasses = await _dbService.getClasses();
-      final classes = allClasses.where((c) => c.academicYear == currentYear).toList();
+      final classes = allClasses
+          .where((c) => c.academicYear == currentYear)
+          .toList();
       final payments = await _dbService.getAllPayments();
 
       // Compter uniquement les paiements d'élèves de l'année en cours
@@ -83,51 +85,66 @@ class _DashboardHomeState extends State<DashboardHome>
           .fold<double>(0, (sum, item) => sum + item.amount);
 
       // Fetch recent activities
-      final recentPayments = (await _dbService.getRecentPayments(3))
-          .where((p) => studentIdsThisYear.contains(p.studentId))
-          .toList();
-      
+      final recentPayments = (await _dbService.getRecentPayments(
+        3,
+      )).where((p) => studentIdsThisYear.contains(p.studentId)).toList();
+
       // Filter staff by current academic year (hire date within academic year)
-      final allRecentStaff = await _dbService.getRecentStaff(10); // Get more to filter
-      final recentStaff = allRecentStaff.where((staff) {
-        final hireYear = staff.hireDate.year;
-        final academicYearStart = int.parse(currentYear.split('-')[0]);
-        final academicYearEnd = int.parse(currentYear.split('-')[1]);
-        return hireYear >= academicYearStart && hireYear <= academicYearEnd;
-      }).take(3).toList();
-      
-      final recentStudents = (await _dbService.getRecentStudents(3))
-          .where((s) => s.academicYear == currentYear)
+      final allRecentStaff = await _dbService.getRecentStaff(
+        10,
+      ); // Get more to filter
+      final recentStaff = allRecentStaff
+          .where((staff) {
+            final hireYear = staff.hireDate.year;
+            final academicYearStart = int.parse(currentYear.split('-')[0]);
+            final academicYearEnd = int.parse(currentYear.split('-')[1]);
+            return hireYear >= academicYearStart && hireYear <= academicYearEnd;
+          })
+          .take(3)
           .toList();
+
+      final recentStudents = (await _dbService.getRecentStudents(
+        3,
+      )).where((s) => s.academicYear == currentYear).toList();
 
       List<ActivityItem> activities = [];
       for (var p in recentPayments) {
         final student = await _dbService.getStudentById(p.studentId);
-        activities.add(ActivityItem(
-          title: 'Paiement reçu',
-          subtitle: 'Frais scolarité - ${student?.name ?? 'Inconnu'}',
-          time: DateFormat('dd/MM/yyyy').format(DateTime.parse(p.date)),
-          icon: Icons.payment,
-          color: Color(0xFFF59E0B),
-        ));
+        activities.add(
+          ActivityItem(
+            title: 'Paiement reçu',
+            subtitle: 'Frais scolarité - ${student?.name ?? 'Inconnu'}',
+            time: DateFormat('dd/MM/yyyy').format(DateTime.parse(p.date)),
+            icon: Icons.payment,
+            color: Color(0xFFF59E0B),
+          ),
+        );
       }
       for (var s in recentStaff) {
-        activities.add(ActivityItem(
-          title: 'Nouveau membre du personnel',
-          subtitle: '${s.name} - ${s.role}',
-          time: formatDdMmYyyy(s.hireDate), // Assuming hireDate is already DateTime
-          icon: Icons.person_add,
-          color: Color(0xFF10B981),
-        ));
+        activities.add(
+          ActivityItem(
+            title: 'Nouveau membre du personnel',
+            subtitle: '${s.name} - ${s.role}',
+            time: formatDdMmYyyy(
+              s.hireDate,
+            ), // Assuming hireDate is already DateTime
+            icon: Icons.person_add,
+            color: Color(0xFF10B981),
+          ),
+        );
       }
       for (var s in recentStudents) {
-        activities.add(ActivityItem(
-          title: 'Nouvel élève inscrit',
-          subtitle: '${s.name} - ${s.className}',
-          time: DateFormat('dd/MM/yyyy').format(DateTime.parse(s.enrollmentDate)), // Use enrollmentDate
-          icon: Icons.person_add,
-          color: Color(0xFF3B82F6),
-        ));
+        activities.add(
+          ActivityItem(
+            title: 'Nouvel élève inscrit',
+            subtitle: '${s.name} - ${s.className}',
+            time: DateFormat(
+              'dd/MM/yyyy',
+            ).format(DateTime.parse(s.enrollmentDate)), // Use enrollmentDate
+            icon: Icons.person_add,
+            color: Color(0xFF3B82F6),
+          ),
+        );
       }
 
       // Sort activities by date (most recent first)
@@ -153,7 +170,9 @@ class _DashboardHomeState extends State<DashboardHome>
       List<String> months = [];
       if (monthlyEnrollment.isNotEmpty) {
         for (int i = 0; i < monthlyEnrollment.length; i++) {
-          spots.add(FlSpot(i.toDouble(), monthlyEnrollment[i].value.toDouble()));
+          spots.add(
+            FlSpot(i.toDouble(), monthlyEnrollment[i].value.toDouble()),
+          );
           months.add(monthlyEnrollment[i].key);
         }
       } else {
@@ -173,8 +192,18 @@ class _DashboardHomeState extends State<DashboardHome>
           FlSpot(11, 600),
         ];
         months = [
-          'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
-          'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc',
+          'Jan',
+          'Fév',
+          'Mar',
+          'Avr',
+          'Mai',
+          'Juin',
+          'Juil',
+          'Août',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Déc',
         ];
       }
 
@@ -183,7 +212,9 @@ class _DashboardHomeState extends State<DashboardHome>
         _staffCount = staff.length;
         _classCount = classes.length;
         _totalRevenue = totalRevenue;
-        _recentActivities = activities.take(5).toList(); // Take top 5 recent activities
+        _recentActivities = activities
+            .take(5)
+            .toList(); // Take top 5 recent activities
         _enrollmentSpots = spots;
         _enrollmentMonths = months;
         _isLoading = false;
@@ -204,7 +235,11 @@ class _DashboardHomeState extends State<DashboardHome>
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat.currency(locale: 'fr_FR', symbol: 'FCFA', decimalDigits: 0);
+    final currencyFormatter = NumberFormat.currency(
+      locale: 'fr_FR',
+      symbol: 'FCFA',
+      decimalDigits: 0,
+    );
     final theme = Theme.of(context);
     final isDesktop = MediaQuery.of(context).size.width > 900;
 
@@ -239,7 +274,10 @@ class _DashboardHomeState extends State<DashboardHome>
                               padding: EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                  colors: [
+                                    Color(0xFF6366F1),
+                                    Color(0xFF8B5CF6),
+                                  ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -267,7 +305,8 @@ class _DashboardHomeState extends State<DashboardHome>
                                   'Gérez votre école avec style et efficacité',
                                   style: TextStyle(
                                     fontSize: isDesktop ? 16 : 14,
-                                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                    color: theme.textTheme.bodyMedium?.color
+                                        ?.withOpacity(0.7),
                                     height: 1.5,
                                   ),
                                 ),
@@ -281,10 +320,16 @@ class _DashboardHomeState extends State<DashboardHome>
                             _buildLicenseStatusPill(theme),
                             SizedBox(width: 12),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [Color(0xFF10B981), Color(0xFF34D399)],
+                                  colors: [
+                                    Color(0xFF10B981),
+                                    Color(0xFF34D399),
+                                  ],
                                 ),
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
@@ -298,7 +343,11 @@ class _DashboardHomeState extends State<DashboardHome>
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.circle, color: Colors.white, size: 10),
+                                  Icon(
+                                    Icons.circle,
+                                    color: Colors.white,
+                                    size: 10,
+                                  ),
                                   SizedBox(width: 8),
                                   ValueListenableBuilder<String>(
                                     valueListenable: academicYearNotifier,
@@ -385,7 +434,9 @@ class _DashboardHomeState extends State<DashboardHome>
                                 Expanded(
                                   child: StatsCard(
                                     title: 'Revenus',
-                                    value: currencyFormatter.format(_totalRevenue),
+                                    value: currencyFormatter.format(
+                                      _totalRevenue,
+                                    ),
                                     icon: Icons.account_balance_wallet,
                                     color: Color(0xFFEF4444),
                                     subtitle: '',
@@ -421,7 +472,9 @@ class _DashboardHomeState extends State<DashboardHome>
                                 SizedBox(height: 20),
                                 StatsCard(
                                   title: 'Revenus',
-                                  value: currencyFormatter.format(_totalRevenue),
+                                  value: currencyFormatter.format(
+                                    _totalRevenue,
+                                  ),
                                   icon: Icons.account_balance_wallet,
                                   color: Color(0xFFEF4444),
                                   subtitle: '',
@@ -513,11 +566,19 @@ class _DashboardHomeState extends State<DashboardHome>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.vpn_key_rounded, color: Colors.white, size: 16),
+                  const Icon(
+                    Icons.vpn_key_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     text,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
@@ -579,8 +640,9 @@ class _DashboardHomeState extends State<DashboardHome>
                         return Text(
                           value.toInt().toString(),
                           style: TextStyle(
-                            color:
-                                Theme.of(context).textTheme.bodyMedium!.color,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium!.color,
                             fontSize: 12,
                           ),
                         );
@@ -591,11 +653,14 @@ class _DashboardHomeState extends State<DashboardHome>
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() >= 0 && value.toInt() < _enrollmentMonths.length) {
+                        if (value.toInt() >= 0 &&
+                            value.toInt() < _enrollmentMonths.length) {
                           return Text(
                             _enrollmentMonths[value.toInt()],
                             style: TextStyle(
-                              color: Theme.of(context).textTheme.bodyMedium!.color,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium!.color,
                               fontSize: 12,
                             ),
                           );
@@ -701,7 +766,8 @@ class _DashboardHomeState extends State<DashboardHome>
                   title: 'Nouvel Élève',
                   icon: Icons.person_add,
                   color: Color(0xFF10B981),
-                  onTap: () => widget.onNavigate(1), // Navigates to StudentsPage
+                  onTap: () =>
+                      widget.onNavigate(1), // Navigates to StudentsPage
                 ),
               ),
               SizedBox(width: 12),
@@ -733,7 +799,8 @@ class _DashboardHomeState extends State<DashboardHome>
                   title: 'Emploi du Temps',
                   icon: Icons.schedule,
                   color: Color(0xFF8B5CF6),
-                  onTap: () => widget.onNavigate(7), // Navigates to TimetablePage
+                  onTap: () =>
+                      widget.onNavigate(7), // Navigates to TimetablePage
                 ),
               ),
             ],
@@ -747,7 +814,8 @@ class _DashboardHomeState extends State<DashboardHome>
                   title: 'Paiements',
                   icon: Icons.payment,
                   color: Color(0xFF4CAF50),
-                  onTap: () => widget.onNavigate(4), // Navigates to PaymentsPage
+                  onTap: () =>
+                      widget.onNavigate(4), // Navigates to PaymentsPage
                 ),
               ),
               SizedBox(width: 12),

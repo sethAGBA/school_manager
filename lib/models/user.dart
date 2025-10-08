@@ -26,30 +26,30 @@ class AppUser {
   });
 
   Map<String, dynamic> toMap() => {
-        'username': username,
-        'displayName': displayName,
-        'role': role,
-        'passwordHash': passwordHash,
-        'salt': salt,
-        'isTwoFactorEnabled': isTwoFactorEnabled ? 1 : 0,
-        'totpSecret': totpSecret,
-        'isActive': isActive ? 1 : 0,
-        'createdAt': createdAt,
-        'lastLoginAt': lastLoginAt,
-        'permissions': permissions,
-      };
+    'username': username,
+    'displayName': displayName,
+    'role': role,
+    'passwordHash': passwordHash,
+    'salt': salt,
+    'isTwoFactorEnabled': isTwoFactorEnabled ? 1 : 0,
+    'totpSecret': totpSecret,
+    'isActive': isActive ? 1 : 0,
+    'createdAt': createdAt,
+    'lastLoginAt': lastLoginAt,
+    'permissions': permissions,
+  };
 
   static AppUser fromMap(Map<String, dynamic> map) => AppUser(
-        username: map['username'] as String,
-        displayName: (map['displayName'] as String?) ?? '',
-        role: (map['role'] as String?) ?? 'admin',
-        passwordHash: map['passwordHash'] as String,
-        salt: map['salt'] as String,
-        isTwoFactorEnabled: (map['isTwoFactorEnabled'] as int? ?? 0) == 1,
-        totpSecret: map['totpSecret'] as String?,
-        isActive: (map['isActive'] as int? ?? 1) == 1,
-        createdAt: map['createdAt'] as String?,
-        lastLoginAt: map['lastLoginAt'] as String?,
-        permissions: map['permissions'] as String?,
-      );
+    username: map['username'] as String,
+    displayName: (map['displayName'] as String?) ?? '',
+    role: (map['role'] as String?) ?? 'admin',
+    passwordHash: map['passwordHash'] as String,
+    salt: map['salt'] as String,
+    isTwoFactorEnabled: (map['isTwoFactorEnabled'] as int? ?? 0) == 1,
+    totpSecret: map['totpSecret'] as String?,
+    isActive: (map['isActive'] as int? ?? 1) == 1,
+    createdAt: map['createdAt'] as String?,
+    lastLoginAt: map['lastLoginAt'] as String?,
+    permissions: map['permissions'] as String?,
+  );
 }

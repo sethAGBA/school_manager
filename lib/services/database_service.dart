@@ -13,7 +13,6 @@ import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/models/timetable_entry.dart';
 // Removed UI and prefs from data layer
 
-
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
@@ -37,11 +36,11 @@ class DatabaseService {
     // Vérifier si les nouvelles colonnes existent déjà
     final columns = await db.rawQuery("PRAGMA table_info(staff)");
     final columnNames = columns.map((col) => col['name'] as String).toList();
-    
+
     // Liste des nouvelles colonnes à ajouter
     final newColumns = [
       'first_name TEXT',
-      'last_name TEXT', 
+      'last_name TEXT',
       'gender TEXT',
       'birth_date TEXT',
       'birth_place TEXT',
@@ -64,7 +63,7 @@ class DatabaseService {
       'weekly_hours INTEGER',
       'supervisor TEXT',
       'retirement_date TEXT',
-      'documents TEXT'
+      'documents TEXT',
     ];
 
     // Ajouter les colonnes manquantes
@@ -86,7 +85,8 @@ class DatabaseService {
     debugPrint('[DatabaseService] Ouverture de la base à : $path');
     final db = await openDatabase(
       path,
-      version: 11, // v11: school_info new columns (ministry, republicMotto, educationDirection, inspection)
+      version:
+          11, // v11: school_info new columns (ministry, republicMotto, educationDirection, inspection)
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
         // Some platforms (macOS/iOS) may report a benign error here; ignore if unsupported
@@ -94,7 +94,9 @@ class DatabaseService {
           final res = await db.rawQuery('PRAGMA journal_mode = WAL');
           debugPrint('[DatabaseService] journal_mode set: $res');
         } catch (e) {
-          debugPrint('[DatabaseService] WAL not supported, continuing. Reason: $e');
+          debugPrint(
+            '[DatabaseService] WAL not supported, continuing. Reason: $e',
+          );
         }
       },
       onCreate: (db, version) async {
@@ -408,25 +410,51 @@ class DatabaseService {
 
   Future<void> _ensureIndexes(Database db) async {
     // Students
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_students_class ON students(className)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_students_class_year ON students(className, academicYear)');
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_students_enrollment ON students(enrollmentDate)");
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_students_class ON students(className)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_students_class_year ON students(className, academicYear)',
+    );
+    await db.execute(
+      "CREATE INDEX IF NOT EXISTS idx_students_enrollment ON students(enrollmentDate)",
+    );
     // Payments
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_student_date ON payments(studentId, date)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_class ON payments(className)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_class_year ON payments(className, classAcademicYear)');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_payments_student_date ON payments(studentId, date)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_payments_class ON payments(className)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_payments_class_year ON payments(className, classAcademicYear)',
+    );
     // Grades
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_grades_lookup ON grades(studentId, className, academicYear, term)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_grades_subject ON grades(subject, subjectId)');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_grades_lookup ON grades(studentId, className, academicYear, term)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_grades_subject ON grades(subject, subjectId)',
+    );
     // Report cards
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_report_cards_lookup ON report_cards(studentId, className, academicYear, term)');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_report_cards_lookup ON report_cards(studentId, className, academicYear, term)',
+    );
     // Subject appreciation
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_subject_app_lookup ON subject_appreciation(studentId, className, academicYear, term)');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_subject_app_lookup ON subject_appreciation(studentId, className, academicYear, term)',
+    );
     // Timetable
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tt_class_day_time ON timetable_entries(className, dayOfWeek, startTime)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tt_class_year_day_time ON timetable_entries(className, academicYear, dayOfWeek, startTime)');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_tt_class_day_time ON timetable_entries(className, dayOfWeek, startTime)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_tt_class_year_day_time ON timetable_entries(className, academicYear, dayOfWeek, startTime)',
+    );
     // Users
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_users_active ON users(isActive)');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_users_active ON users(isActive)',
+    );
   }
 
   Future<void> _runPostOpenMigrations(Database db) async {
@@ -450,7 +478,29 @@ class DatabaseService {
     await _ensureArchiveExtraColumns(db);
     await _ensureSubjectAppreciationCoeffColumns(db);
     await _ensureClassCoursesCoeffColumn(db);
-    debugPrint('[DatabaseService][MIGRATION] All post-open migrations completed');
+    await _ensureTeacherUnavailabilityTable(db);
+    debugPrint(
+      '[DatabaseService][MIGRATION] All post-open migrations completed',
+    );
+  }
+
+  Future<void> _ensureTeacherUnavailabilityTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS teacher_unavailability(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        teacher TEXT NOT NULL,
+        academicYear TEXT NOT NULL,
+        dayOfWeek TEXT NOT NULL,
+        startTime TEXT NOT NULL,
+        UNIQUE(teacher, academicYear, dayOfWeek, startTime)
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_unavail_teacher_year ON teacher_unavailability(teacher, academicYear)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_unavail_day_time ON teacher_unavailability(dayOfWeek, startTime)',
+    );
   }
 
   Future<void> _ensureSubjectAppreciationCoeffColumns(Database db) async {
@@ -460,12 +510,17 @@ class DatabaseService {
       if (!has) {
         try {
           await db.execute('ALTER TABLE $table ADD COLUMN coefficient REAL');
-          debugPrint('[DatabaseService][MIGRATION] Added coefficient column to $table');
+          debugPrint(
+            '[DatabaseService][MIGRATION] Added coefficient column to $table',
+          );
         } catch (e) {
-          debugPrint('[DatabaseService][MIGRATION][ERROR] Failed to add coefficient to $table: $e');
+          debugPrint(
+            '[DatabaseService][MIGRATION][ERROR] Failed to add coefficient to $table: $e',
+          );
         }
       }
     }
+
     await addCoeff('subject_appreciation');
     await addCoeff('subject_appreciation_archive');
   }
@@ -475,22 +530,34 @@ class DatabaseService {
     final has = cols.any((c) => c['name'] == 'coefficient');
     if (!has) {
       try {
-        await db.execute('ALTER TABLE class_courses ADD COLUMN coefficient REAL');
-        debugPrint('[DatabaseService][MIGRATION] Added coefficient column to class_courses');
+        await db.execute(
+          'ALTER TABLE class_courses ADD COLUMN coefficient REAL',
+        );
+        debugPrint(
+          '[DatabaseService][MIGRATION] Added coefficient column to class_courses',
+        );
       } catch (e) {
-        debugPrint('[DatabaseService][MIGRATION][ERROR] Failed to add coefficient to class_courses: $e');
+        debugPrint(
+          '[DatabaseService][MIGRATION][ERROR] Failed to add coefficient to class_courses: $e',
+        );
       }
     }
   }
 
-  Future<Map<String, double>> getClassSubjectCoefficients(String className, String academicYear) async {
+  Future<Map<String, double>> getClassSubjectCoefficients(
+    String className,
+    String academicYear,
+  ) async {
     final db = await database;
-    final res = await db.rawQuery('''
+    final res = await db.rawQuery(
+      '''
       SELECT c.name as subject, cc.coefficient as coeff
       FROM class_courses cc
       JOIN courses c ON c.id = cc.courseId
       WHERE cc.className = ? AND cc.academicYear = ?
-    ''', [className, academicYear]);
+    ''',
+      [className, academicYear],
+    );
     final map = <String, double>{};
     for (final row in res) {
       final subject = row['subject'] as String?;
@@ -521,15 +588,21 @@ class DatabaseService {
     if (!hasMatricule) {
       try {
         await db.execute("ALTER TABLE students ADD COLUMN matricule TEXT");
-        debugPrint('[DatabaseService][MIGRATION] Added matricule column to students');
+        debugPrint(
+          '[DatabaseService][MIGRATION] Added matricule column to students',
+        );
       } catch (e) {
-        debugPrint('[DatabaseService][MIGRATION][ERROR] Failed to add matricule column: $e');
+        debugPrint(
+          '[DatabaseService][MIGRATION][ERROR] Failed to add matricule column: $e',
+        );
       }
     }
   }
 
   Future<void> _ensureSchoolInfoColumns(Database db) async {
-    debugPrint('[DatabaseService][MIGRATION] Starting school_info columns migration...');
+    debugPrint(
+      '[DatabaseService][MIGRATION] Starting school_info columns migration...',
+    );
     // Ensure table exists; create with final schema if missing
     final exists = await _tableExists(db, 'school_info');
     if (!exists) {
@@ -550,14 +623,18 @@ class DatabaseService {
           inspection TEXT
         )
       ''');
-      debugPrint('[DatabaseService][MIGRATION] Created school_info table with latest schema');
+      debugPrint(
+        '[DatabaseService][MIGRATION] Created school_info table with latest schema',
+      );
       return; // Fresh table already has all columns
     }
 
     final cols = await db.rawQuery('PRAGMA table_info(school_info)');
     final columnNames = cols.map((c) => c['name'] as String).toList();
-    debugPrint('[DatabaseService][MIGRATION] Current school_info columns: $columnNames');
-    
+    debugPrint(
+      '[DatabaseService][MIGRATION] Current school_info columns: $columnNames',
+    );
+
     final newColumns = [
       'republic TEXT',
       'ministry TEXT',
@@ -565,21 +642,29 @@ class DatabaseService {
       'educationDirection TEXT',
       'inspection TEXT',
     ];
-    
+
     for (final columnDef in newColumns) {
       final columnName = columnDef.split(' ')[0];
       if (!columnNames.contains(columnName)) {
         try {
           await db.execute('ALTER TABLE school_info ADD COLUMN $columnDef');
-          debugPrint('[DatabaseService][MIGRATION] Successfully added column: $columnName to school_info');
+          debugPrint(
+            '[DatabaseService][MIGRATION] Successfully added column: $columnName to school_info',
+          );
         } catch (e) {
-          debugPrint('[DatabaseService][MIGRATION][ERROR] Failed to add column $columnName: $e');
+          debugPrint(
+            '[DatabaseService][MIGRATION][ERROR] Failed to add column $columnName: $e',
+          );
         }
       } else {
-        debugPrint('[DatabaseService][MIGRATION] Column $columnName already exists in school_info');
+        debugPrint(
+          '[DatabaseService][MIGRATION] Column $columnName already exists in school_info',
+        );
       }
     }
-    debugPrint('[DatabaseService][MIGRATION] school_info columns migration completed');
+    debugPrint(
+      '[DatabaseService][MIGRATION] school_info columns migration completed',
+    );
   }
 
   Future<bool> _tableExists(Database db, String table) async {
@@ -598,7 +683,9 @@ class DatabaseService {
       return;
     }
 
-    debugPrint('[DatabaseService][MIGRATION] Upgrading classes table to composite primary key (name, academicYear)');
+    debugPrint(
+      '[DatabaseService][MIGRATION] Upgrading classes table to composite primary key (name, academicYear)',
+    );
     await db.execute('PRAGMA foreign_keys = OFF');
     try {
       if (await _tableExists(db, 'classes_backup')) {
@@ -620,7 +707,9 @@ class DatabaseService {
         SELECT name, academicYear, titulaire, fraisEcole, fraisCotisationParallele FROM classes_backup
       ''');
     } catch (e) {
-      debugPrint('[DatabaseService][MIGRATION][ERROR] Failed to rebuild classes table: $e');
+      debugPrint(
+        '[DatabaseService][MIGRATION][ERROR] Failed to rebuild classes table: $e',
+      );
       rethrow;
     } finally {
       await db.execute('PRAGMA foreign_keys = ON');
@@ -633,11 +722,17 @@ class DatabaseService {
     }
     // If we reach here, dependent tables may still reference classes_backup.
     // Leave the backup table in place for manual inspection instead of dropping it automatically.
-    debugPrint('[DatabaseService][MIGRATION] classes_backup detected; keeping backup table for further cleanup.');
+    debugPrint(
+      '[DatabaseService][MIGRATION] classes_backup detected; keeping backup table for further cleanup.',
+    );
   }
 
   Future<void> _ensureClassRelatedColumns(Database db) async {
-    Future<void> addColumnIfMissing(String table, String column, String type) async {
+    Future<void> addColumnIfMissing(
+      String table,
+      String column,
+      String type,
+    ) async {
       final cols = await db.rawQuery('PRAGMA table_info($table)');
       final exists = cols.any((c) => c['name'] == column);
       if (!exists) {
@@ -646,7 +741,9 @@ class DatabaseService {
     }
 
     // Créer la table categories si elle n'existe pas
-    final categoriesTableExists = await db.rawQuery('SELECT name FROM sqlite_master WHERE type="table" AND name="categories"');
+    final categoriesTableExists = await db.rawQuery(
+      'SELECT name FROM sqlite_master WHERE type="table" AND name="categories"',
+    );
     if (categoriesTableExists.isEmpty) {
       await db.execute('''
         CREATE TABLE categories(
@@ -719,12 +816,20 @@ class DatabaseService {
     final cols = await db.rawQuery('PRAGMA table_info(students)');
     final hasStatus = cols.any((c) => c['name'] == 'status');
     if (!hasStatus) {
-      await db.execute("ALTER TABLE students ADD COLUMN status TEXT DEFAULT 'Nouveau'");
-      await db.execute("UPDATE students SET status = 'Nouveau' WHERE status IS NULL OR status = ''");
+      await db.execute(
+        "ALTER TABLE students ADD COLUMN status TEXT DEFAULT 'Nouveau'",
+      );
+      await db.execute(
+        "UPDATE students SET status = 'Nouveau' WHERE status IS NULL OR status = ''",
+      );
     }
   }
 
-  Future<void> _ensureClassExists(DatabaseExecutor exec, String className, {String? academicYear}) async {
+  Future<void> _ensureClassExists(
+    DatabaseExecutor exec,
+    String className, {
+    String? academicYear,
+  }) async {
     List<Map<String, Object?>> rows;
     if (academicYear != null) {
       rows = await exec.query(
@@ -733,24 +838,44 @@ class DatabaseService {
         whereArgs: [className, academicYear],
       );
     } else {
-      rows = await exec.query('classes', where: 'name = ?', whereArgs: [className]);
+      rows = await exec.query(
+        'classes',
+        where: 'name = ?',
+        whereArgs: [className],
+      );
     }
     if (rows.isEmpty) {
-      throw Exception(academicYear == null
-          ? 'Classe introuvable: "$className"'
-          : 'Classe introuvable: "$className" ($academicYear)');
+      throw Exception(
+        academicYear == null
+            ? 'Classe introuvable: "$className"'
+            : 'Classe introuvable: "$className" ($academicYear)',
+      );
     }
   }
 
-  Future<void> _ensureStudentExists(DatabaseExecutor exec, String studentId) async {
-    final rows = await exec.query('students', where: 'id = ?', whereArgs: [studentId]);
+  Future<void> _ensureStudentExists(
+    DatabaseExecutor exec,
+    String studentId,
+  ) async {
+    final rows = await exec.query(
+      'students',
+      where: 'id = ?',
+      whereArgs: [studentId],
+    );
     if (rows.isEmpty) {
       throw Exception('Élève introuvable: "$studentId"');
     }
   }
 
-  Future<void> _ensureCourseExists(DatabaseExecutor exec, String courseId) async {
-    final rows = await exec.query('courses', where: 'id = ?', whereArgs: [courseId]);
+  Future<void> _ensureCourseExists(
+    DatabaseExecutor exec,
+    String courseId,
+  ) async {
+    final rows = await exec.query(
+      'courses',
+      where: 'id = ?',
+      whereArgs: [courseId],
+    );
     if (rows.isEmpty) {
       throw Exception('Matière introuvable: "$courseId"');
     }
@@ -758,14 +883,22 @@ class DatabaseService {
 
   Future<void> _migrateForeignKeysWithCascade(Database db) async {
     // Add ON UPDATE CASCADE / ON DELETE RESTRICT where appropriate by rebuilding child tables
-    Future<bool> hasFk(Database db, String table, Map<String, String> exp) async {
+    Future<bool> hasFk(
+      Database db,
+      String table,
+      Map<String, String> exp,
+    ) async {
       final fks = await db.rawQuery('PRAGMA foreign_key_list($table)');
-      return fks.any((row) =>
-          (row['table']?.toString() == exp['table']) &&
-          (row['from']?.toString() == exp['from']) &&
-          (row['to']?.toString() == exp['to']) &&
-          ((row['on_update']?.toString()?.toUpperCase() ?? '') == (exp['on_update'] ?? '').toUpperCase()) &&
-          ((row['on_delete']?.toString()?.toUpperCase() ?? '') == (exp['on_delete'] ?? '').toUpperCase()));
+      return fks.any(
+        (row) =>
+            (row['table']?.toString() == exp['table']) &&
+            (row['from']?.toString() == exp['from']) &&
+            (row['to']?.toString() == exp['to']) &&
+            ((row['on_update']?.toString()?.toUpperCase() ?? '') ==
+                (exp['on_update'] ?? '').toUpperCase()) &&
+            ((row['on_delete']?.toString()?.toUpperCase() ?? '') ==
+                (exp['on_delete'] ?? '').toUpperCase()),
+      );
     }
 
     Future<void> recreateIfNeeded({
@@ -776,7 +909,10 @@ class DatabaseService {
     }) async {
       bool ok = true;
       for (final exp in expectedFks) {
-        if (!await hasFk(db, table, exp)) { ok = false; break; }
+        if (!await hasFk(db, table, exp)) {
+          ok = false;
+          break;
+        }
       }
       if (ok) return;
       // Basic orphan check: skip migration if orphans exist to avoid failure
@@ -785,11 +921,17 @@ class DatabaseService {
         final parent = exp['table'];
         final to = exp['to'];
         if (from == null || parent == null || to == null) continue;
-        final count = Sqflite.firstIntValue(await db.rawQuery(
-          'SELECT COUNT(*) FROM $table t LEFT JOIN $parent p ON t.$from = p.$to WHERE p.$to IS NULL'
-        )) ?? 0;
+        final count =
+            Sqflite.firstIntValue(
+              await db.rawQuery(
+                'SELECT COUNT(*) FROM $table t LEFT JOIN $parent p ON t.$from = p.$to WHERE p.$to IS NULL',
+              ),
+            ) ??
+            0;
         if (count > 0) {
-          debugPrint('[DatabaseService][FK MIGRATION] Skip $table: found $count orphan rows for FK $from -> $parent($to).');
+          debugPrint(
+            '[DatabaseService][FK MIGRATION] Skip $table: found $count orphan rows for FK $from -> $parent($to).',
+          );
           return;
         }
       }
@@ -799,7 +941,9 @@ class DatabaseService {
         await db.transaction((txn) async {
           await txn.execute(createSql.replaceAll(table, '${table}_new'));
           final cols = columns.join(', ');
-          await txn.execute('INSERT INTO ${table}_new ($cols) SELECT $cols FROM $table');
+          await txn.execute(
+            'INSERT INTO ${table}_new ($cols) SELECT $cols FROM $table',
+          );
           await txn.execute('DROP TABLE $table');
           await txn.execute('ALTER TABLE ${table}_new RENAME TO $table');
         });
@@ -808,7 +952,9 @@ class DatabaseService {
         try {
           final issues = await db.rawQuery('PRAGMA foreign_key_check');
           if (issues.isNotEmpty) {
-            debugPrint('[DatabaseService][FK MIGRATION] foreign_key_check reported ${issues.length} issues after rebuilding $table');
+            debugPrint(
+              '[DatabaseService][FK MIGRATION] foreign_key_check reported ${issues.length} issues after rebuilding $table',
+            );
           }
         } catch (_) {}
       }
@@ -818,8 +964,20 @@ class DatabaseService {
     await recreateIfNeeded(
       table: 'students',
       expectedFks: [
-        {'table': 'classes', 'from': 'className', 'to': 'name', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'academicYear', 'to': 'academicYear', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
+        {
+          'table': 'classes',
+          'from': 'className',
+          'to': 'name',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'academicYear',
+          'to': 'academicYear',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
       ],
       createSql: '''
         CREATE TABLE students(
@@ -842,7 +1000,21 @@ class DatabaseService {
         )
       ''',
       columns: [
-        'id','name','dateOfBirth','address','gender','contactNumber','email','emergencyContact','guardianName','guardianContact','className','academicYear','enrollmentDate','medicalInfo','photoPath'
+        'id',
+        'name',
+        'dateOfBirth',
+        'address',
+        'gender',
+        'contactNumber',
+        'email',
+        'emergencyContact',
+        'guardianName',
+        'guardianContact',
+        'className',
+        'academicYear',
+        'enrollmentDate',
+        'medicalInfo',
+        'photoPath',
       ],
     );
 
@@ -850,9 +1022,27 @@ class DatabaseService {
     await recreateIfNeeded(
       table: 'payments',
       expectedFks: [
-        {'table': 'students', 'from': 'studentId', 'to': 'id', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'className', 'to': 'name', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'classAcademicYear', 'to': 'academicYear', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
+        {
+          'table': 'students',
+          'from': 'studentId',
+          'to': 'id',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'className',
+          'to': 'name',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'classAcademicYear',
+          'to': 'academicYear',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
       ],
       createSql: '''
         CREATE TABLE payments(
@@ -869,16 +1059,44 @@ class DatabaseService {
           FOREIGN KEY (className, classAcademicYear) REFERENCES classes(name, academicYear) ON UPDATE CASCADE ON DELETE RESTRICT
         )
       ''',
-      columns: ['id','studentId','className','classAcademicYear','amount','date','comment','isCancelled','cancelledAt'],
+      columns: [
+        'id',
+        'studentId',
+        'className',
+        'classAcademicYear',
+        'amount',
+        'date',
+        'comment',
+        'isCancelled',
+        'cancelledAt',
+      ],
     );
 
     // grades -> students(id), classes(name, academicYear)
     await recreateIfNeeded(
       table: 'grades',
       expectedFks: [
-        {'table': 'students', 'from': 'studentId', 'to': 'id', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'className', 'to': 'name', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'academicYear', 'to': 'academicYear', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
+        {
+          'table': 'students',
+          'from': 'studentId',
+          'to': 'id',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'className',
+          'to': 'name',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'academicYear',
+          'to': 'academicYear',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
       ],
       createSql: '''
         CREATE TABLE grades(
@@ -898,16 +1116,47 @@ class DatabaseService {
           FOREIGN KEY (className, academicYear) REFERENCES classes(name, academicYear) ON UPDATE CASCADE ON DELETE RESTRICT
         )
       ''',
-      columns: ['id','studentId','className','academicYear','subject','term','value','label','maxValue','coefficient','type','subjectId'],
+      columns: [
+        'id',
+        'studentId',
+        'className',
+        'academicYear',
+        'subject',
+        'term',
+        'value',
+        'label',
+        'maxValue',
+        'coefficient',
+        'type',
+        'subjectId',
+      ],
     );
 
     // class_courses -> classes(name, academicYear), courses(id)
     await recreateIfNeeded(
       table: 'class_courses',
       expectedFks: [
-        {'table': 'classes', 'from': 'className', 'to': 'name', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'academicYear', 'to': 'academicYear', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'courses', 'from': 'courseId', 'to': 'id', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
+        {
+          'table': 'classes',
+          'from': 'className',
+          'to': 'name',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'academicYear',
+          'to': 'academicYear',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'courses',
+          'from': 'courseId',
+          'to': 'id',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
       ],
       createSql: '''
         CREATE TABLE class_courses(
@@ -919,15 +1168,27 @@ class DatabaseService {
           FOREIGN KEY (courseId) REFERENCES courses(id) ON UPDATE CASCADE ON DELETE RESTRICT
         )
       ''',
-      columns: ['className','academicYear','courseId'],
+      columns: ['className', 'academicYear', 'courseId'],
     );
 
     // timetable_entries -> classes(name, academicYear)
     await recreateIfNeeded(
       table: 'timetable_entries',
       expectedFks: [
-        {'table': 'classes', 'from': 'className', 'to': 'name', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'academicYear', 'to': 'academicYear', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
+        {
+          'table': 'classes',
+          'from': 'className',
+          'to': 'name',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'academicYear',
+          'to': 'academicYear',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
       ],
       createSql: '''
         CREATE TABLE timetable_entries(
@@ -943,16 +1204,44 @@ class DatabaseService {
           FOREIGN KEY (className, academicYear) REFERENCES classes(name, academicYear) ON UPDATE CASCADE ON DELETE RESTRICT
         )
       ''',
-      columns: ['id','subject','teacher','className','academicYear','dayOfWeek','startTime','endTime','room'],
+      columns: [
+        'id',
+        'subject',
+        'teacher',
+        'className',
+        'academicYear',
+        'dayOfWeek',
+        'startTime',
+        'endTime',
+        'room',
+      ],
     );
 
     // report_cards -> students(id), classes(name, academicYear)
     await recreateIfNeeded(
       table: 'report_cards',
       expectedFks: [
-        {'table': 'students', 'from': 'studentId', 'to': 'id', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'className', 'to': 'name', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'academicYear', 'to': 'academicYear', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
+        {
+          'table': 'students',
+          'from': 'studentId',
+          'to': 'id',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'className',
+          'to': 'name',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'academicYear',
+          'to': 'academicYear',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
       ],
       createSql: '''
         CREATE TABLE report_cards(
@@ -989,7 +1278,34 @@ class DatabaseService {
         )
       ''',
       columns: [
-        'id','studentId','className','academicYear','term','appreciation_generale','decision','fait_a','le_date','moyenne_generale','rang','nb_eleves','mention','moyennes_par_periode','all_terms','moyenne_generale_classe','moyenne_la_plus_forte','moyenne_la_plus_faible','moyenne_annuelle','sanctions','recommandations','forces','points_a_developper','attendance_justifiee','attendance_injustifiee','retards','presence_percent','conduite'
+        'id',
+        'studentId',
+        'className',
+        'academicYear',
+        'term',
+        'appreciation_generale',
+        'decision',
+        'fait_a',
+        'le_date',
+        'moyenne_generale',
+        'rang',
+        'nb_eleves',
+        'mention',
+        'moyennes_par_periode',
+        'all_terms',
+        'moyenne_generale_classe',
+        'moyenne_la_plus_forte',
+        'moyenne_la_plus_faible',
+        'moyenne_annuelle',
+        'sanctions',
+        'recommandations',
+        'forces',
+        'points_a_developper',
+        'attendance_justifiee',
+        'attendance_injustifiee',
+        'retards',
+        'presence_percent',
+        'conduite',
       ],
     );
 
@@ -997,9 +1313,27 @@ class DatabaseService {
     await recreateIfNeeded(
       table: 'subject_appreciation',
       expectedFks: [
-        {'table': 'students', 'from': 'studentId', 'to': 'id', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'className', 'to': 'name', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'academicYear', 'to': 'academicYear', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
+        {
+          'table': 'students',
+          'from': 'studentId',
+          'to': 'id',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'className',
+          'to': 'name',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'academicYear',
+          'to': 'academicYear',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
       ],
       createSql: '''
         CREATE TABLE subject_appreciation(
@@ -1016,16 +1350,44 @@ class DatabaseService {
           FOREIGN KEY (className, academicYear) REFERENCES classes(name, academicYear) ON UPDATE CASCADE ON DELETE RESTRICT
         )
       ''',
-      columns: ['id','studentId','className','academicYear','subject','term','professeur','appreciation','moyenne_classe'],
+      columns: [
+        'id',
+        'studentId',
+        'className',
+        'academicYear',
+        'subject',
+        'term',
+        'professeur',
+        'appreciation',
+        'moyenne_classe',
+      ],
     );
 
     // report_cards_archive -> students(id), classes(name, academicYear); subject_appreciation_archive unchanged
     await recreateIfNeeded(
       table: 'report_cards_archive',
       expectedFks: [
-        {'table': 'students', 'from': 'studentId', 'to': 'id', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'className', 'to': 'name', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
-        {'table': 'classes', 'from': 'academicYear', 'to': 'academicYear', 'on_update': 'CASCADE', 'on_delete': 'RESTRICT'},
+        {
+          'table': 'students',
+          'from': 'studentId',
+          'to': 'id',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'className',
+          'to': 'name',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
+        {
+          'table': 'classes',
+          'from': 'academicYear',
+          'to': 'academicYear',
+          'on_update': 'CASCADE',
+          'on_delete': 'RESTRICT',
+        },
       ],
       createSql: '''
         CREATE TABLE report_cards_archive(
@@ -1055,13 +1417,47 @@ class DatabaseService {
         )
       ''',
       columns: [
-        'id','studentId','className','academicYear','term','appreciation_generale','decision','fait_a','le_date','moyenne_generale','rang','exaequo','nb_eleves','mention','moyennes_par_periode','all_terms','moyenne_generale_classe','moyenne_la_plus_forte','moyenne_la_plus_faible','moyenne_annuelle','sanctions','recommandations','forces','points_a_developper','attendance_justifiee','attendance_injustifiee','retards','presence_percent','conduite'
+        'id',
+        'studentId',
+        'className',
+        'academicYear',
+        'term',
+        'appreciation_generale',
+        'decision',
+        'fait_a',
+        'le_date',
+        'moyenne_generale',
+        'rang',
+        'exaequo',
+        'nb_eleves',
+        'mention',
+        'moyennes_par_periode',
+        'all_terms',
+        'moyenne_generale_classe',
+        'moyenne_la_plus_forte',
+        'moyenne_la_plus_faible',
+        'moyenne_annuelle',
+        'sanctions',
+        'recommandations',
+        'forces',
+        'points_a_developper',
+        'attendance_justifiee',
+        'attendance_injustifiee',
+        'retards',
+        'presence_percent',
+        'conduite',
       ],
     );
     await recreateIfNeeded(
       table: 'subject_appreciation_archive',
       expectedFks: [
-        {'table': 'report_cards_archive', 'from': 'report_card_id', 'to': 'id', 'on_update': 'CASCADE', 'on_delete': 'CASCADE'},
+        {
+          'table': 'report_cards_archive',
+          'from': 'report_card_id',
+          'to': 'id',
+          'on_update': 'CASCADE',
+          'on_delete': 'CASCADE',
+        },
       ],
       createSql: '''
         CREATE TABLE subject_appreciation_archive(
@@ -1075,7 +1471,15 @@ class DatabaseService {
           FOREIGN KEY (report_card_id) REFERENCES report_cards_archive(id) ON UPDATE CASCADE ON DELETE CASCADE
         )
       ''',
-      columns: ['id','report_card_id','subject','professeur','appreciation','moyenne_classe','academicYear'],
+      columns: [
+        'id',
+        'report_card_id',
+        'subject',
+        'professeur',
+        'appreciation',
+        'moyenne_classe',
+        'academicYear',
+      ],
     );
   }
 
@@ -1092,9 +1496,12 @@ class DatabaseService {
       final cols = await db.rawQuery('PRAGMA table_info(report_cards_archive)');
       final exists = cols.any((c) => c['name'] == col);
       if (!exists) {
-        await db.execute('ALTER TABLE report_cards_archive ADD COLUMN $col $type');
+        await db.execute(
+          'ALTER TABLE report_cards_archive ADD COLUMN $col $type',
+        );
       }
     }
+
     // Snapshot d'infos école & élève utiles
     await add('school_ministry', 'TEXT');
     await add('school_republic', 'TEXT');
@@ -1108,7 +1515,9 @@ class DatabaseService {
 
   Future<void> _ensureStudentAcademicYearColumn(Database db) async {
     final studentCols = await db.rawQuery('PRAGMA table_info(students)');
-    final hasStudentAcademicYear = studentCols.any((c) => c['name'] == 'academicYear');
+    final hasStudentAcademicYear = studentCols.any(
+      (c) => c['name'] == 'academicYear',
+    );
     if (!hasStudentAcademicYear) {
       await db.execute('ALTER TABLE students ADD COLUMN academicYear TEXT');
       await db.execute('''
@@ -1146,41 +1555,74 @@ class DatabaseService {
 
   Future<void> _migrateReportCardsExtraFields(Database db) async {
     // Helper to add column if missing
-    Future<void> addColumnIfMissing(String table, String column, String type) async {
+    Future<void> addColumnIfMissing(
+      String table,
+      String column,
+      String type,
+    ) async {
       final cols = await db.rawQuery("PRAGMA table_info($table)");
       final has = cols.any((c) => c['name'] == column);
       if (!has) {
-        await db.execute('ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + type);
+        await db.execute(
+          'ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + type,
+        );
       }
     }
+
     // report_cards
     await addColumnIfMissing('report_cards', 'recommandations', 'TEXT');
     await addColumnIfMissing('report_cards', 'forces', 'TEXT');
     await addColumnIfMissing('report_cards', 'points_a_developper', 'TEXT');
     await addColumnIfMissing('report_cards', 'attendance_justifiee', 'INTEGER');
-    await addColumnIfMissing('report_cards', 'attendance_injustifiee', 'INTEGER');
+    await addColumnIfMissing(
+      'report_cards',
+      'attendance_injustifiee',
+      'INTEGER',
+    );
     await addColumnIfMissing('report_cards', 'retards', 'INTEGER');
     await addColumnIfMissing('report_cards', 'presence_percent', 'REAL');
     await addColumnIfMissing('report_cards', 'conduite', 'TEXT');
     // report_cards_archive
     await addColumnIfMissing('report_cards_archive', 'recommandations', 'TEXT');
     await addColumnIfMissing('report_cards_archive', 'forces', 'TEXT');
-    await addColumnIfMissing('report_cards_archive', 'points_a_developper', 'TEXT');
-    await addColumnIfMissing('report_cards_archive', 'attendance_justifiee', 'INTEGER');
-    await addColumnIfMissing('report_cards_archive', 'attendance_injustifiee', 'INTEGER');
+    await addColumnIfMissing(
+      'report_cards_archive',
+      'points_a_developper',
+      'TEXT',
+    );
+    await addColumnIfMissing(
+      'report_cards_archive',
+      'attendance_justifiee',
+      'INTEGER',
+    );
+    await addColumnIfMissing(
+      'report_cards_archive',
+      'attendance_injustifiee',
+      'INTEGER',
+    );
     await addColumnIfMissing('report_cards_archive', 'retards', 'INTEGER');
-    await addColumnIfMissing('report_cards_archive', 'presence_percent', 'REAL');
+    await addColumnIfMissing(
+      'report_cards_archive',
+      'presence_percent',
+      'REAL',
+    );
     await addColumnIfMissing('report_cards_archive', 'conduite', 'TEXT');
     await addColumnIfMissing('report_cards_archive', 'exaequo', 'INTEGER');
   }
 
   Future<void> _migrateStudentsEnrollmentDate(Database db) async {
     final columns = await db.rawQuery("PRAGMA table_info(students)");
-    final hasEnrollmentDate = columns.any((col) => col['name'] == 'enrollmentDate');
+    final hasEnrollmentDate = columns.any(
+      (col) => col['name'] == 'enrollmentDate',
+    );
     if (!hasEnrollmentDate) {
-      await db.execute("ALTER TABLE students ADD COLUMN enrollmentDate TEXT DEFAULT ''");
+      await db.execute(
+        "ALTER TABLE students ADD COLUMN enrollmentDate TEXT DEFAULT ''",
+      );
       // Optionally, populate with a default value like current date or dateOfBirth if appropriate
-      await db.execute("UPDATE students SET enrollmentDate = dateOfBirth WHERE enrollmentDate = ''");
+      await db.execute(
+        "UPDATE students SET enrollmentDate = dateOfBirth WHERE enrollmentDate = ''",
+      );
     }
   }
 
@@ -1194,13 +1636,23 @@ class DatabaseService {
       final grades = await txn.query('grades');
       for (final grade in grades) {
         final currentSubjectId = grade['subjectId'] as Object?;
-        if (currentSubjectId == null || (currentSubjectId is String && currentSubjectId.isEmpty)) {
+        if (currentSubjectId == null ||
+            (currentSubjectId is String && currentSubjectId.isEmpty)) {
           final subjectName = grade['subject'] as String?;
           if (subjectName != null && subjectName.isNotEmpty) {
-            final course = await txn.query('courses', where: 'name = ?', whereArgs: [subjectName]);
+            final course = await txn.query(
+              'courses',
+              where: 'name = ?',
+              whereArgs: [subjectName],
+            );
             if (course.isNotEmpty) {
               final courseId = course.first['id'] as String;
-              await txn.update('grades', {'subjectId': courseId}, where: 'id = ?', whereArgs: [grade['id']]);
+              await txn.update(
+                'grades',
+                {'subjectId': courseId},
+                where: 'id = ?',
+                whereArgs: [grade['id']],
+              );
             }
           }
         }
@@ -1215,8 +1667,14 @@ class DatabaseService {
     debugPrint('[DatabaseService] insertClass -> data=$data');
     try {
       // Always insert a new class; do not update existing by name to avoid accidental overwrites
-      await db.insert('classes', data, conflictAlgorithm: ConflictAlgorithm.abort);
-      debugPrint('[DatabaseService] insertClass <- inserted name=${cls.name} year=${cls.academicYear}');
+      await db.insert(
+        'classes',
+        data,
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+      debugPrint(
+        '[DatabaseService] insertClass <- inserted name=${cls.name} year=${cls.academicYear}',
+      );
     } catch (e) {
       debugPrint('[DatabaseService][ERROR] insertClass failed: $e');
       rethrow;
@@ -1248,9 +1706,15 @@ class DatabaseService {
     return null;
   }
 
-  Future<void> updateClass(String oldName, String oldAcademicYear, Class updatedClass) async {
+  Future<void> updateClass(
+    String oldName,
+    String oldAcademicYear,
+    Class updatedClass,
+  ) async {
     final db = await database;
-    debugPrint('[DatabaseService] updateClass -> old=($oldName, $oldAcademicYear) newData=${updatedClass.toMap()}');
+    debugPrint(
+      '[DatabaseService] updateClass -> old=($oldName, $oldAcademicYear) newData=${updatedClass.toMap()}',
+    );
     await db.transaction((txn) async {
       await _ensureClassExists(txn, oldName, academicYear: oldAcademicYear);
       await txn.update(
@@ -1268,11 +1732,20 @@ class DatabaseService {
           final classesStr = staff['classes'] as String?;
           if (classesStr != null && classesStr.isNotEmpty) {
             final classes = classesStr.split(',');
-            final updatedClasses = classes.map((c) => c == oldName ? newName : c).toList();
-            await txn.update('staff', {'classes': updatedClasses.join(',')}, where: 'id = ?', whereArgs: [staff['id']]);
+            final updatedClasses = classes
+                .map((c) => c == oldName ? newName : c)
+                .toList();
+            await txn.update(
+              'staff',
+              {'classes': updatedClasses.join(',')},
+              where: 'id = ?',
+              whereArgs: [staff['id']],
+            );
           }
         }
-        debugPrint('[DatabaseService] updateClass <- cascaded to children and staff updated');
+        debugPrint(
+          '[DatabaseService] updateClass <- cascaded to children and staff updated',
+        );
       }
     });
   }
@@ -1288,7 +1761,7 @@ class DatabaseService {
           FROM students s
           LEFT JOIN classes c ON s.className = c.name AND s.academicYear = c.academicYear
           WHERE c.name IS NULL
-        '''
+        ''',
       },
       {
         'label': 'payments.studentId -> students',
@@ -1297,7 +1770,7 @@ class DatabaseService {
           FROM payments p
           LEFT JOIN students s ON p.studentId = s.id
           WHERE s.id IS NULL
-        '''
+        ''',
       },
       {
         'label': 'payments.(className, classAcademicYear) -> classes',
@@ -1306,7 +1779,7 @@ class DatabaseService {
           FROM payments p
           LEFT JOIN classes c ON p.className = c.name AND p.classAcademicYear = c.academicYear
           WHERE c.name IS NULL
-        '''
+        ''',
       },
       {
         'label': 'grades.studentId -> students',
@@ -1315,7 +1788,7 @@ class DatabaseService {
           FROM grades g
           LEFT JOIN students s ON g.studentId = s.id
           WHERE s.id IS NULL
-        '''
+        ''',
       },
       {
         'label': 'grades.(className, academicYear) -> classes',
@@ -1324,7 +1797,7 @@ class DatabaseService {
           FROM grades g
           LEFT JOIN classes c ON g.className = c.name AND g.academicYear = c.academicYear
           WHERE c.name IS NULL
-        '''
+        ''',
       },
       {
         'label': 'class_courses.(className, academicYear) -> classes',
@@ -1333,7 +1806,7 @@ class DatabaseService {
           FROM class_courses cc
           LEFT JOIN classes c ON cc.className = c.name AND cc.academicYear = c.academicYear
           WHERE c.name IS NULL
-        '''
+        ''',
       },
       {
         'label': 'class_courses.courseId -> courses',
@@ -1342,7 +1815,7 @@ class DatabaseService {
           FROM class_courses cc
           LEFT JOIN courses c ON cc.courseId = c.id
           WHERE c.id IS NULL
-        '''
+        ''',
       },
       {
         'label': 'timetable_entries.(className, academicYear) -> classes',
@@ -1351,7 +1824,7 @@ class DatabaseService {
           FROM timetable_entries t
           LEFT JOIN classes c ON t.className = c.name AND t.academicYear = c.academicYear
           WHERE c.name IS NULL
-        '''
+        ''',
       },
       {
         'label': 'report_cards.studentId -> students',
@@ -1360,7 +1833,7 @@ class DatabaseService {
           FROM report_cards r
           LEFT JOIN students s ON r.studentId = s.id
           WHERE s.id IS NULL
-        '''
+        ''',
       },
       {
         'label': 'report_cards.(className, academicYear) -> classes',
@@ -1369,7 +1842,7 @@ class DatabaseService {
           FROM report_cards r
           LEFT JOIN classes c ON r.className = c.name AND r.academicYear = c.academicYear
           WHERE c.name IS NULL
-        '''
+        ''',
       },
       {
         'label': 'report_cards_archive.studentId -> students',
@@ -1378,7 +1851,7 @@ class DatabaseService {
           FROM report_cards_archive r
           LEFT JOIN students s ON r.studentId = s.id
           WHERE s.id IS NULL
-        '''
+        ''',
       },
       {
         'label': 'report_cards_archive.(className, academicYear) -> classes',
@@ -1387,7 +1860,7 @@ class DatabaseService {
           FROM report_cards_archive r
           LEFT JOIN classes c ON r.className = c.name AND r.academicYear = c.academicYear
           WHERE c.name IS NULL
-        '''
+        ''',
       },
       {
         'label': 'subject_appreciation.studentId -> students',
@@ -1396,7 +1869,7 @@ class DatabaseService {
           FROM subject_appreciation sa
           LEFT JOIN students s ON sa.studentId = s.id
           WHERE s.id IS NULL
-        '''
+        ''',
       },
       {
         'label': 'subject_appreciation.(className, academicYear) -> classes',
@@ -1405,16 +1878,17 @@ class DatabaseService {
           FROM subject_appreciation sa
           LEFT JOIN classes c ON sa.className = c.name AND sa.academicYear = c.academicYear
           WHERE c.name IS NULL
-        '''
+        ''',
       },
       {
-        'label': 'subject_appreciation_archive.report_card_id -> report_cards_archive',
+        'label':
+            'subject_appreciation_archive.report_card_id -> report_cards_archive',
         'sql': '''
           SELECT COUNT(*)
           FROM subject_appreciation_archive saa
           LEFT JOIN report_cards_archive rca ON saa.report_card_id = rca.id
           WHERE rca.id IS NULL
-        '''
+        ''',
       },
     ];
 
@@ -1439,8 +1913,13 @@ class DatabaseService {
     final db = await database;
     final result = <String, int>{};
     await db.transaction((txn) async {
-      Future<int> count(String sql) async => Sqflite.firstIntValue(await txn.rawQuery(sql)) ?? 0;
-      Future<int> runDelete(String table, String where, List<Object?> args) async {
+      Future<int> count(String sql) async =>
+          Sqflite.firstIntValue(await txn.rawQuery(sql)) ?? 0;
+      Future<int> runDelete(
+        String table,
+        String where,
+        List<Object?> args,
+      ) async {
         if (dryRun) {
           final c = await count('SELECT COUNT(*) FROM $table WHERE $where');
           result['$table'] = (result['$table'] ?? 0) + c;
@@ -1523,7 +2002,11 @@ class DatabaseService {
     final res = <String, int>{};
     await db.transaction((txn) async {
       // Ensure target class exists
-      await _ensureClassExists(txn, newClassName, academicYear: newAcademicYear);
+      await _ensureClassExists(
+        txn,
+        newClassName,
+        academicYear: newAcademicYear,
+      );
       // Quick check: confirm missingClassName is not present in classes
       final exists = await txn.query(
         'classes',
@@ -1533,8 +2016,18 @@ class DatabaseService {
       if (exists.isNotEmpty) {
         return; // nothing to reassign; source exists
       }
-      Future<void> upd(String table, Map<String, Object?> values, String whereClause, List<Object?> whereArgs) async {
-        final c = await txn.update(table, values, where: whereClause, whereArgs: whereArgs);
+      Future<void> upd(
+        String table,
+        Map<String, Object?> values,
+        String whereClause,
+        List<Object?> whereArgs,
+      ) async {
+        final c = await txn.update(
+          table,
+          values,
+          where: whereClause,
+          whereArgs: whereArgs,
+        );
         res[table] = c;
       }
 
@@ -1587,10 +2080,17 @@ class DatabaseService {
   // Student operations
   Future<void> insertStudent(Student student) async {
     final db = await database;
-    await db.insert('students', student.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'students',
+      student.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
-  Future<List<Student>> getStudents({String? className, String? academicYear}) async {
+  Future<List<Student>> getStudents({
+    String? className,
+    String? academicYear,
+  }) async {
     final db = await database;
     String? where;
     List<Object?>? whereArgs;
@@ -1608,20 +2108,32 @@ class DatabaseService {
       where = parts.join(' AND ');
       whereArgs = args;
     }
-    debugPrint('[DatabaseService] getStudents(className=$className, academicYear=$academicYear)');
-    final List<Map<String, dynamic>> maps = await db.query('students', where: where, whereArgs: whereArgs);
+    debugPrint(
+      '[DatabaseService] getStudents(className=$className, academicYear=$academicYear)',
+    );
+    final List<Map<String, dynamic>> maps = await db.query(
+      'students',
+      where: where,
+      whereArgs: whereArgs,
+    );
     return List.generate(maps.length, (i) => Student.fromMap(maps[i]));
   }
 
   // Returns students for a class where the class' academicYear matches, ensuring consistency with classes table
-  Future<List<Student>> getStudentsByClassAndClassYear(String className, String academicYear) async {
+  Future<List<Student>> getStudentsByClassAndClassYear(
+    String className,
+    String academicYear,
+  ) async {
     final db = await database;
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT s.*
       FROM students s
       INNER JOIN classes c ON c.name = s.className
       WHERE s.className = ? AND c.academicYear = ? AND s.academicYear = ?
-    ''', [className, academicYear, academicYear]);
+    ''',
+      [className, academicYear, academicYear],
+    );
     return rows.map((m) => Student.fromMap(m)).toList();
   }
 
@@ -1645,14 +2157,26 @@ class DatabaseService {
     final db = await database;
     await db.transaction((txn) async {
       // Current year data
-      await txn.delete('subject_appreciation', where: 'studentId = ?', whereArgs: [id]);
+      await txn.delete(
+        'subject_appreciation',
+        where: 'studentId = ?',
+        whereArgs: [id],
+      );
       await txn.delete('report_cards', where: 'studentId = ?', whereArgs: [id]);
       await txn.delete('grades', where: 'studentId = ?', whereArgs: [id]);
       await txn.delete('payments', where: 'studentId = ?', whereArgs: [id]);
       // Archives
       // subject_appreciation_archive will be deleted automatically by FK CASCADE when report_cards_archive rows are deleted
-      await txn.delete('report_cards_archive', where: 'studentId = ?', whereArgs: [id]);
-      await txn.delete('grades_archive', where: 'studentId = ?', whereArgs: [id]);
+      await txn.delete(
+        'report_cards_archive',
+        where: 'studentId = ?',
+        whereArgs: [id],
+      );
+      await txn.delete(
+        'grades_archive',
+        where: 'studentId = ?',
+        whereArgs: [id],
+      );
       // Finally the student
       await txn.delete('students', where: 'id = ?', whereArgs: [id]);
     });
@@ -1668,18 +2192,24 @@ class DatabaseService {
     ''');
     return {
       for (var item in result)
-        '${item['className']} (${item['academicYear']})': item['count']
+        '${item['className']} (${item['academicYear']})': item['count'],
     };
   }
 
-  Future<Map<String, int>> getGenderDistribution(String className, String academicYear) async {
+  Future<Map<String, int>> getGenderDistribution(
+    String className,
+    String academicYear,
+  ) async {
     final db = await database;
-    final List<Map<String, dynamic>> result = await db.rawQuery('''
+    final List<Map<String, dynamic>> result = await db.rawQuery(
+      '''
       SELECT gender, COUNT(*) as count
       FROM students
       WHERE className = ? AND academicYear = ?
       GROUP BY gender
-    ''', [className, academicYear]);
+    ''',
+      [className, academicYear],
+    );
     return {for (var item in result) item['gender']: item['count']};
   }
 
@@ -1697,8 +2227,16 @@ class DatabaseService {
     final db = await database;
     await db.transaction((txn) async {
       await _ensureStudentExists(txn, payment.studentId);
-      await _ensureClassExists(txn, payment.className, academicYear: payment.classAcademicYear);
-      await txn.insert('payments', payment.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      await _ensureClassExists(
+        txn,
+        payment.className,
+        academicYear: payment.classAcademicYear,
+      );
+      await txn.insert(
+        'payments',
+        payment.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     });
   }
 
@@ -1706,10 +2244,7 @@ class DatabaseService {
     final db = await database;
     await db.update(
       'payments',
-      {
-        'isCancelled': 1,
-        'cancelledAt': DateTime.now().toIso8601String(),
-      },
+      {'isCancelled': 1, 'cancelledAt': DateTime.now().toIso8601String()},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -1769,7 +2304,11 @@ class DatabaseService {
   // Staff operations
   Future<void> insertStaff(Staff staff) async {
     final db = await database;
-    await db.insert('staff', staff.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'staff',
+      staff.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Staff>> getStaff() async {
@@ -1788,6 +2327,17 @@ class DatabaseService {
     );
   }
 
+  Future<void> updateTeacherWeeklyHours(String id, int? weeklyHours) async {
+    final db = await database;
+    await db.update(
+      'staff',
+      {'weekly_hours': weeklyHours},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+
   Future<void> deleteStaff(String id) async {
     final db = await database;
     await db.delete('staff', where: 'id = ?', whereArgs: [id]);
@@ -1796,12 +2346,19 @@ class DatabaseService {
   // Category operations
   Future<void> insertCategory(Category category) async {
     final db = await database;
-    await db.insert('categories', category.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'categories',
+      category.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Category>> getCategories() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('categories', orderBy: 'order_index ASC, name ASC');
+    final List<Map<String, dynamic>> maps = await db.query(
+      'categories',
+      orderBy: 'order_index ASC, name ASC',
+    );
     return List.generate(maps.length, (i) => Category.fromMap(maps[i]));
   }
 
@@ -1819,7 +2376,12 @@ class DatabaseService {
     final db = await database;
     await db.transaction((txn) async {
       // Mettre à jour les cours pour retirer la référence à cette catégorie
-      await txn.update('courses', {'categoryId': null}, where: 'categoryId = ?', whereArgs: [id]);
+      await txn.update(
+        'courses',
+        {'categoryId': null},
+        where: 'categoryId = ?',
+        whereArgs: [id],
+      );
       // Supprimer la catégorie
       await txn.delete('categories', where: 'id = ?', whereArgs: [id]);
     });
@@ -1828,17 +2390,45 @@ class DatabaseService {
   Future<void> initializeDefaultCategories() async {
     final db = await database;
     final existingCategories = await db.query('categories');
-    
+
     if (existingCategories.isEmpty) {
       final defaultCategories = [
-        {'id': 'scientific', 'name': 'Scientifiques', 'description': 'Matières scientifiques et techniques', 'color': '#3B82F6', 'order_index': 1},
-        {'id': 'literary', 'name': 'Littéraires', 'description': 'Matières littéraires et linguistiques', 'color': '#10B981', 'order_index': 2},
-        {'id': 'optional', 'name': 'Facultatives', 'description': 'Matières optionnelles et activités', 'color': '#F59E0B', 'order_index': 3},
-        {'id': 'general', 'name': 'Générales', 'description': 'Matières générales et transversales', 'color': '#8B5CF6', 'order_index': 4},
+        {
+          'id': 'scientific',
+          'name': 'Scientifiques',
+          'description': 'Matières scientifiques et techniques',
+          'color': '#3B82F6',
+          'order_index': 1,
+        },
+        {
+          'id': 'literary',
+          'name': 'Littéraires',
+          'description': 'Matières littéraires et linguistiques',
+          'color': '#10B981',
+          'order_index': 2,
+        },
+        {
+          'id': 'optional',
+          'name': 'Facultatives',
+          'description': 'Matières optionnelles et activités',
+          'color': '#F59E0B',
+          'order_index': 3,
+        },
+        {
+          'id': 'general',
+          'name': 'Générales',
+          'description': 'Matières générales et transversales',
+          'color': '#8B5CF6',
+          'order_index': 4,
+        },
       ];
-      
+
       for (final category in defaultCategories) {
-        await db.insert('categories', category, conflictAlgorithm: ConflictAlgorithm.ignore);
+        await db.insert(
+          'categories',
+          category,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
       }
     }
   }
@@ -1846,7 +2436,11 @@ class DatabaseService {
   // Course operations
   Future<void> insertCourse(Course course) async {
     final db = await database;
-    await db.insert('courses', course.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'courses',
+      course.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Course>> getCourses() async {
@@ -1882,7 +2476,10 @@ class DatabaseService {
   }
 
   // --- Class deletion helpers ---
-  Future<Map<String, int>> getClassDependenciesCounts(String className, String academicYear) async {
+  Future<Map<String, int>> getClassDependenciesCounts(
+    String className,
+    String academicYear,
+  ) async {
     final db = await database;
     final Map<String, int> counts = {};
     Future<int> cnt(
@@ -1896,11 +2493,19 @@ class DatabaseService {
         where += ' AND $yearColumn = ?';
         args.add(academicYear);
       }
-      final res = await db.rawQuery('SELECT COUNT(*) as c FROM $table WHERE $where', args);
+      final res = await db.rawQuery(
+        'SELECT COUNT(*) as c FROM $table WHERE $where',
+        args,
+      );
       return (res.first['c'] as int?) ?? (res.first['c'] as num?)?.toInt() ?? 0;
     }
+
     counts['students'] = await cnt('students');
-    counts['payments'] = await cnt('payments', classColumn: 'className', yearColumn: 'classAcademicYear');
+    counts['payments'] = await cnt(
+      'payments',
+      classColumn: 'className',
+      yearColumn: 'classAcademicYear',
+    );
     counts['grades'] = await cnt('grades');
     counts['report_cards'] = await cnt('report_cards');
     counts['subject_appreciation'] = await cnt('subject_appreciation');
@@ -1918,9 +2523,14 @@ class DatabaseService {
     final hasDeps = counts.values.any((v) => v > 0);
     if (hasDeps) {
       throw Exception(
-          'Impossible de supprimer la classe. Supprimez d\'abord les éléments liés (élèves, notes, paiements, etc.).');
+        'Impossible de supprimer la classe. Supprimez d\'abord les éléments liés (élèves, notes, paiements, etc.).',
+      );
     }
-    await db.delete('classes', where: 'name = ? AND academicYear = ?', whereArgs: [className, academicYear]);
+    await db.delete(
+      'classes',
+      where: 'name = ? AND academicYear = ?',
+      whereArgs: [className, academicYear],
+    );
   }
 
   // Import logs operations
@@ -1962,7 +2572,9 @@ class DatabaseService {
       final classesStr = staff['classes'] as String?;
       if (classesStr != null && classesStr.isNotEmpty) {
         final classes = classesStr.split(',');
-        final updatedClasses = classes.map((c) => c == oldName ? newName : c).toList();
+        final updatedClasses = classes
+            .map((c) => c == oldName ? newName : c)
+            .toList();
         await db.update(
           'staff',
           {'classes': updatedClasses.join(',')},
@@ -1978,8 +2590,16 @@ class DatabaseService {
     final db = await database;
     await db.transaction((txn) async {
       await _ensureStudentExists(txn, grade.studentId);
-      await _ensureClassExists(txn, grade.className, academicYear: grade.academicYear);
-      await txn.insert('grades', grade.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      await _ensureClassExists(
+        txn,
+        grade.className,
+        academicYear: grade.academicYear,
+      );
+      await txn.insert(
+        'grades',
+        grade.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     });
   }
 
@@ -1987,7 +2607,11 @@ class DatabaseService {
     final db = await database;
     await db.transaction((txn) async {
       await _ensureStudentExists(txn, grade.studentId);
-      await _ensureClassExists(txn, grade.className, academicYear: grade.academicYear);
+      await _ensureClassExists(
+        txn,
+        grade.className,
+        academicYear: grade.academicYear,
+      );
       await txn.update(
         'grades',
         grade.toMap(),
@@ -2010,16 +2634,20 @@ class DatabaseService {
   }) async {
     final db = await database;
     // On cherche d'abord par subjectId si possible
-    final course = await db.query('courses', where: 'name = ?', whereArgs: [subject]);
+    final course = await db.query(
+      'courses',
+      where: 'name = ?',
+      whereArgs: [subject],
+    );
     String? subjectId = course.isNotEmpty ? course.first['id'] as String : null;
     final List<Map<String, dynamic>> maps = await db.query(
       'grades',
       where: subjectId != null
-        ? 'className = ? AND academicYear = ? AND (subject = ? OR subjectId = ?) AND term = ?'
-        : 'className = ? AND academicYear = ? AND subject = ? AND term = ?',
+          ? 'className = ? AND academicYear = ? AND (subject = ? OR subjectId = ?) AND term = ?'
+          : 'className = ? AND academicYear = ? AND subject = ? AND term = ?',
       whereArgs: subjectId != null
-        ? [className, academicYear, subject, subjectId, term]
-        : [className, academicYear, subject, term],
+          ? [className, academicYear, subject, subjectId, term]
+          : [className, academicYear, subject, term],
     );
     return List.generate(maps.length, (i) => Grade.fromMap(maps[i]));
   }
@@ -2032,16 +2660,20 @@ class DatabaseService {
     required String term,
   }) async {
     final db = await database;
-    final course = await db.query('courses', where: 'name = ?', whereArgs: [subject]);
+    final course = await db.query(
+      'courses',
+      where: 'name = ?',
+      whereArgs: [subject],
+    );
     String? subjectId = course.isNotEmpty ? course.first['id'] as String : null;
     final List<Map<String, dynamic>> maps = await db.query(
       'grades',
       where: subjectId != null
-        ? 'studentId = ? AND className = ? AND academicYear = ? AND (subject = ? OR subjectId = ?) AND term = ?'
-        : 'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ?',
+          ? 'studentId = ? AND className = ? AND academicYear = ? AND (subject = ? OR subjectId = ?) AND term = ?'
+          : 'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ?',
       whereArgs: subjectId != null
-        ? [studentId, className, academicYear, subject, subjectId, term]
-        : [studentId, className, academicYear, subject, term],
+          ? [studentId, className, academicYear, subject, subjectId, term]
+          : [studentId, className, academicYear, subject, term],
     );
     if (maps.isNotEmpty) {
       return Grade.fromMap(maps.first);
@@ -2080,7 +2712,8 @@ class DatabaseService {
     await _ensureClassExists(db, className, academicYear: academicYear);
     final existing = await db.query(
       'subject_appreciation',
-      where: 'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ?',
+      where:
+          'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ?',
       whereArgs: [studentId, className, academicYear, subject, term],
     );
     final data = {
@@ -2100,7 +2733,8 @@ class DatabaseService {
       await db.update(
         'subject_appreciation',
         data,
-        where: 'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ?',
+        where:
+            'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ?',
         whereArgs: [studentId, className, academicYear, subject, term],
       );
     }
@@ -2115,7 +2749,8 @@ class DatabaseService {
     final db = await database;
     return await db.query(
       'subject_appreciation',
-      where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+      where:
+          'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
       whereArgs: [studentId, className, academicYear, term],
     );
   }
@@ -2127,12 +2762,20 @@ class DatabaseService {
     required String term,
   }) async {
     final db = await database;
-    final rc = await db.query('report_cards_archive',
-        where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
-        whereArgs: [studentId, className, academicYear, term], limit: 1);
+    final rc = await db.query(
+      'report_cards_archive',
+      where:
+          'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+      whereArgs: [studentId, className, academicYear, term],
+      limit: 1,
+    );
     if (rc.isEmpty) return [];
     final id = rc.first['id'] as int;
-    return await db.query('subject_appreciation_archive', where: 'report_card_id = ?', whereArgs: [id]);
+    return await db.query(
+      'subject_appreciation_archive',
+      where: 'report_card_id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<Map<String, dynamic>?> getSubjectAppreciation({
@@ -2145,7 +2788,8 @@ class DatabaseService {
     final db = await database;
     final res = await db.query(
       'subject_appreciation',
-      where: 'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ?',
+      where:
+          'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ?',
       whereArgs: [studentId, className, academicYear, subject, term],
     );
     if (res.isNotEmpty) return res.first;
@@ -2153,7 +2797,11 @@ class DatabaseService {
   }
 
   // Association Classe <-> Matière
-  Future<void> addCourseToClass(String className, String academicYear, String courseId) async {
+  Future<void> addCourseToClass(
+    String className,
+    String academicYear,
+    String courseId,
+  ) async {
     final db = await database;
     await db.transaction((txn) async {
       await _ensureClassExists(txn, className, academicYear: academicYear);
@@ -2166,7 +2814,11 @@ class DatabaseService {
     });
   }
 
-  Future<void> removeCourseFromClass(String className, String academicYear, String courseId) async {
+  Future<void> removeCourseFromClass(
+    String className,
+    String academicYear,
+    String courseId,
+  ) async {
     final db = await database;
     await db.delete(
       'class_courses',
@@ -2175,13 +2827,19 @@ class DatabaseService {
     );
   }
 
-  Future<List<Course>> getCoursesForClass(String className, String academicYear) async {
+  Future<List<Course>> getCoursesForClass(
+    String className,
+    String academicYear,
+  ) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      '''
       SELECT c.* FROM courses c
       INNER JOIN class_courses cc ON cc.courseId = c.id
       WHERE cc.className = ? AND cc.academicYear = ?
-    ''', [className, academicYear]);
+    ''',
+      [className, academicYear],
+    );
     return List.generate(maps.length, (i) => Course.fromMap(maps[i]));
   }
 
@@ -2194,21 +2852,26 @@ class DatabaseService {
       whereArgs: [courseId],
     );
     return maps
-        .map((m) => {
-              'className': m['className'] as String,
-              'academicYear': m['academicYear'] as String,
-            })
+        .map(
+          (m) => {
+            'className': m['className'] as String,
+            'academicYear': m['academicYear'] as String,
+          },
+        )
         .toList();
   }
 
   Future<void> archiveGradesForYear(String year) async {
     final db = await database;
     // Copier toutes les notes de l'année dans grades_archive
-    await db.execute('''
+    await db.execute(
+      '''
       INSERT INTO grades_archive (studentId, className, academicYear, subject, term, value, label, maxValue, coefficient, type, subjectId)
       SELECT studentId, className, academicYear, subject, term, value, label, maxValue, coefficient, type, subjectId
       FROM grades WHERE academicYear = ?
-    ''', [year]);
+    ''',
+      [year],
+    );
   }
 
   Future<List<Grade>> getArchivedGrades({
@@ -2227,7 +2890,11 @@ class DatabaseService {
       where += ' AND studentId = ?';
       whereArgs.add(studentId);
     }
-    final List<Map<String, dynamic>> maps = await db.query('grades_archive', where: where, whereArgs: whereArgs);
+    final List<Map<String, dynamic>> maps = await db.query(
+      'grades_archive',
+      where: where,
+      whereArgs: whereArgs,
+    );
     return List.generate(maps.length, (i) => Grade.fromMap(maps[i]));
   }
 
@@ -2236,330 +2903,477 @@ class DatabaseService {
     final db = await database;
     await db.transaction((txn) async {
       // Supprimer les anciennes archives pour cette année
-      await txn.delete('subject_appreciation_archive', where: 'report_card_id IN (SELECT id FROM report_cards_archive WHERE academicYear = ?)', whereArgs: [academicYear]);
-      await txn.delete('report_cards_archive', where: 'academicYear = ?', whereArgs: [academicYear]);
-      await txn.delete('grades_archive', where: 'academicYear = ?', whereArgs: [academicYear]);
+      await txn.delete(
+        'subject_appreciation_archive',
+        where:
+            'report_card_id IN (SELECT id FROM report_cards_archive WHERE academicYear = ?)',
+        whereArgs: [academicYear],
+      );
+      await txn.delete(
+        'report_cards_archive',
+        where: 'academicYear = ?',
+        whereArgs: [academicYear],
+      );
+      await txn.delete(
+        'grades_archive',
+        where: 'academicYear = ?',
+        whereArgs: [academicYear],
+      );
       // Archiver toutes les notes de l'année dans grades_archive
       // Utiliser la transaction pour les inserts massifs
-      final gradesToArchive = await txn.query('grades', where: 'academicYear = ?', whereArgs: [academicYear]);
+      final gradesToArchive = await txn.query(
+        'grades',
+        where: 'academicYear = ?',
+        whereArgs: [academicYear],
+      );
       for (final g in gradesToArchive) {
         final gradeCopy = Map<String, Object?>.from(g);
         gradeCopy.remove('id');
         await txn.insert('grades_archive', gradeCopy);
       }
       // Récupérer tous les élèves de l'année
-      final classes = await txn.query('classes', where: 'academicYear = ?', whereArgs: [academicYear]);
+      final classes = await txn.query(
+        'classes',
+        where: 'academicYear = ?',
+        whereArgs: [academicYear],
+      );
       for (final classRow in classes) {
         final className = classRow['name'] as String;
         // Ne considérer que les élèves de la classe pour l'année académique cible
-        final students = await txn.query('students', where: 'className = ? AND academicYear = ?', whereArgs: [className, academicYear]);
+        final students = await txn.query(
+          'students',
+          where: 'className = ? AND academicYear = ?',
+          whereArgs: [className, academicYear],
+        );
         for (final student in students) {
           final studentId = student['id'] as String;
           // On récupère tous les termes utilisés pour cette classe/année
-          final grades = await txn.query('grades', where: 'studentId = ? AND className = ? AND academicYear = ?', whereArgs: [studentId, className, academicYear]);
+          final grades = await txn.query(
+            'grades',
+            where: 'studentId = ? AND className = ? AND academicYear = ?',
+            whereArgs: [studentId, className, academicYear],
+          );
           final terms = grades.map((g) => g['term'] as String).toSet();
           for (final term in terms) {
             // Récupérer toutes les notes de ce bulletin
-            final gradesForTerm = grades.where((g) => g['term'] == term).toList();
+            final gradesForTerm = grades
+                .where((g) => g['term'] == term)
+                .toList();
             if (gradesForTerm.isEmpty) continue;
             // Récupérer toutes les appréciations par matière
-            final subjectAppreciations = await txn.query('subject_appreciation', where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?', whereArgs: [studentId, className, academicYear, term]);
-            // Récupérer la synthèse du bulletin (report_cards)
-            final reportCard = await txn.query('report_cards', where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?', whereArgs: [studentId, className, academicYear, term]);
-          Map<String, dynamic> synthese;
-          if (reportCard.isNotEmpty) {
-            synthese = reportCard.first;
-          } else {
-            // Calculer la synthèse automatiquement si elle n'existe pas
-            // Moyenne générale pondérée par coefficients de matières définis au niveau de la classe
-            final wRows = await txn.rawQuery(
-              'SELECT c.name AS subject, cc.coefficient AS coeff FROM class_courses cc JOIN courses c ON c.id = cc.courseId WHERE cc.className = ? AND cc.academicYear = ?',
-              [className, academicYear],
+            final subjectAppreciations = await txn.query(
+              'subject_appreciation',
+              where:
+                  'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+              whereArgs: [studentId, className, academicYear, term],
             );
-            final Map<String, double> subjectWeights = {
-              for (final r in wRows)
-                if (r['subject'] != null && r['coeff'] != null)
-                  (r['subject'] as String): (r['coeff'] as num).toDouble()
-            };
-            double sumPoints = 0.0;
-            double sumWeights = 0.0;
-            final Map<String, List<Map<String, dynamic>>> bySubject = {};
-            for (final g in gradesForTerm) {
-              final subj = (g['subject'] as String?) ?? '';
-              bySubject.putIfAbsent(subj, () => []).add(g);
-            }
-            bySubject.forEach((subj, list) {
-              double n = 0.0; double c = 0.0;
-              for (final g in list) {
-                final value = g['value'] is int ? (g['value'] as int).toDouble() : (g['value'] as num? ?? 0.0);
-                final maxValue = g['maxValue'] is int ? (g['maxValue'] as int).toDouble() : (g['maxValue'] as num? ?? 20.0);
-                final coeff = g['coefficient'] is int ? (g['coefficient'] as int).toDouble() : (g['coefficient'] as num? ?? 1.0);
-                if (maxValue > 0 && coeff > 0) {
-                  n += ((value / maxValue) * 20) * coeff;
-                  c += coeff;
-                }
-              }
-              final double moyMatiere = c > 0 ? (n / c) : 0.0;
-              final double w = subjectWeights[subj] ?? c; // fallback si non défini
-              if (w > 0) {
-                sumPoints += moyMatiere * w;
-                sumWeights += w;
-              }
-            });
-            final moyenneGenerale = sumWeights > 0 ? (sumPoints / sumWeights) : 0.0;
-            // Calcul du rang (effectif limité à l'année académique concernée)
-            final classStudentIds = (await txn.query('students', where: 'className = ? AND academicYear = ?', whereArgs: [className, academicYear]))
-                .map((s) => s['id'] as String)
-                .toList();
-            final List<double> allMoyennes = [];
-            for (final sid in classStudentIds) {
-              final sg = await txn.query('grades', where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?', whereArgs: [sid, className, academicYear, term]);
-              // Moyenne pondérée par matière
-              final Map<String, List<Map<String, dynamic>>> bySub = {};
-              for (final g in sg) {
+            // Récupérer la synthèse du bulletin (report_cards)
+            final reportCard = await txn.query(
+              'report_cards',
+              where:
+                  'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+              whereArgs: [studentId, className, academicYear, term],
+            );
+            Map<String, dynamic> synthese;
+            if (reportCard.isNotEmpty) {
+              synthese = reportCard.first;
+            } else {
+              // Calculer la synthèse automatiquement si elle n'existe pas
+              // Moyenne générale pondérée par coefficients de matières définis au niveau de la classe
+              final wRows = await txn.rawQuery(
+                'SELECT c.name AS subject, cc.coefficient AS coeff FROM class_courses cc JOIN courses c ON c.id = cc.courseId WHERE cc.className = ? AND cc.academicYear = ?',
+                [className, academicYear],
+              );
+              final Map<String, double> subjectWeights = {
+                for (final r in wRows)
+                  if (r['subject'] != null && r['coeff'] != null)
+                    (r['subject'] as String): (r['coeff'] as num).toDouble(),
+              };
+              double sumPoints = 0.0;
+              double sumWeights = 0.0;
+              final Map<String, List<Map<String, dynamic>>> bySubject = {};
+              for (final g in gradesForTerm) {
                 final subj = (g['subject'] as String?) ?? '';
-                bySub.putIfAbsent(subj, () => []).add(g);
+                bySubject.putIfAbsent(subj, () => []).add(g);
               }
-              double pts = 0.0; double wsum = 0.0;
-              bySub.forEach((subj, list) {
-                double n = 0.0; double c = 0.0;
+              bySubject.forEach((subj, list) {
+                double n = 0.0;
+                double c = 0.0;
                 for (final g in list) {
-                  final value = g['value'] is int ? (g['value'] as int).toDouble() : (g['value'] as num? ?? 0.0);
-                  final maxValue = g['maxValue'] is int ? (g['maxValue'] as int).toDouble() : (g['maxValue'] as num? ?? 20.0);
-                  final coeff = g['coefficient'] is int ? (g['coefficient'] as int).toDouble() : (g['coefficient'] as num? ?? 1.0);
+                  final value = g['value'] is int
+                      ? (g['value'] as int).toDouble()
+                      : (g['value'] as num? ?? 0.0);
+                  final maxValue = g['maxValue'] is int
+                      ? (g['maxValue'] as int).toDouble()
+                      : (g['maxValue'] as num? ?? 20.0);
+                  final coeff = g['coefficient'] is int
+                      ? (g['coefficient'] as int).toDouble()
+                      : (g['coefficient'] as num? ?? 1.0);
                   if (maxValue > 0 && coeff > 0) {
                     n += ((value / maxValue) * 20) * coeff;
                     c += coeff;
                   }
                 }
-                final double moyM = c > 0 ? (n / c) : 0.0;
-                final double w = subjectWeights[subj] ?? c;
-                if (w > 0) { pts += moyM * w; wsum += w; }
+                final double moyMatiere = c > 0 ? (n / c) : 0.0;
+                final double w =
+                    subjectWeights[subj] ?? c; // fallback si non défini
+                if (w > 0) {
+                  sumPoints += moyMatiere * w;
+                  sumWeights += w;
+                }
               });
-              allMoyennes.add(wsum > 0 ? (pts / wsum) : 0.0);
-            }
-            allMoyennes.sort((a, b) => b.compareTo(a));
-            final rang = allMoyennes.indexWhere((m) => (m - moyenneGenerale).abs() < 0.001) + 1;
-            final nbEleves = classStudentIds.length;
-
-            final double? moyenneGeneraleDeLaClasse = allMoyennes.isNotEmpty
-                ? allMoyennes.reduce((a, b) => a + b) / allMoyennes.length
-                : null;
-            final double? moyenneLaPlusForte = allMoyennes.isNotEmpty
-                ? allMoyennes.reduce((a, b) => a > b ? a : b)
-                : null;
-            final double? moyenneLaPlusFaible = allMoyennes.isNotEmpty
-                ? allMoyennes.reduce((a, b) => a < b ? a : b)
-                : null;
-
-            // Calcul de la moyenne annuelle (pondérée par matière)
-            double? moyenneAnnuelle;
-            final allGradesForYear = (await txn.query('grades', where: 'studentId = ? AND className = ? AND academicYear = ?', whereArgs: [studentId, className, academicYear]))
-                .where((g) => (g['type'] == 'Devoir' || g['type'] == 'Composition') && g['value'] != null && g['value'] != 0)
-                .toList();
-
-            if (allGradesForYear.isNotEmpty) {
-              final Map<String, List<Map<String, dynamic>>> bySubYear = {};
-              for (final g in allGradesForYear) {
-                final subj = (g['subject'] as String?) ?? '';
-                bySubYear.putIfAbsent(subj, () => []).add(g);
+              final moyenneGenerale = sumWeights > 0
+                  ? (sumPoints / sumWeights)
+                  : 0.0;
+              // Calcul du rang (effectif limité à l'année académique concernée)
+              final classStudentIds = (await txn.query(
+                'students',
+                where: 'className = ? AND academicYear = ?',
+                whereArgs: [className, academicYear],
+              )).map((s) => s['id'] as String).toList();
+              final List<double> allMoyennes = [];
+              for (final sid in classStudentIds) {
+                final sg = await txn.query(
+                  'grades',
+                  where:
+                      'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+                  whereArgs: [sid, className, academicYear, term],
+                );
+                // Moyenne pondérée par matière
+                final Map<String, List<Map<String, dynamic>>> bySub = {};
+                for (final g in sg) {
+                  final subj = (g['subject'] as String?) ?? '';
+                  bySub.putIfAbsent(subj, () => []).add(g);
+                }
+                double pts = 0.0;
+                double wsum = 0.0;
+                bySub.forEach((subj, list) {
+                  double n = 0.0;
+                  double c = 0.0;
+                  for (final g in list) {
+                    final value = g['value'] is int
+                        ? (g['value'] as int).toDouble()
+                        : (g['value'] as num? ?? 0.0);
+                    final maxValue = g['maxValue'] is int
+                        ? (g['maxValue'] as int).toDouble()
+                        : (g['maxValue'] as num? ?? 20.0);
+                    final coeff = g['coefficient'] is int
+                        ? (g['coefficient'] as int).toDouble()
+                        : (g['coefficient'] as num? ?? 1.0);
+                    if (maxValue > 0 && coeff > 0) {
+                      n += ((value / maxValue) * 20) * coeff;
+                      c += coeff;
+                    }
+                  }
+                  final double moyM = c > 0 ? (n / c) : 0.0;
+                  final double w = subjectWeights[subj] ?? c;
+                  if (w > 0) {
+                    pts += moyM * w;
+                    wsum += w;
+                  }
+                });
+                allMoyennes.add(wsum > 0 ? (pts / wsum) : 0.0);
               }
-              double pts = 0.0; double wsum = 0.0;
-              bySubYear.forEach((subj, list) {
-                double n = 0.0; double c = 0.0;
-                for (final g in list) {
-                  final value = g['value'] is int ? (g['value'] as int).toDouble() : (g['value'] as num? ?? 0.0);
-                  final maxValue = g['maxValue'] is int ? (g['maxValue'] as int).toDouble() : (g['maxValue'] as num? ?? 20.0);
-                  final coeff = g['coefficient'] is int ? (g['coefficient'] as int).toDouble() : (g['coefficient'] as num? ?? 1.0);
+              allMoyennes.sort((a, b) => b.compareTo(a));
+              final rang =
+                  allMoyennes.indexWhere(
+                    (m) => (m - moyenneGenerale).abs() < 0.001,
+                  ) +
+                  1;
+              final nbEleves = classStudentIds.length;
+
+              final double? moyenneGeneraleDeLaClasse = allMoyennes.isNotEmpty
+                  ? allMoyennes.reduce((a, b) => a + b) / allMoyennes.length
+                  : null;
+              final double? moyenneLaPlusForte = allMoyennes.isNotEmpty
+                  ? allMoyennes.reduce((a, b) => a > b ? a : b)
+                  : null;
+              final double? moyenneLaPlusFaible = allMoyennes.isNotEmpty
+                  ? allMoyennes.reduce((a, b) => a < b ? a : b)
+                  : null;
+
+              // Calcul de la moyenne annuelle (pondérée par matière)
+              double? moyenneAnnuelle;
+              final allGradesForYear =
+                  (await txn.query(
+                        'grades',
+                        where:
+                            'studentId = ? AND className = ? AND academicYear = ?',
+                        whereArgs: [studentId, className, academicYear],
+                      ))
+                      .where(
+                        (g) =>
+                            (g['type'] == 'Devoir' ||
+                                g['type'] == 'Composition') &&
+                            g['value'] != null &&
+                            g['value'] != 0,
+                      )
+                      .toList();
+
+              if (allGradesForYear.isNotEmpty) {
+                final Map<String, List<Map<String, dynamic>>> bySubYear = {};
+                for (final g in allGradesForYear) {
+                  final subj = (g['subject'] as String?) ?? '';
+                  bySubYear.putIfAbsent(subj, () => []).add(g);
+                }
+                double pts = 0.0;
+                double wsum = 0.0;
+                bySubYear.forEach((subj, list) {
+                  double n = 0.0;
+                  double c = 0.0;
+                  for (final g in list) {
+                    final value = g['value'] is int
+                        ? (g['value'] as int).toDouble()
+                        : (g['value'] as num? ?? 0.0);
+                    final maxValue = g['maxValue'] is int
+                        ? (g['maxValue'] as int).toDouble()
+                        : (g['maxValue'] as num? ?? 20.0);
+                    final coeff = g['coefficient'] is int
+                        ? (g['coefficient'] as int).toDouble()
+                        : (g['coefficient'] as num? ?? 1.0);
+                    if (maxValue > 0 && coeff > 0) {
+                      n += ((value / maxValue) * 20) * coeff;
+                      c += coeff;
+                    }
+                  }
+                  final double moyM = c > 0 ? (n / c) : 0.0;
+                  final double w = subjectWeights[subj] ?? c;
+                  if (w > 0) {
+                    pts += moyM * w;
+                    wsum += w;
+                  }
+                });
+                moyenneAnnuelle = wsum > 0 ? (pts / wsum) : null;
+              }
+
+              // Déterminer le mode (Trimestre / Semestre) et calculer les moyennes par période
+              final allTermsForStudent = (await txn.query(
+                'grades',
+                where: 'studentId = ? AND className = ? AND academicYear = ?',
+                whereArgs: [studentId, className, academicYear],
+              )).map((g) => g['term'] as String).toSet();
+              List<String> orderedTerms;
+              if (allTermsForStudent.any(
+                (t) => t.toLowerCase().contains('semestre'),
+              )) {
+                orderedTerms = ['Semestre 1', 'Semestre 2'];
+              } else {
+                orderedTerms = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
+              }
+              // Restreindre aux termes effectivement utilisés
+              orderedTerms = orderedTerms
+                  .where((t) => allTermsForStudent.contains(t))
+                  .toList();
+              final List<double?> moyennesParPeriode = [];
+              for (final t in orderedTerms) {
+                final termGrades = await txn.query(
+                  'grades',
+                  where:
+                      'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+                  whereArgs: [studentId, className, academicYear, t],
+                );
+                double sNotes = 0.0;
+                double sCoeffs = 0.0;
+                for (final g in termGrades) {
+                  final value = g['value'] is int
+                      ? (g['value'] as int).toDouble()
+                      : (g['value'] as num? ?? 0.0);
+                  final maxValue = g['maxValue'] is int
+                      ? (g['maxValue'] as int).toDouble()
+                      : (g['maxValue'] as num? ?? 20.0);
+                  final coeff = g['coefficient'] is int
+                      ? (g['coefficient'] as int).toDouble()
+                      : (g['coefficient'] as num? ?? 1.0);
                   if (maxValue > 0 && coeff > 0) {
-                    n += ((value / maxValue) * 20) * coeff;
-                    c += coeff;
+                    sNotes += ((value / maxValue) * 20) * coeff;
+                    sCoeffs += coeff;
                   }
                 }
-                final double moyM = c > 0 ? (n / c) : 0.0;
-                final double w = subjectWeights[subj] ?? c;
-                if (w > 0) { pts += moyM * w; wsum += w; }
-              });
-              moyenneAnnuelle = wsum > 0 ? (pts / wsum) : null;
-            }
-
-            // Déterminer le mode (Trimestre / Semestre) et calculer les moyennes par période
-            final allTermsForStudent = (await txn.query('grades', where: 'studentId = ? AND className = ? AND academicYear = ?', whereArgs: [studentId, className, academicYear]))
-                .map((g) => g['term'] as String)
-                .toSet();
-            List<String> orderedTerms;
-            if (allTermsForStudent.any((t) => t.toLowerCase().contains('semestre'))) {
-              orderedTerms = ['Semestre 1', 'Semestre 2'];
-            } else {
-              orderedTerms = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
-            }
-            // Restreindre aux termes effectivement utilisés
-            orderedTerms = orderedTerms.where((t) => allTermsForStudent.contains(t)).toList();
-            final List<double?> moyennesParPeriode = [];
-            for (final t in orderedTerms) {
-              final termGrades = await txn.query('grades', where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?', whereArgs: [studentId, className, academicYear, t]);
-              double sNotes = 0.0;
-              double sCoeffs = 0.0;
-              for (final g in termGrades) {
-                final value = g['value'] is int ? (g['value'] as int).toDouble() : (g['value'] as num? ?? 0.0);
-                final maxValue = g['maxValue'] is int ? (g['maxValue'] as int).toDouble() : (g['maxValue'] as num? ?? 20.0);
-                final coeff = g['coefficient'] is int ? (g['coefficient'] as int).toDouble() : (g['coefficient'] as num? ?? 1.0);
-                if (maxValue > 0 && coeff > 0) {
-                  sNotes += ((value / maxValue) * 20) * coeff;
-                  sCoeffs += coeff;
-                }
+                moyennesParPeriode.add(sCoeffs > 0 ? sNotes / sCoeffs : null);
               }
-              moyennesParPeriode.add(sCoeffs > 0 ? sNotes / sCoeffs : null);
-            }
 
-            // Mention
-            String mention;
-            if (moyenneGenerale >= 18) {
-              mention = 'EXCELLENT';
-            } else if (moyenneGenerale >= 16) {
-              mention = 'TRÈS BIEN';
-            } else if (moyenneGenerale >= 14) {
-              mention = 'BIEN';
-            } else if (moyenneGenerale >= 12) {
-              mention = 'ASSEZ BIEN';
-            } else if (moyenneGenerale >= 10) {
-              mention = 'PASSABLE';
-            } else {
-              mention = 'INSUFFISANT';
+              // Mention
+              String mention;
+              if (moyenneGenerale >= 18) {
+                mention = 'EXCELLENT';
+              } else if (moyenneGenerale >= 16) {
+                mention = 'TRÈS BIEN';
+              } else if (moyenneGenerale >= 14) {
+                mention = 'BIEN';
+              } else if (moyenneGenerale >= 12) {
+                mention = 'ASSEZ BIEN';
+              } else if (moyenneGenerale >= 10) {
+                mention = 'PASSABLE';
+              } else {
+                mention = 'INSUFFISANT';
+              }
+              synthese = {
+                'studentId': studentId,
+                'className': className,
+                'academicYear': academicYear,
+                'term': term,
+                'appreciation_generale': '',
+                'decision': '',
+                'fait_a': '',
+                'le_date': '',
+                'moyenne_generale': moyenneGenerale,
+                'rang': rang,
+                'nb_eleves': nbEleves,
+                'mention': mention,
+                'moyennes_par_periode': moyennesParPeriode.toString(),
+                'all_terms': orderedTerms.toString(),
+                'moyenne_generale_classe': moyenneGeneraleDeLaClasse,
+                'moyenne_la_plus_forte': moyenneLaPlusForte,
+                'moyenne_la_plus_faible': moyenneLaPlusFaible,
+                'moyenne_annuelle': moyenneAnnuelle,
+                'sanctions': '',
+                'recommandations': '',
+                'forces': '',
+                'points_a_developper': '',
+                'attendance_justifiee': 0,
+                'attendance_injustifiee': 0,
+                'retards': 0,
+                'presence_percent': 0.0,
+                'conduite': '',
+              };
+              await txn.insert('report_cards', synthese);
             }
-            synthese = {
+            // Déterminer ex æquo (moyennes pondérées par coeff. matières)
+            bool isExAequo = false;
+            try {
+              final classStudentIds = (await txn.query(
+                'students',
+                where: 'className = ? AND academicYear = ?',
+                whereArgs: [className, academicYear],
+              )).map((s) => s['id'] as String).toList();
+              final wRows = await txn.rawQuery(
+                'SELECT c.name AS subject, cc.coefficient AS coeff FROM class_courses cc JOIN courses c ON c.id = cc.courseId WHERE cc.className = ? AND cc.academicYear = ?',
+                [className, academicYear],
+              );
+              final Map<String, double> subjectWeights = {
+                for (final r in wRows)
+                  if (r['subject'] != null && r['coeff'] != null)
+                    (r['subject'] as String): (r['coeff'] as num).toDouble(),
+              };
+              final List<double> allMoyennes = [];
+              for (final sid in classStudentIds) {
+                final sg = await txn.query(
+                  'grades',
+                  where:
+                      'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+                  whereArgs: [sid, className, academicYear, term],
+                );
+                final Map<String, List<Map<String, Object?>>> bySub = {};
+                for (final g in sg) {
+                  final subj = (g['subject'] as String?) ?? '';
+                  bySub.putIfAbsent(subj, () => []).add(g);
+                }
+                double pts = 0.0;
+                double wsum = 0.0;
+                bySub.forEach((subj, list) {
+                  double n = 0.0;
+                  double c = 0.0;
+                  for (final g in list) {
+                    final value = g['value'] is int
+                        ? (g['value'] as int).toDouble()
+                        : (g['value'] as num? ?? 0.0);
+                    final maxValue = g['maxValue'] is int
+                        ? (g['maxValue'] as int).toDouble()
+                        : (g['maxValue'] as num? ?? 20.0);
+                    final coeff = g['coefficient'] is int
+                        ? (g['coefficient'] as int).toDouble()
+                        : (g['coefficient'] as num? ?? 1.0);
+                    if (maxValue > 0 && coeff > 0) {
+                      n += ((value / maxValue) * 20) * coeff;
+                      c += coeff;
+                    }
+                  }
+                  final double moyM = c > 0 ? (n / c) : 0.0;
+                  final double w = subjectWeights[subj] ?? c;
+                  if (w > 0) {
+                    pts += moyM * w;
+                    wsum += w;
+                  }
+                });
+                allMoyennes.add(wsum > 0 ? (pts / wsum) : 0.0);
+              }
+              final double myAvg =
+                  (synthese['moyenne_generale'] as num?)?.toDouble() ?? 0.0;
+              const double eps = 0.001;
+              isExAequo =
+                  allMoyennes.where((m) => (m - myAvg).abs() < eps).length > 1;
+            } catch (_) {}
+
+            // Snapshots extras
+            final sRow = await txn.query(
+              'students',
+              where: 'id = ?',
+              whereArgs: [studentId],
+            );
+            final st = sRow.isNotEmpty ? sRow.first : <String, Object?>{};
+            final siRow = await txn.query(
+              'school_info',
+              orderBy: 'id DESC',
+              limit: 1,
+            );
+            final si = siRow.isNotEmpty ? siRow.first : <String, Object?>{};
+
+            final reportCardId = await txn.insert('report_cards_archive', {
               'studentId': studentId,
               'className': className,
               'academicYear': academicYear,
               'term': term,
-              'appreciation_generale': '',
-              'decision': '',
-              'fait_a': '',
-              'le_date': '',
-              'moyenne_generale': moyenneGenerale,
-              'rang': rang,
-              'nb_eleves': nbEleves,
-              'mention': mention,
-              'moyennes_par_periode': moyennesParPeriode.toString(),
-              'all_terms': orderedTerms.toString(),
-              'moyenne_generale_classe': moyenneGeneraleDeLaClasse,
-              'moyenne_la_plus_forte': moyenneLaPlusForte,
-              'moyenne_la_plus_faible': moyenneLaPlusFaible,
-              'moyenne_annuelle': moyenneAnnuelle,
-              'sanctions': '',
-              'recommandations': '',
-              'forces': '',
-              'points_a_developper': '',
-              'attendance_justifiee': 0,
-              'attendance_injustifiee': 0,
-              'retards': 0,
-              'presence_percent': 0.0,
-              'conduite': '',
-            };
-            await txn.insert('report_cards', synthese);
-          }
-          // Déterminer ex æquo (moyennes pondérées par coeff. matières)
-          bool isExAequo = false;
-          try {
-            final classStudentIds = (await txn.query('students', where: 'className = ? AND academicYear = ?', whereArgs: [className, academicYear]))
-                .map((s) => s['id'] as String)
-                .toList();
-            final wRows = await txn.rawQuery(
-              'SELECT c.name AS subject, cc.coefficient AS coeff FROM class_courses cc JOIN courses c ON c.id = cc.courseId WHERE cc.className = ? AND cc.academicYear = ?',
-              [className, academicYear],
-            );
-            final Map<String, double> subjectWeights = {
-              for (final r in wRows)
-                if (r['subject'] != null && r['coeff'] != null)
-                  (r['subject'] as String): (r['coeff'] as num).toDouble()
-            };
-            final List<double> allMoyennes = [];
-            for (final sid in classStudentIds) {
-              final sg = await txn.query('grades', where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?', whereArgs: [sid, className, academicYear, term]);
-              final Map<String, List<Map<String, Object?>>> bySub = {};
-              for (final g in sg) {
-                final subj = (g['subject'] as String?) ?? '';
-                bySub.putIfAbsent(subj, () => []).add(g);
-              }
-              double pts = 0.0; double wsum = 0.0;
-              bySub.forEach((subj, list) {
-                double n = 0.0; double c = 0.0;
-                for (final g in list) {
-                  final value = g['value'] is int ? (g['value'] as int).toDouble() : (g['value'] as num? ?? 0.0);
-                  final maxValue = g['maxValue'] is int ? (g['maxValue'] as int).toDouble() : (g['maxValue'] as num? ?? 20.0);
-                  final coeff = g['coefficient'] is int ? (g['coefficient'] as int).toDouble() : (g['coefficient'] as num? ?? 1.0);
-                  if (maxValue > 0 && coeff > 0) { n += ((value / maxValue) * 20) * coeff; c += coeff; }
-                }
-                final double moyM = c > 0 ? (n / c) : 0.0;
-                final double w = subjectWeights[subj] ?? c;
-                if (w > 0) { pts += moyM * w; wsum += w; }
-              });
-              allMoyennes.add(wsum > 0 ? (pts / wsum) : 0.0);
-            }
-            final double myAvg = (synthese['moyenne_generale'] as num?)?.toDouble() ?? 0.0;
-            const double eps = 0.001;
-            isExAequo = allMoyennes.where((m) => (m - myAvg).abs() < eps).length > 1;
-          } catch (_) {}
-
-          // Snapshots extras
-          final sRow = await txn.query('students', where: 'id = ?', whereArgs: [studentId]);
-          final st = sRow.isNotEmpty ? sRow.first : <String, Object?>{};
-          final siRow = await txn.query('school_info', orderBy: 'id DESC', limit: 1);
-          final si = siRow.isNotEmpty ? siRow.first : <String, Object?>{};
-
-          final reportCardId = await txn.insert('report_cards_archive', {
-            'studentId': studentId,
-            'className': className,
-            'academicYear': academicYear,
-            'term': term,
-            'appreciation_generale': synthese['appreciation_generale'] ?? '',
-            'decision': synthese['decision'] ?? '',
-            'recommandations': synthese['recommandations'] ?? '',
-            'forces': synthese['forces'] ?? '',
-            'points_a_developper': synthese['points_a_developper'] ?? '',
-            'fait_a': synthese['fait_a'] ?? '',
-            'le_date': synthese['le_date'] ?? '',
-            'moyenne_generale': synthese['moyenne_generale'] ?? 0.0,
-            'rang': synthese['rang'] ?? 0,
-            'exaequo': isExAequo ? 1 : 0,
-            'nb_eleves': synthese['nb_eleves'] ?? students.length,
-            'mention': synthese['mention'] ?? '',
-            'moyennes_par_periode': synthese['moyennes_par_periode'] ?? '[]',
-            'all_terms': synthese['all_terms'] ?? '[]',
-            'moyenne_generale_classe': synthese['moyenne_generale_classe'] ?? 0.0,
-            'moyenne_la_plus_forte': synthese['moyenne_la_plus_forte'] ?? 0.0,
-            'moyenne_la_plus_faible': synthese['moyenne_la_plus_faible'] ?? 0.0,
-            'moyenne_annuelle': synthese['moyenne_annuelle'] ?? 0.0,
-            'sanctions': synthese['sanctions'] ?? '',
-            'attendance_justifiee': synthese['attendance_justifiee'] ?? 0,
-            'attendance_injustifiee': synthese['attendance_injustifiee'] ?? 0,
-            'retards': synthese['retards'] ?? 0,
-            'presence_percent': synthese['presence_percent'] ?? 0.0,
-            'conduite': synthese['conduite'] ?? '',
-            'school_ministry': si['ministry'] ?? '',
-            'school_republic': si['republic'] ?? '',
-            'school_republic_motto': si['republicMotto'] ?? '',
-            'school_education_direction': si['educationDirection'] ?? '',
-            'school_inspection': si['inspection'] ?? '',
-            'student_dob': st['dateOfBirth'] ?? '',
-            'student_status': st['status'] ?? '',
-            'student_photo_path': st['photoPath'] ?? '',
-          });
-          // Archiver les appréciations par matière
-          for (final app in subjectAppreciations) {
-            await txn.insert('subject_appreciation_archive', {
-              'report_card_id': reportCardId,
-              'subject': app['subject'],
-              'professeur': app['professeur'],
-              'appreciation': app['appreciation'],
-              'moyenne_classe': app['moyenne_classe'],
-              'coefficient': app['coefficient'],
-              'academicYear': academicYear,
+              'appreciation_generale': synthese['appreciation_generale'] ?? '',
+              'decision': synthese['decision'] ?? '',
+              'recommandations': synthese['recommandations'] ?? '',
+              'forces': synthese['forces'] ?? '',
+              'points_a_developper': synthese['points_a_developper'] ?? '',
+              'fait_a': synthese['fait_a'] ?? '',
+              'le_date': synthese['le_date'] ?? '',
+              'moyenne_generale': synthese['moyenne_generale'] ?? 0.0,
+              'rang': synthese['rang'] ?? 0,
+              'exaequo': isExAequo ? 1 : 0,
+              'nb_eleves': synthese['nb_eleves'] ?? students.length,
+              'mention': synthese['mention'] ?? '',
+              'moyennes_par_periode': synthese['moyennes_par_periode'] ?? '[]',
+              'all_terms': synthese['all_terms'] ?? '[]',
+              'moyenne_generale_classe':
+                  synthese['moyenne_generale_classe'] ?? 0.0,
+              'moyenne_la_plus_forte': synthese['moyenne_la_plus_forte'] ?? 0.0,
+              'moyenne_la_plus_faible':
+                  synthese['moyenne_la_plus_faible'] ?? 0.0,
+              'moyenne_annuelle': synthese['moyenne_annuelle'] ?? 0.0,
+              'sanctions': synthese['sanctions'] ?? '',
+              'attendance_justifiee': synthese['attendance_justifiee'] ?? 0,
+              'attendance_injustifiee': synthese['attendance_injustifiee'] ?? 0,
+              'retards': synthese['retards'] ?? 0,
+              'presence_percent': synthese['presence_percent'] ?? 0.0,
+              'conduite': synthese['conduite'] ?? '',
+              'school_ministry': si['ministry'] ?? '',
+              'school_republic': si['republic'] ?? '',
+              'school_republic_motto': si['republicMotto'] ?? '',
+              'school_education_direction': si['educationDirection'] ?? '',
+              'school_inspection': si['inspection'] ?? '',
+              'student_dob': st['dateOfBirth'] ?? '',
+              'student_status': st['status'] ?? '',
+              'student_photo_path': st['photoPath'] ?? '',
             });
+            // Archiver les appréciations par matière
+            for (final app in subjectAppreciations) {
+              await txn.insert('subject_appreciation_archive', {
+                'report_card_id': reportCardId,
+                'subject': app['subject'],
+                'professeur': app['professeur'],
+                'appreciation': app['appreciation'],
+                'moyenne_classe': app['moyenne_classe'],
+                'coefficient': app['coefficient'],
+                'academicYear': academicYear,
+              });
+            }
           }
         }
       }
-   } });
+    });
   }
 
   Future<void> archiveSingleReportCard({
@@ -2576,39 +3390,67 @@ class DatabaseService {
     final db = await database;
     await db.transaction((txn) async {
       // 1. Supprimer l'ancienne archive pour ce bulletin spécifique
-      final existingArchives = await txn.query('report_cards_archive', 
-        where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
-        whereArgs: [studentId, className, academicYear, term]);
+      final existingArchives = await txn.query(
+        'report_cards_archive',
+        where:
+            'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+        whereArgs: [studentId, className, academicYear, term],
+      );
 
       for (final archive in existingArchives) {
         final reportCardId = archive['id'];
-        await txn.delete('subject_appreciation_archive', where: 'report_card_id = ?', whereArgs: [reportCardId]);
+        await txn.delete(
+          'subject_appreciation_archive',
+          where: 'report_card_id = ?',
+          whereArgs: [reportCardId],
+        );
       }
-      await txn.delete('report_cards_archive', 
-        where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
-        whereArgs: [studentId, className, academicYear, term]);
+      await txn.delete(
+        'report_cards_archive',
+        where:
+            'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+        whereArgs: [studentId, className, academicYear, term],
+      );
 
       // 2. Archiver les notes (sans l'ID pour éviter collisions)
       for (final grade in grades) {
         final map = Map<String, Object?>.from(grade.toMap());
         map.remove('id');
-        await txn.insert('grades_archive', map, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert(
+          'grades_archive',
+          map,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
       }
 
       // 3. Archiver la synthèse du bulletin + snapshot infos école & élève
       // Charger snapshot élève
-      final studentRow = await txn.query('students', where: 'id = ?', whereArgs: [studentId]);
-      final stud = studentRow.isNotEmpty ? studentRow.first : <String, Object?>{};
+      final studentRow = await txn.query(
+        'students',
+        where: 'id = ?',
+        whereArgs: [studentId],
+      );
+      final stud = studentRow.isNotEmpty
+          ? studentRow.first
+          : <String, Object?>{};
       // Charger infos école
-      final schoolInfoRow = await txn.query('school_info', orderBy: 'id DESC', limit: 1);
-      final sch = schoolInfoRow.isNotEmpty ? schoolInfoRow.first : <String, Object?>{};
+      final schoolInfoRow = await txn.query(
+        'school_info',
+        orderBy: 'id DESC',
+        limit: 1,
+      );
+      final sch = schoolInfoRow.isNotEmpty
+          ? schoolInfoRow.first
+          : <String, Object?>{};
 
       // Calcul ex æquo basé sur les moyennes pondérées (coeff. matières) de la classe pour cette période
       bool isExAequo = false;
       try {
-        final classStudentIds = (await txn.query('students', where: 'className = ? AND academicYear = ?', whereArgs: [className, academicYear]))
-            .map((s) => s['id'] as String)
-            .toList();
+        final classStudentIds = (await txn.query(
+          'students',
+          where: 'className = ? AND academicYear = ?',
+          whereArgs: [className, academicYear],
+        )).map((s) => s['id'] as String).toList();
         // Récupérer les coefficients de matières
         final wRows = await txn.rawQuery(
           'SELECT c.name AS subject, cc.coefficient AS coeff FROM class_courses cc JOIN courses c ON c.id = cc.courseId WHERE cc.className = ? AND cc.academicYear = ?',
@@ -2617,34 +3459,55 @@ class DatabaseService {
         final Map<String, double> subjectWeights = {
           for (final r in wRows)
             if (r['subject'] != null && r['coeff'] != null)
-              (r['subject'] as String): (r['coeff'] as num).toDouble()
+              (r['subject'] as String): (r['coeff'] as num).toDouble(),
         };
         final List<double> allMoyennes = [];
         for (final sid in classStudentIds) {
-          final sg = await txn.query('grades', where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?', whereArgs: [sid, className, academicYear, term]);
+          final sg = await txn.query(
+            'grades',
+            where:
+                'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+            whereArgs: [sid, className, academicYear, term],
+          );
           final Map<String, List<Map<String, Object?>>> bySub = {};
           for (final g in sg) {
             final subj = (g['subject'] as String?) ?? '';
             bySub.putIfAbsent(subj, () => []).add(g);
           }
-          double pts = 0.0; double wsum = 0.0;
+          double pts = 0.0;
+          double wsum = 0.0;
           bySub.forEach((subj, list) {
-            double n = 0.0; double c = 0.0;
+            double n = 0.0;
+            double c = 0.0;
             for (final g in list) {
-              final value = g['value'] is int ? (g['value'] as int).toDouble() : (g['value'] as num? ?? 0.0);
-              final maxValue = g['maxValue'] is int ? (g['maxValue'] as int).toDouble() : (g['maxValue'] as num? ?? 20.0);
-              final coeff = g['coefficient'] is int ? (g['coefficient'] as int).toDouble() : (g['coefficient'] as num? ?? 1.0);
-              if (maxValue > 0 && coeff > 0) { n += ((value / maxValue) * 20) * coeff; c += coeff; }
+              final value = g['value'] is int
+                  ? (g['value'] as int).toDouble()
+                  : (g['value'] as num? ?? 0.0);
+              final maxValue = g['maxValue'] is int
+                  ? (g['maxValue'] as int).toDouble()
+                  : (g['maxValue'] as num? ?? 20.0);
+              final coeff = g['coefficient'] is int
+                  ? (g['coefficient'] as int).toDouble()
+                  : (g['coefficient'] as num? ?? 1.0);
+              if (maxValue > 0 && coeff > 0) {
+                n += ((value / maxValue) * 20) * coeff;
+                c += coeff;
+              }
             }
             final double moyM = c > 0 ? (n / c) : 0.0;
             final double w = subjectWeights[subj] ?? c;
-            if (w > 0) { pts += moyM * w; wsum += w; }
+            if (w > 0) {
+              pts += moyM * w;
+              wsum += w;
+            }
           });
           allMoyennes.add(wsum > 0 ? (pts / wsum) : 0.0);
         }
-        final double myAvg = (synthese['moyenne_generale'] as num?)?.toDouble() ?? 0.0;
+        final double myAvg =
+            (synthese['moyenne_generale'] as num?)?.toDouble() ?? 0.0;
         const double eps = 0.001;
-        isExAequo = allMoyennes.where((m) => (m - myAvg).abs() < eps).length > 1;
+        isExAequo =
+            allMoyennes.where((m) => (m - myAvg).abs() < eps).length > 1;
       } catch (_) {}
 
       final reportCardId = await txn.insert('report_cards_archive', {
@@ -2695,7 +3558,10 @@ class DatabaseService {
           'professeur': professeurs[subject] ?? '-',
           'appreciation': appreciations[subject] ?? '-',
           'moyenne_classe': moyennesClasse[subject] ?? '-',
-          'coefficient': synthese['coefficients'] != null && (synthese['coefficients'] as Map<String, dynamic>).containsKey(subject)
+          'coefficient':
+              synthese['coefficients'] != null &&
+                  (synthese['coefficients'] as Map<String, dynamic>)
+                      .containsKey(subject)
               ? (synthese['coefficients'] as Map<String, dynamic>)[subject]
               : null,
           'academicYear': academicYear,
@@ -2720,19 +3586,29 @@ class DatabaseService {
 
   Future<List<Map<String, dynamic>>> getAllArchivedReportCards() async {
     final db = await database;
-    final List<Map<String, dynamic>> rows = await db.query('report_cards_archive');
+    final List<Map<String, dynamic>> rows = await db.query(
+      'report_cards_archive',
+    );
     return rows;
   }
 
   // ===================== Users (Authentication) =====================
   Future<void> upsertUser(Map<String, dynamic> userData) async {
     final db = await database;
-    await db.insert('users', userData, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'users',
+      userData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<Map<String, dynamic>?> getUserRowByUsername(String username) async {
     final db = await database;
-    final rows = await db.query('users', where: 'username = ?', whereArgs: [username]);
+    final rows = await db.query(
+      'users',
+      where: 'username = ?',
+      whereArgs: [username],
+    );
     if (rows.isEmpty) return null;
     return rows.first;
   }
@@ -2767,10 +3643,18 @@ class DatabaseService {
       final filtered = Map<String, dynamic>.fromEntries(
         schoolInfo.toMap().entries.where((e) => allowed.contains(e.key)),
       );
-      await db.insert('school_info', filtered, conflictAlgorithm: ConflictAlgorithm.replace);
+      await db.insert(
+        'school_info',
+        filtered,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     } catch (_) {
       // As a last resort, try inserting full map (should not happen once migrations apply)
-      await db.insert('school_info', schoolInfo.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      await db.insert(
+        'school_info',
+        schoolInfo.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     }
   }
 
@@ -2778,12 +3662,24 @@ class DatabaseService {
   Future<void> insertTimetableEntry(TimetableEntry entry) async {
     final db = await database;
     await db.transaction((txn) async {
-      await _ensureClassExists(txn, entry.className, academicYear: entry.academicYear);
-      await txn.insert('timetable_entries', entry.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      await _ensureClassExists(
+        txn,
+        entry.className,
+        academicYear: entry.academicYear,
+      );
+      await txn.insert(
+        'timetable_entries',
+        entry.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     });
   }
 
-  Future<List<TimetableEntry>> getTimetableEntries({String? className, String? academicYear, String? teacherName}) async {
+  Future<List<TimetableEntry>> getTimetableEntries({
+    String? className,
+    String? academicYear,
+    String? teacherName,
+  }) async {
     final db = await database;
     String whereClause = '';
     List<dynamic> whereArgs = [];
@@ -2815,7 +3711,11 @@ class DatabaseService {
   Future<void> updateTimetableEntry(TimetableEntry entry) async {
     final db = await database;
     await db.transaction((txn) async {
-      await _ensureClassExists(txn, entry.className, academicYear: entry.academicYear);
+      await _ensureClassExists(
+        txn,
+        entry.className,
+        academicYear: entry.academicYear,
+      );
       await txn.update(
         'timetable_entries',
         entry.toMap(),
@@ -2830,6 +3730,83 @@ class DatabaseService {
     await db.delete('timetable_entries', where: 'id = ?', whereArgs: [id]);
   }
 
+  // Delete all timetable entries for a given class and academic year
+  Future<void> deleteTimetableForClass(
+    String className,
+    String academicYear,
+  ) async {
+    final db = await database;
+    await db.delete(
+      'timetable_entries',
+      where: 'className = ? AND academicYear = ?',
+      whereArgs: [className, academicYear],
+    );
+  }
+
+  // Delete all timetable entries for a given teacher (optionally for a given academic year)
+  Future<void> deleteTimetableForTeacher(
+    String teacherName, {
+    String? academicYear,
+  }) async {
+    final db = await database;
+    if (academicYear == null || academicYear.isEmpty) {
+      await db.delete(
+        'timetable_entries',
+        where: 'teacher = ?',
+        whereArgs: [teacherName],
+      );
+    } else {
+      await db.delete(
+        'timetable_entries',
+        where: 'teacher = ? AND academicYear = ?',
+        whereArgs: [teacherName, academicYear],
+      );
+    }
+  }
+
+  Future<List<Map<String, String>>> getTeacherUnavailability(
+    String teacherName,
+    String academicYear,
+  ) async {
+    final db = await database;
+    final rows = await db.query(
+      'teacher_unavailability',
+      where: 'teacher = ? AND academicYear = ?',
+      whereArgs: [teacherName, academicYear],
+    );
+    return rows
+        .map(
+          (r) => {
+            'dayOfWeek': (r['dayOfWeek'] ?? '').toString(),
+            'startTime': (r['startTime'] ?? '').toString(),
+          },
+        )
+        .toList();
+  }
+
+  Future<void> saveTeacherUnavailability({
+    required String teacherName,
+    required String academicYear,
+    required List<Map<String, String>> slots,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete(
+        'teacher_unavailability',
+        where: 'teacher = ? AND academicYear = ?',
+        whereArgs: [teacherName, academicYear],
+      );
+      for (final s in slots) {
+        await txn.insert('teacher_unavailability', {
+          'teacher': teacherName,
+          'academicYear': academicYear,
+          'dayOfWeek': s['dayOfWeek'] ?? '',
+          'startTime': s['startTime'] ?? '',
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+    });
+  }
+
   Future<void> deleteUserByUsername(String username) async {
     final db = await database;
     await db.delete('users', where: 'username = ?', whereArgs: [username]);
@@ -2837,9 +3814,12 @@ class DatabaseService {
 
   Future<void> updateUserLastLoginAt(String username) async {
     final db = await database;
-    await db.update('users', {
-      'lastLoginAt': DateTime.now().toIso8601String(),
-    }, where: 'username = ?', whereArgs: [username]);
+    await db.update(
+      'users',
+      {'lastLoginAt': DateTime.now().toIso8601String()},
+      where: 'username = ?',
+      whereArgs: [username],
+    );
   }
 
   /// Récupère la synthèse du bulletin pour un élève/classe/année/période
@@ -2850,10 +3830,13 @@ class DatabaseService {
     required String term,
   }) async {
     final db = await database;
-    debugPrint('[DatabaseService] getReportCard(studentId=$studentId, class=$className, year=$academicYear, term=$term)');
+    debugPrint(
+      '[DatabaseService] getReportCard(studentId=$studentId, class=$className, year=$academicYear, term=$term)',
+    );
     final res = await db.query(
       'report_cards',
-      where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+      where:
+          'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
       whereArgs: [studentId, className, academicYear, term],
     );
     if (res.isEmpty) {
@@ -2895,12 +3878,15 @@ class DatabaseService {
     String? conduite,
   }) async {
     final db = await database;
-    debugPrint('[DatabaseService] insertOrUpdateReportCard -> student=$studentId class=$className year=$academicYear term=$term');
+    debugPrint(
+      '[DatabaseService] insertOrUpdateReportCard -> student=$studentId class=$className year=$academicYear term=$term',
+    );
     await _ensureStudentExists(db, studentId);
     await _ensureClassExists(db, className);
     final existing = await db.query(
       'report_cards',
-      where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+      where:
+          'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
       whereArgs: [studentId, className, academicYear, term],
     );
     final data = {
@@ -2939,7 +3925,8 @@ class DatabaseService {
       await db.update(
         'report_cards',
         data,
-        where: 'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
+        where:
+            'studentId = ? AND className = ? AND academicYear = ? AND term = ?',
         whereArgs: [studentId, className, academicYear, term],
       );
       debugPrint('[DatabaseService] insertOrUpdateReportCard <- updated');
@@ -2994,7 +3981,9 @@ class DatabaseService {
     return result;
   }
 
-  Future<List<Map<String, dynamic>>> getArchivedReportCardsForStudent(String studentId) async {
+  Future<List<Map<String, dynamic>>> getArchivedReportCardsForStudent(
+    String studentId,
+  ) async {
     final db = await database;
     return await db.query(
       'report_cards_archive',
