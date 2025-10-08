@@ -268,21 +268,6 @@ class _PaymentsPageState extends State<PaymentsPage>
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.payment_rounded,
-                      color: Colors.white,
-                      size: isDesktop ? 32 : 24,
-                    ),
-                  ),
-                  SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

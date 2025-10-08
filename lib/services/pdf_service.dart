@@ -966,10 +966,10 @@ class PdfService {
                               ),
                               pw.SizedBox(height: 4),
                               pw.Text(
-                                'Année académique: $currentAcademicYear  •  Généré le: ' +
-                                    DateFormat(
-                                      'dd/MM/yyyy HH:mm',
-                                    ).format(DateTime.now()),
+                                'Année académique: $currentAcademicYear  -  Généré le: ' +
+                                  DateFormat(
+                                    'dd/MM/yyyy HH:mm',
+                                  ).format(DateTime.now()),
                                 style: pw.TextStyle(
                                   font: times,
                                   fontSize: 10,
@@ -1283,7 +1283,7 @@ class PdfService {
                               ),
                               pw.SizedBox(height: 4),
                               pw.Text(
-                                'Année académique: $currentAcademicYear  •  Généré le: ' +
+                                'Année académique: $currentAcademicYear  -  Généré le: ' +
                                     DateFormat(
                                       'dd/MM/yyyy HH:mm',
                                     ).format(DateTime.now()),
@@ -4010,7 +4010,7 @@ class PdfService {
                               ),
                               pw.SizedBox(height: 2),
                               pw.Text(
-                                'Année académique: $academicYear  •  Généré le: ' +
+                                'Année académique: $academicYear  -  Généré le: ' +
                                     DateFormat(
                                       'dd/MM/yyyy HH:mm',
                                     ).format(DateTime.now()),
@@ -4301,7 +4301,7 @@ class PdfService {
                         ),
                         pw.SizedBox(height: 2),
                         pw.Text(
-                          'Année académique: $academicYear  •  Généré le: ' +
+                          'Année académique: $academicYear  -  Généré le: ' +
                               DateFormat(
                                 'dd/MM/yyyy HH:mm',
                               ).format(DateTime.now()),

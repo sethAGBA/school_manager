@@ -281,7 +281,7 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                               ),
                             pw.SizedBox(height: 4),
                             pw.Text(
-                              'Année académique: $selectedYear  •  Généré le: $now',
+                              'Année académique: $selectedYear  -  Généré le: $now',
                               style: pw.TextStyle(font: times, fontSize: 10, color: primary),
                             ),
                           ],
