@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -1350,7 +1349,7 @@ class _PaymentsPageState extends State<PaymentsPage>
               ),
               _buildDetailRow(
                 'Reste à payer',
-                '${reste.toStringAsFixed(2)} FCFA',
+                reste <= 0 ? 'Payé' : '${reste.toStringAsFixed(2)} FCFA',
                 theme,
               ),
               _buildDetailRow('Statut', status, theme),
@@ -1555,15 +1554,28 @@ class _PaymentsPageState extends State<PaymentsPage>
         } catch (_) {}
       }
     } else {
-      await Printing.layoutPdf(
-        onLayout: (format) async => Uint8List.fromList(pdfBytes),
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aperçu du reçu ouvert'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // Écrire le PDF dans un fichier temporaire et l'ouvrir
+      final tmpDir = await getTemporaryDirectory();
+      final fileName =
+          'Recu_Paiement_${student.name.replaceAll(' ', '_')}_${p.date.substring(0, 19).replaceAll(':', '-')}.pdf';
+      final file = File('${tmpDir.path}/$fileName');
+      await file.writeAsBytes(pdfBytes);
+      try {
+        await OpenFile.open(file.path);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reçu PDF ouvert'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Impossible d\'ouvrir le PDF'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

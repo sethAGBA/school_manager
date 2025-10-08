@@ -1359,7 +1359,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
               ),
               _buildDetailRow(
                 'Reste à payer',
-                '${reste.toStringAsFixed(2)} FCFA',
+                reste <= 0 ? 'Payé' : '${reste.toStringAsFixed(2)} FCFA',
               ),
               _buildDetailRow('Statut', status),
               const SizedBox(height: 8),

@@ -16,6 +16,7 @@ import 'package:open_file/open_file.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:school_manager/screens/dashboard_home.dart';
+import 'package:intl/intl.dart';
 
 class FinanceAndInventoryPage extends StatefulWidget {
   const FinanceAndInventoryPage({super.key});
@@ -102,16 +103,27 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
       TextCellValue('Montant'),
       TextCellValue('Commentaire'),
     ]);
+    double totalEnc = 0.0;
     for (final p in payments) {
+      totalEnc += p.amount;
       encSheet.appendRow([
         TextCellValue(p.classAcademicYear),
         TextCellValue(p.className),
         TextCellValue(p.studentId),
-        TextCellValue(p.date),
-        TextCellValue(p.amount.toStringAsFixed(2)),
+        TextCellValue(p.date.replaceFirst('T', ' ').substring(0, 16)),
+        DoubleCellValue(p.amount),
         TextCellValue(p.comment ?? ''),
       ]);
     }
+    // Totaux encaissements
+    encSheet.appendRow([
+       TextCellValue(''),
+       TextCellValue(''),
+       TextCellValue(''),
+       TextCellValue('TOTAL'),
+      DoubleCellValue(totalEnc),
+       TextCellValue(''),
+    ]);
     final depSheet = excel['Depenses'];
     depSheet.appendRow([
       TextCellValue('Année'),
@@ -122,17 +134,43 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
       TextCellValue('Fournisseur'),
       TextCellValue('Montant'),
     ]);
+    double totalDep = 0.0;
     for (final e in expenses) {
+      totalDep += e.amount;
       depSheet.appendRow([
         TextCellValue(e.academicYear),
         TextCellValue(e.className ?? ''),
-        TextCellValue(e.date),
+        TextCellValue(e.date.replaceFirst('T', ' ').substring(0, 16)),
         TextCellValue(e.label),
         TextCellValue(e.category ?? ''),
         TextCellValue(e.supplier ?? ''),
-        TextCellValue(e.amount.toStringAsFixed(2)),
+        DoubleCellValue(e.amount),
       ]);
     }
+    // Totaux dépenses
+    depSheet.appendRow([
+       TextCellValue(''),
+       TextCellValue(''),
+       TextCellValue(''),
+       TextCellValue(''),
+       TextCellValue(''),
+       TextCellValue('TOTAL'),
+      DoubleCellValue(totalDep),
+    ]);
+
+    // Feuille Résumé
+    final resume = excel['Résumé'];
+    resume.appendRow([TextCellValue('Filtre Année'), TextCellValue(selectedYear)]);
+    resume.appendRow([
+      TextCellValue('Filtre Classe'),
+      TextCellValue(_selectedClassFilter ?? '(Toutes)'),
+    ]);
+    resume.appendRow([TextCellValue('Total Encaissements'), DoubleCellValue(totalEnc)]);
+    resume.appendRow([TextCellValue('Total Dépenses'), DoubleCellValue(totalDep)]);
+    resume.appendRow([
+      TextCellValue('Solde Net'),
+      DoubleCellValue(totalEnc - totalDep),
+    ]);
     final fileName = 'finances_${(_selectedYearFilter ?? _year).replaceAll('/', '_')}.xlsx';
     final bytes = excel.encode();
     if (bytes != null) {
@@ -155,8 +193,10 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     if (directory == null) return;
     final pdf = pw.Document();
     final title = 'Rapport Financier - Année ${_selectedYearFilter ?? _year}${_selectedClassFilter != null && _selectedClassFilter!.isNotEmpty ? ' - Classe ' + _selectedClassFilter! : ''}';
+    final formatter = NumberFormat('#,##0 FCFA', 'fr_FR');
     final total = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
     final depTotal = expenses.fold<double>(0.0, (sum, e) => sum + e.amount);
+    final now = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -166,10 +206,12 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(title, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 6),
+              pw.Text('Généré le: $now', style: const pw.TextStyle(fontSize: 10)),
               pw.SizedBox(height: 8),
-              pw.Text('Encaissements: ' + total.toStringAsFixed(2) + ' FCFA', style: pw.TextStyle(fontSize: 12)),
-              pw.Text('Dépenses: ' + depTotal.toStringAsFixed(2) + ' FCFA', style: pw.TextStyle(fontSize: 12)),
-              pw.Text('Solde net: ' + (total - depTotal).toStringAsFixed(2) + ' FCFA', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Encaissements: ' + formatter.format(total), style: pw.TextStyle(fontSize: 12)),
+              pw.Text('Dépenses: ' + formatter.format(depTotal), style: pw.TextStyle(fontSize: 12)),
+              pw.Text('Solde net: ' + formatter.format(total - depTotal), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 12),
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
@@ -178,23 +220,49 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                   1: const pw.FlexColumnWidth(2),
                   2: const pw.FlexColumnWidth(3),
                   3: const pw.FlexColumnWidth(2),
+                  4: const pw.FlexColumnWidth(3),
                 },
                 children: [
                   pw.TableRow(
                     decoration: const pw.BoxDecoration(color: PdfColors.grey300),
                     children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Date', style: pw.TextStyle(fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Classe', style: pw.TextStyle(fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Élève (ID)', style: pw.TextStyle(fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Montant', style: pw.TextStyle(fontSize: 10))),
+                      _pdfCell('Date', bold: true),
+                      _pdfCell('Classe', bold: true),
+                      _pdfCell('Élève (ID)', bold: true),
+                      _pdfCell('Montant', bold: true),
+                      _pdfCell('Commentaire', bold: true),
                     ],
                   ),
                   ...payments.map((p) => pw.TableRow(children: [
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(p.date, style: const pw.TextStyle(fontSize: 10))),
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(p.className, style: const pw.TextStyle(fontSize: 10))),
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(p.studentId, style: const pw.TextStyle(fontSize: 10))),
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(p.amount.toStringAsFixed(2), style: const pw.TextStyle(fontSize: 10))),
+                        _pdfCell(DateFormat('dd/MM/yyyy').format(DateTime.parse(p.date))),
+                        _pdfCell(p.className),
+                        _pdfCell(p.studentId),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Align(
+                            alignment: pw.Alignment.centerRight,
+                            child: pw.Text(formatter.format(p.amount), style: const pw.TextStyle(fontSize: 10)),
+                          ),
+                        ),
+                        _pdfCell(p.comment ?? ''),
                       ])),
+                  // Total row
+                  pw.TableRow(children: [
+                    _pdfCell(''),
+                    _pdfCell(''),
+                    _pdfCell('TOTAL'),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(6),
+                      child: pw.Align(
+                        alignment: pw.Alignment.centerRight,
+                        child: pw.Text(
+                          formatter.format(total),
+                          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    _pdfCell(''),
+                  ]),
                 ],
               ),
               pw.SizedBox(height: 16),
@@ -213,20 +281,43 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                   pw.TableRow(
                     decoration: const pw.BoxDecoration(color: PdfColors.grey300),
                     children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Date', style: const pw.TextStyle(fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Libellé', style: const pw.TextStyle(fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Catégorie', style: const pw.TextStyle(fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Fournisseur', style: const pw.TextStyle(fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Montant', style: const pw.TextStyle(fontSize: 10))),
+                      _pdfCell('Date', bold: true),
+                      _pdfCell('Libellé', bold: true),
+                      _pdfCell('Catégorie', bold: true),
+                      _pdfCell('Fournisseur', bold: true),
+                      _pdfCell('Montant', bold: true),
                     ],
                   ),
                   ...expenses.map((e) => pw.TableRow(children: [
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(e.date, style: const pw.TextStyle(fontSize: 10))),
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(e.label, style: const pw.TextStyle(fontSize: 10))),
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(e.category ?? '', style: const pw.TextStyle(fontSize: 10))),
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(e.supplier ?? '', style: const pw.TextStyle(fontSize: 10))),
-                        pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(e.amount.toStringAsFixed(2), style: const pw.TextStyle(fontSize: 10))),
+                        _pdfCell(DateFormat('dd/MM/yyyy').format(DateTime.parse(e.date))),
+                        _pdfCell(e.label),
+                        _pdfCell(e.category ?? ''),
+                        _pdfCell(e.supplier ?? ''),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Align(
+                            alignment: pw.Alignment.centerRight,
+                            child: pw.Text(formatter.format(e.amount), style: const pw.TextStyle(fontSize: 10)),
+                          ),
+                        ),
                       ])),
+                  // Total row
+                  pw.TableRow(children: [
+                    _pdfCell(''),
+                    _pdfCell(''),
+                    _pdfCell(''),
+                    _pdfCell('TOTAL'),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(6),
+                      child: pw.Align(
+                        alignment: pw.Alignment.centerRight,
+                        child: pw.Text(
+                          formatter.format(depTotal),
+                          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ]),
                 ],
               )
             ],
@@ -257,18 +348,33 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
       TextCellValue('Classe'),
       TextCellValue('Année'),
     ]);
+    double totalVal = 0.0;
+    double totalQty = 0.0;
     for (final it in _inventoryItems) {
+      totalVal += (it.value ?? 0.0);
+      totalQty += (it.quantity.toDouble());
       sheet.appendRow([
         TextCellValue(it.category),
         TextCellValue(it.name),
-        TextCellValue(it.quantity.toString()),
+        DoubleCellValue(it.quantity.toDouble()),
         TextCellValue(it.location ?? ''),
         TextCellValue(it.itemCondition ?? ''),
-        TextCellValue(it.value?.toStringAsFixed(0) ?? ''),
+        it.value != null ? DoubleCellValue(it.value!) :  TextCellValue(''),
         TextCellValue(it.className ?? ''),
         TextCellValue(it.academicYear),
       ]);
     }
+    // Totaux
+    sheet.appendRow([
+       TextCellValue(''),
+       TextCellValue('TOTALS'),
+      DoubleCellValue(totalQty),
+       TextCellValue(''),
+       TextCellValue(''),
+      DoubleCellValue(totalVal),
+       TextCellValue(''),
+       TextCellValue(''),
+    ]);
     final fileName = 'inventaire_${(_selectedYearFilter ?? _year).replaceAll('/', '_')}.xlsx';
     final bytes = excel.encode();
     if (bytes != null) {
@@ -284,6 +390,9 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     if (directory == null) return;
     final pdf = pw.Document();
     final title = 'Inventaire - Année ${_selectedYearFilter ?? _year}${_selectedClassFilter != null && _selectedClassFilter!.isNotEmpty ? ' - Classe ' + _selectedClassFilter! : ''}';
+    final formatter = NumberFormat('#,##0 FCFA', 'fr_FR');
+    final totalVal = _inventoryItems.fold<double>(0.0, (sum, it) => sum + (it.value ?? 0.0));
+    final totalQty = _inventoryItems.fold<double>(0.0, (sum, it) => sum + it.quantity.toDouble());
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -293,7 +402,12 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(title, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 12),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                'Total valeur: ' + formatter.format(totalVal) + '   •   Total quantités: ' + totalQty.toStringAsFixed(0),
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+              pw.SizedBox(height: 8),
               if (_inventoryItems.isEmpty)
                 pw.Text('Aucune donnée d\'inventaire disponible.')
               else
@@ -327,9 +441,37 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                           _pdfCell(it.quantity.toString()),
                           _pdfCell(it.location ?? ''),
                           _pdfCell(it.itemCondition ?? ''),
-                          _pdfCell(it.value == null ? '' : '${it.value!.toStringAsFixed(0)} FCFA'),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Align(
+                              alignment: pw.Alignment.centerRight,
+                              child: pw.Text(
+                                it.value == null ? '' : formatter.format(it.value!),
+                                style: const pw.TextStyle(fontSize: 10),
+                              ),
+                            ),
+                          ),
                           _pdfCell('${it.className ?? '-'} / ${it.academicYear}'),
                         ])),
+                    // Totaux
+                    pw.TableRow(children: [
+                      _pdfCell(''),
+                      _pdfCell('TOTALS'),
+                      _pdfCell(totalQty.toStringAsFixed(0)),
+                      _pdfCell(''),
+                      _pdfCell(''),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Align(
+                          alignment: pw.Alignment.centerRight,
+                          child: pw.Text(
+                            formatter.format(totalVal),
+                            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      _pdfCell(''),
+                    ]),
                   ],
                 ),
             ],

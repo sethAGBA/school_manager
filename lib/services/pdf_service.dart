@@ -400,7 +400,7 @@ class PdfService {
                           child: pw.Column(
                             children: [
                               pw.Text(
-                                'Solde Restant',
+                                remainingBalance <= 0 ? 'Statut' : 'Solde Restant',
                                 style: pw.TextStyle(
                                   font: timesBold,
                                   fontSize: 12,
@@ -408,7 +408,9 @@ class PdfService {
                               ),
                               pw.SizedBox(height: 4),
                               pw.Text(
-                                formatter.format(remainingBalance),
+                                remainingBalance <= 0
+                                    ? 'Payé'
+                                    : formatter.format(remainingBalance),
                                 style: pw.TextStyle(
                                   font: timesBold,
                                   fontSize: 18,
