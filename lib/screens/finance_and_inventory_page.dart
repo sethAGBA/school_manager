@@ -91,6 +91,11 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
       supplier: _selectedExpenseSupplier,
       category: _selectedExpenseCategory,
     );
+    // Build student name map for display
+    final students = await _db.getStudents();
+    final Map<String, String> studentNames = {
+      for (final s in students) s.id: s.name,
+    };
     String? directory = await FilePicker.platform.getDirectoryPath();
     if (directory == null) return;
     final excel = Excel.createExcel();
@@ -98,7 +103,7 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     encSheet.appendRow([
       TextCellValue('Année'),
       TextCellValue('Classe'),
-      TextCellValue('Étudiant ID'),
+      TextCellValue('Élève'),
       TextCellValue('Date'),
       TextCellValue('Montant'),
       TextCellValue('Commentaire'),
@@ -109,7 +114,7 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
       encSheet.appendRow([
         TextCellValue(p.classAcademicYear),
         TextCellValue(p.className),
-        TextCellValue(p.studentId),
+        TextCellValue(studentNames[p.studentId] ?? p.studentId),
         TextCellValue(p.date.replaceFirst('T', ' ').substring(0, 16)),
         DoubleCellValue(p.amount),
         TextCellValue(p.comment ?? ''),
@@ -197,22 +202,134 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     final total = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
     final depTotal = expenses.fold<double>(0.0, (sum, e) => sum + e.amount);
     final now = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+    // Student names for display
+    final students = await _db.getStudents();
+    final Map<String, String> studentNames = {
+      for (final s in students) s.id: s.name,
+    };
+    // Load school info and fonts for consistent design
+    final schoolInfo = await _db.getSchoolInfo();
+    final times = await pw.Font.times();
+    final timesBold = await pw.Font.timesBold();
+    final primary = PdfColor.fromHex('#1F2937');
+    final accent = PdfColor.fromHex('#2563EB');
+    final light = PdfColor.fromHex('#F3F4F6');
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (ctx) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(title, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 6),
-              pw.Text('Généré le: $now', style: const pw.TextStyle(fontSize: 10)),
-              pw.SizedBox(height: 8),
-              pw.Text('Encaissements: ' + formatter.format(total), style: pw.TextStyle(fontSize: 12)),
-              pw.Text('Dépenses: ' + formatter.format(depTotal), style: pw.TextStyle(fontSize: 12)),
-              pw.Text('Solde net: ' + formatter.format(total - depTotal), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 12),
+          return pw.Stack(children: [
+            // Watermark
+            if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+              pw.Positioned.fill(
+                child: pw.Center(
+                  child: pw.Opacity(
+                    opacity: 0.06,
+                    child: pw.Image(
+                      pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
+                      width: 400,
+                    ),
+                  ),
+                ),
+              ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header with logo and school info
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: light,
+                    borderRadius: pw.BorderRadius.circular(8),
+                    border: pw.Border.all(color: accent, width: 1),
+                  ),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(right: 16),
+                          child: pw.Image(
+                            pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
+                            width: 60,
+                            height: 60,
+                          ),
+                        ),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              schoolInfo?.name ?? 'Établissement',
+                              style: pw.TextStyle(font: timesBold, fontSize: 16, color: accent),
+                            ),
+                            if ((schoolInfo?.address ?? '').isNotEmpty)
+                              pw.Text(
+                                schoolInfo!.address,
+                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
+                              ),
+                            if ((schoolInfo?.email ?? '').isNotEmpty)
+                              pw.Text(
+                                'Email : ${schoolInfo!.email}',
+                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
+                              ),
+                            if ((schoolInfo?.telephone ?? '').isNotEmpty)
+                              pw.Text(
+                                'Téléphone : ${schoolInfo!.telephone}',
+                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
+                              ),
+                            pw.SizedBox(height: 4),
+                            pw.Text(
+                              'Année académique: $selectedYear  •  Généré le: $now',
+                              style: pw.TextStyle(font: times, fontSize: 10, color: primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+                // Title bar
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  decoration: pw.BoxDecoration(color: accent, borderRadius: pw.BorderRadius.circular(6)),
+                  child: pw.Text(title, style: pw.TextStyle(font: timesBold, fontSize: 16, color: PdfColors.white)),
+                ),
+                pw.SizedBox(height: 10),
+                // Summary row
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(6),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                    children: [
+                      pw.Column(children: [
+                        pw.Text('Encaissements', style: pw.TextStyle(font: times, fontSize: 10, color: primary)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(formatter.format(total), style: pw.TextStyle(font: timesBold, fontSize: 12)),
+                      ]),
+                      pw.Column(children: [
+                        pw.Text('Dépenses', style: pw.TextStyle(font: times, fontSize: 10, color: primary)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(formatter.format(depTotal), style: pw.TextStyle(font: timesBold, fontSize: 12)),
+                      ]),
+                      pw.Column(children: [
+                        pw.Text('Solde net', style: pw.TextStyle(font: times, fontSize: 10, color: primary)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          formatter.format(total - depTotal),
+                          style: pw.TextStyle(font: timesBold, fontSize: 12, color: (total - depTotal) >= 0 ? PdfColors.green800 : PdfColors.red800),
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 12),
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
                 columnWidths: {
@@ -224,19 +341,19 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                 },
                 children: [
                   pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                    decoration: pw.BoxDecoration(color: accent, borderRadius: pw.BorderRadius.circular(4)),
                     children: [
-                      _pdfCell('Date', bold: true),
-                      _pdfCell('Classe', bold: true),
-                      _pdfCell('Élève (ID)', bold: true),
-                      _pdfCell('Montant', bold: true),
-                      _pdfCell('Commentaire', bold: true),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Date', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Classe', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Élève', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Montant', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Commentaire', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
                     ],
                   ),
                   ...payments.map((p) => pw.TableRow(children: [
                         _pdfCell(DateFormat('dd/MM/yyyy').format(DateTime.parse(p.date))),
                         _pdfCell(p.className),
-                        _pdfCell(p.studentId),
+                        _pdfCell(studentNames[p.studentId] ?? p.studentId),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
                           child: pw.Align(
@@ -266,7 +383,11 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                 ],
               ),
               pw.SizedBox(height: 16),
-              pw.Text('Dépenses', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: pw.BoxDecoration(color: accent, borderRadius: pw.BorderRadius.circular(6)),
+                child: pw.Text('Dépenses', style: pw.TextStyle(font: timesBold, fontSize: 14, color: PdfColors.white)),
+              ),
               pw.SizedBox(height: 6),
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
@@ -279,13 +400,13 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                 },
                 children: [
                   pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                    decoration: pw.BoxDecoration(color: accent, borderRadius: pw.BorderRadius.circular(4)),
                     children: [
-                      _pdfCell('Date', bold: true),
-                      _pdfCell('Libellé', bold: true),
-                      _pdfCell('Catégorie', bold: true),
-                      _pdfCell('Fournisseur', bold: true),
-                      _pdfCell('Montant', bold: true),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Date', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Libellé', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Catégorie', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Fournisseur', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Montant', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
                     ],
                   ),
                   ...expenses.map((e) => pw.TableRow(children: [
@@ -321,7 +442,8 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                 ],
               )
             ],
-          );
+            )
+          ]);
         },
       ),
     );
@@ -393,89 +515,181 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     final formatter = NumberFormat('#,##0 FCFA', 'fr_FR');
     final totalVal = _inventoryItems.fold<double>(0.0, (sum, it) => sum + (it.value ?? 0.0));
     final totalQty = _inventoryItems.fold<double>(0.0, (sum, it) => sum + it.quantity.toDouble());
+    // Load school info and fonts
+    final schoolInfo = await _db.getSchoolInfo();
+    final times = await pw.Font.times();
+    final timesBold = await pw.Font.timesBold();
+    final primary = PdfColor.fromHex('#1F2937');
+    final accent = PdfColor.fromHex('#2563EB');
+    final light = PdfColor.fromHex('#F3F4F6');
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (ctx) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(title, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                'Total valeur: ' + formatter.format(totalVal) + '   •   Total quantités: ' + totalQty.toStringAsFixed(0),
-                style: const pw.TextStyle(fontSize: 10),
-              ),
-              pw.SizedBox(height: 8),
-              if (_inventoryItems.isEmpty)
-                pw.Text('Aucune donnée d\'inventaire disponible.')
-              else
-                pw.Table(
-                  border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-                  columnWidths: {
-                    0: const pw.FlexColumnWidth(2),
-                    1: const pw.FlexColumnWidth(3),
-                    2: const pw.FlexColumnWidth(1),
-                    3: const pw.FlexColumnWidth(2),
-                    4: const pw.FlexColumnWidth(2),
-                    5: const pw.FlexColumnWidth(2),
-                    6: const pw.FlexColumnWidth(2),
-                  },
-                  children: [
-                    pw.TableRow(
-                      decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                      children: [
-                        _pdfCell('Catégorie', bold: true),
-                        _pdfCell('Article', bold: true),
-                        _pdfCell('Qté', bold: true),
-                        _pdfCell('Localisation', bold: true),
-                        _pdfCell('État', bold: true),
-                        _pdfCell('Valeur', bold: true),
-                        _pdfCell('Classe/Année', bold: true),
-                      ],
+          return pw.Stack(children: [
+            if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+              pw.Positioned.fill(
+                child: pw.Center(
+                  child: pw.Opacity(
+                    opacity: 0.06,
+                    child: pw.Image(
+                      pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
+                      width: 400,
                     ),
-                    ..._inventoryItems.map((it) => pw.TableRow(children: [
-                          _pdfCell(it.category),
-                          _pdfCell(it.name),
-                          _pdfCell(it.quantity.toString()),
-                          _pdfCell(it.location ?? ''),
-                          _pdfCell(it.itemCondition ?? ''),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(6),
-                            child: pw.Align(
-                              alignment: pw.Alignment.centerRight,
-                              child: pw.Text(
-                                it.value == null ? '' : formatter.format(it.value!),
-                                style: const pw.TextStyle(fontSize: 10),
-                              ),
-                            ),
-                          ),
-                          _pdfCell('${it.className ?? '-'} / ${it.academicYear}'),
-                        ])),
-                    // Totaux
-                    pw.TableRow(children: [
-                      _pdfCell(''),
-                      _pdfCell('TOTALS'),
-                      _pdfCell(totalQty.toStringAsFixed(0)),
-                      _pdfCell(''),
-                      _pdfCell(''),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(6),
-                        child: pw.Align(
-                          alignment: pw.Alignment.centerRight,
-                          child: pw.Text(
-                            formatter.format(totalVal),
-                            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+              ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header with logo and info
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: light,
+                    borderRadius: pw.BorderRadius.circular(8),
+                    border: pw.Border.all(color: accent, width: 1),
+                  ),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(right: 16),
+                          child: pw.Image(
+                            pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
+                            width: 60,
+                            height: 60,
                           ),
                         ),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              schoolInfo?.name ?? 'Établissement',
+                              style: pw.TextStyle(font: timesBold, fontSize: 16, color: accent),
+                            ),
+                            if ((schoolInfo?.address ?? '').isNotEmpty)
+                              pw.Text(
+                                schoolInfo!.address,
+                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
+                              ),
+                            if ((schoolInfo?.email ?? '').isNotEmpty)
+                              pw.Text(
+                                'Email : ${schoolInfo!.email}',
+                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
+                              ),
+                            if ((schoolInfo?.telephone ?? '').isNotEmpty)
+                              pw.Text(
+                                'Téléphone : ${schoolInfo!.telephone}',
+                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
+                              ),
+                          ],
+                        ),
                       ),
-                      _pdfCell(''),
-                    ]),
-                  ],
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+                // Title bar
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  decoration: pw.BoxDecoration(color: accent, borderRadius: pw.BorderRadius.circular(6)),
+                  child: pw.Text(title, style: pw.TextStyle(font: timesBold, fontSize: 16, color: PdfColors.white)),
+                ),
+                pw.SizedBox(height: 10),
+                // Totals summary
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(color: PdfColors.grey100, borderRadius: pw.BorderRadius.circular(6)),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                    children: [
+                      pw.Column(children: [
+                        pw.Text('Total valeur', style: pw.TextStyle(font: times, fontSize: 10, color: primary)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(formatter.format(totalVal), style: pw.TextStyle(font: timesBold, fontSize: 12)),
+                      ]),
+                      pw.Column(children: [
+                        pw.Text('Total quantités', style: pw.TextStyle(font: times, fontSize: 10, color: primary)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(totalQty.toStringAsFixed(0), style: pw.TextStyle(font: timesBold, fontSize: 12)),
+                      ]),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+                if (_inventoryItems.isEmpty)
+                  pw.Text('Aucune donnée d\'inventaire disponible.')
+                else
+                  pw.Table(
+                    border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                    columnWidths: {
+                      0: const pw.FlexColumnWidth(2),
+                      1: const pw.FlexColumnWidth(3),
+                      2: const pw.FlexColumnWidth(1),
+                      3: const pw.FlexColumnWidth(2),
+                      4: const pw.FlexColumnWidth(2),
+                      5: const pw.FlexColumnWidth(2),
+                      6: const pw.FlexColumnWidth(2),
+                    },
+                    children: [
+                      pw.TableRow(
+                        decoration: pw.BoxDecoration(color: accent, borderRadius: pw.BorderRadius.circular(4)),
+                        children: [
+                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Catégorie', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Article', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Qté', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Localisation', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('État', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Valeur', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Classe/Année', style: pw.TextStyle(font: timesBold, fontSize: 10, color: PdfColors.white))),
+                        ],
+                      ),
+                      ..._inventoryItems.map((it) => pw.TableRow(children: [
+                            _pdfCell(it.category),
+                            _pdfCell(it.name),
+                            _pdfCell(it.quantity.toString()),
+                            _pdfCell(it.location ?? ''),
+                            _pdfCell(it.itemCondition ?? ''),
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Align(
+                                alignment: pw.Alignment.centerRight,
+                                child: pw.Text(
+                                  it.value == null ? '' : formatter.format(it.value!),
+                                  style: const pw.TextStyle(fontSize: 10),
+                                ),
+                              ),
+                            ),
+                            _pdfCell('${it.className ?? '-'} / ${it.academicYear}'),
+                          ])),
+                      // Totaux
+                      pw.TableRow(children: [
+                        _pdfCell(''),
+                        _pdfCell('TOTALS'),
+                        _pdfCell(totalQty.toStringAsFixed(0)),
+                        _pdfCell(''),
+                        _pdfCell(''),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Align(
+                            alignment: pw.Alignment.centerRight,
+                            child: pw.Text(
+                              formatter.format(totalVal),
+                              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        _pdfCell(''),
+                      ]),
+                    ],
                 ),
             ],
-          );
+            )
+          ]);
         },
       ),
     );
