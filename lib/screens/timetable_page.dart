@@ -24,7 +24,8 @@ class TimetablePage extends StatefulWidget {
   State<TimetablePage> createState() => _TimetablePageState();
 }
 
-class _TimetablePageState extends State<TimetablePage> {
+class _TimetablePageState extends State<TimetablePage>
+    with SingleTickerProviderStateMixin {
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
   String _searchQuery = '';
@@ -85,6 +86,7 @@ class _TimetablePageState extends State<TimetablePage> {
   final ScrollController _classListScrollCtrl = ScrollController();
   final ScrollController _tableVScrollCtrl = ScrollController();
   final ScrollController _tableHScrollCtrl = ScrollController();
+  late TabController _tabController;
 
   @override
   void initState() {
@@ -92,6 +94,7 @@ class _TimetablePageState extends State<TimetablePage> {
     _searchFocusNode = FocusNode();
     super.initState();
     _scheduling = SchedulingService(_dbService);
+    _tabController = TabController(length: 2, vsync: this);
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
@@ -228,6 +231,7 @@ class _TimetablePageState extends State<TimetablePage> {
     _teacherMaxPerDayCtrl.dispose();
     _classMaxPerDayCtrl.dispose();
     _subjectMaxPerDayCtrl.dispose();
+    _tabController.dispose();
     _classListScrollCtrl.dispose();
     _tableVScrollCtrl.dispose();
     _tableHScrollCtrl.dispose();
@@ -244,268 +248,227 @@ class _TimetablePageState extends State<TimetablePage> {
       body: Column(
         children: [
           _buildHeader(context, isDarkMode, isDesktop),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildAutoGenPanel(context),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ToggleButtons(
-                      isSelected: [_isClassView, !_isClassView],
-                      onPressed: (index) {
-                        setState(() {
-                          _isClassView = index == 0;
-                        });
-                      },
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Text(
-                            'Classe',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Text(
-                            'Enseignant',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    if (_isClassView)
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedClassKey,
-                          decoration: InputDecoration(
-                            labelText: 'Filtrer par Classe',
-                            labelStyle: theme.textTheme.bodyMedium,
-                            border: OutlineInputBorder(),
-                          ),
-                          isDense: true,
-                          isExpanded: true,
-                          items: _classes.map((cls) {
-                            return DropdownMenuItem<String>(
-                              value: _classKey(cls),
-                              child: Text(
-                                _classLabel(cls),
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              _selectedClassKey = newValue;
-                            });
-                          },
-                        ),
-                      )
-                    else
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedTeacherFilter,
-                          decoration: InputDecoration(
-                            labelText: 'Filtrer par Enseignant',
-                            labelStyle: theme.textTheme.bodyMedium,
-                            border: OutlineInputBorder(),
-                          ),
-                          isDense: true,
-                          isExpanded: true,
-                          items: _teachers.map((teacher) {
-                            return DropdownMenuItem<String>(
-                              value: teacher.name,
-                              child: Text(
-                                teacher.name,
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) async {
-                            setState(() {
-                              _selectedTeacherFilter = newValue;
-                            });
-                            if (newValue != null && newValue.isNotEmpty) {
-                              final year = await getCurrentAcademicYear();
-                              await _loadTeacherUnavailability(newValue, year);
-                            }
-                          },
-                        ),
-                      ),
-                    const SizedBox(width: 16),
-                    ElevatedButton.icon(
-                      onPressed: _showAddEditTimetableEntryDialog,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Ajouter un cours'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    if (_isClassView) ...[
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: _autoGenerateForSelectedClass,
-                        icon: const Icon(Icons.auto_mode),
-                        label: const Text('Auto-générer'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        onPressed: _showEditGridDialog,
-                        icon: const Icon(Icons.edit_calendar),
-                        label: const Text('Éditer jours/créneaux'),
-                      ),
-                    ],
-                    if (!_isClassView) ...[
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: _autoGenerateForSelectedTeacher,
-                        icon: const Icon(Icons.auto_mode),
-                        label: const Text('Auto-générer (prof)'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        onPressed: _showEditGridDialog,
-                        icon: const Icon(Icons.edit_calendar),
-                        label: const Text('Éditer jours/créneaux'),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        onPressed: _showTeacherUnavailabilityDialog,
-                        icon: const Icon(Icons.block),
-                        label: const Text('Indisponibilités'),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => _exportTimetableToPdf(
-                        exportBy: _isClassView ? 'class' : 'teacher',
-                      ),
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text('Exporter PDF'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    ElevatedButton.icon(
-                      onPressed: () => _exportTimetableToExcel(
-                        exportBy: _isClassView ? 'class' : 'teacher',
-                      ),
-                      icon: const Icon(Icons.grid_on),
-                      label: const Text('Exporter Excel'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.shadowColor.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0EA5E9), Color(0xFF10B981)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0EA5E9).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                if (_isClassView) _buildSubjectPalette(context),
-              ],
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: Colors.white,
+                unselectedLabelColor: theme.textTheme.bodyMedium?.color,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                tabs: const [
+                  Tab(text: 'Paramètres'),
+                  Tab(text: 'Emploi du temps'),
+                ],
+              ),
             ),
           ),
           Expanded(
-            child: Row(
+            child: TabBarView(
+              controller: _tabController,
               children: [
-                SizedBox(
-                  width: 200,
-                  child: Scrollbar(
-                    controller: _classListScrollCtrl,
-                    thumbVisibility: true,
-                    child: ListView.builder(
-                      controller: _classListScrollCtrl,
-                      itemCount: _classes.length,
-                      itemBuilder: (context, index) {
-                        final aClass = _classes[index];
-                        return ListTile(
-                          title: Text(
-                            _classLabel(aClass),
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          selected: _classKey(aClass) == _selectedClassKey,
-                          onTap: () {
-                            setState(() {
-                              _selectedClassKey = _classKey(aClass);
-                            });
-                          },
-                        );
-                      },
-                    ),
-                  ),
+                // Tab 1: paramètres & génération
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _buildAutoGenPanel(context),
                 ),
-                Expanded(
-                  child: Scrollbar(
-                    controller: _tableVScrollCtrl,
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      controller: _tableVScrollCtrl,
-                      scrollDirection: Axis.vertical,
-                      child: Scrollbar(
-                        controller: _tableHScrollCtrl,
-                        thumbVisibility: true,
-                        notificationPredicate: (notif) => notif.metrics.axis == Axis.horizontal,
-                        child: SingleChildScrollView(
-                          controller: _tableHScrollCtrl,
-                          scrollDirection: Axis.horizontal,
-                          child: _buildTimetableGrid(context),
-                        ),
+                // Tab 2: tableau + filtres + exports + palette
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ToggleButtons(
+                                isSelected: [_isClassView, !_isClassView],
+                                onPressed: (index) {
+                                  setState(() {
+                                    _isClassView = index == 0;
+                                  });
+                                },
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                    child: Text('Classe', style: theme.textTheme.bodyMedium),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                    child: Text('Enseignant', style: theme.textTheme.bodyMedium),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 16),
+                              if (_isClassView)
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedClassKey,
+                                    decoration: InputDecoration(
+                                      labelText: 'Filtrer par Classe',
+                                      labelStyle: theme.textTheme.bodyMedium,
+                                      border: const OutlineInputBorder(),
+                                    ),
+                                    isDense: true,
+                                    isExpanded: true,
+                                    items: _classes
+                                        .map((cls) => DropdownMenuItem<String>(
+                                              value: _classKey(cls),
+                                              child: Text(_classLabel(cls), style: theme.textTheme.bodyMedium),
+                                            ))
+                                        .toList(),
+                                    onChanged: (v) => setState(() => _selectedClassKey = v),
+                                  ),
+                                )
+                              else
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedTeacherFilter,
+                                    decoration: InputDecoration(
+                                      labelText: 'Filtrer par Enseignant',
+                                      labelStyle: theme.textTheme.bodyMedium,
+                                      border: const OutlineInputBorder(),
+                                    ),
+                                    isDense: true,
+                                    isExpanded: true,
+                                    items: _teachers
+                                        .map((t) => DropdownMenuItem<String>(
+                                              value: t.name,
+                                              child: Text(t.name, style: theme.textTheme.bodyMedium),
+                                            ))
+                                        .toList(),
+                                    onChanged: (v) async {
+                                      setState(() => _selectedTeacherFilter = v);
+                                      if (v != null && v.isNotEmpty) {
+                                        final year = await getCurrentAcademicYear();
+                                        await _loadTeacherUnavailability(v, year);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              const SizedBox(width: 16),
+                              ElevatedButton.icon(
+                                onPressed: _showAddEditTimetableEntryDialog,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Ajouter un cours'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryBlue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () => _exportTimetableToPdf(exportBy: _isClassView ? 'class' : 'teacher'),
+                                icon: const Icon(Icons.picture_as_pdf),
+                                label: const Text('Exporter PDF'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              ElevatedButton.icon(
+                                onPressed: () => _exportTimetableToExcel(exportBy: _isClassView ? 'class' : 'teacher'),
+                                icon: const Icon(Icons.grid_on),
+                                label: const Text('Exporter Excel'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_isClassView) _buildSubjectPalette(context),
+                        ],
                       ),
                     ),
-                  ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 200,
+                            child: Scrollbar(
+                              controller: _classListScrollCtrl,
+                              thumbVisibility: true,
+                              child: ListView.builder(
+                                controller: _classListScrollCtrl,
+                                itemCount: _classes.length,
+                                itemBuilder: (context, index) {
+                                  final aClass = _classes[index];
+                                  return ListTile(
+                                    title: Text(_classLabel(aClass), style: theme.textTheme.bodyMedium),
+                                    selected: _classKey(aClass) == _selectedClassKey,
+                                    onTap: () => setState(() => _selectedClassKey = _classKey(aClass)),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Scrollbar(
+                              controller: _tableVScrollCtrl,
+                              thumbVisibility: true,
+                              child: SingleChildScrollView(
+                                controller: _tableVScrollCtrl,
+                                scrollDirection: Axis.vertical,
+                                child: Scrollbar(
+                                  controller: _tableHScrollCtrl,
+                                  thumbVisibility: true,
+                                  notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+                                  child: SingleChildScrollView(
+                                    controller: _tableHScrollCtrl,
+                                    scrollDirection: Axis.horizontal,
+                                    child: _buildTimetableGrid(context),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
