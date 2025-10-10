@@ -18,6 +18,8 @@ class _AuditPageState extends State<AuditPage> {
   String? _selectedCategory;
   String _sortOrder = 'desc'; // 'desc' (Plus récent) ou 'asc' (Plus ancien)
   String? _statusFilter; // null: tous, 'success', 'failure'
+  DateTime? _selectedDate; // Filtre par date (journée)
+  String? _quickRange; // 'today' | 'week' | 'month'
   bool _loading = true;
   List<Map<String, dynamic>> _logs = [];
   Map<String, String> _studentNameById = {};
@@ -27,6 +29,7 @@ class _AuditPageState extends State<AuditPage> {
   // Libellés FR pour les catégories et actions d'audit
   final Map<String, String> _categoryLabels = const {
     'auth': 'Authentification',
+    'user': 'Utilisateur',
     'payment': 'Paiement',
     'student': 'Élève',
     'staff': 'Personnel',
@@ -36,6 +39,7 @@ class _AuditPageState extends State<AuditPage> {
     'inventory': 'Inventaire',
     'expense': 'Dépense',
     'class_course': 'Cours de classe',
+    'settings': 'Paramètres',
     'export': 'Export',
     'data': 'Données',
     'error': 'Erreur',
@@ -43,6 +47,7 @@ class _AuditPageState extends State<AuditPage> {
   };
   final List<String> _categoryOrder = const [
     'auth',
+    'user',
     'payment',
     'student',
     'staff',
@@ -52,6 +57,7 @@ class _AuditPageState extends State<AuditPage> {
     'inventory',
     'expense',
     'class_course',
+    'settings',
     'export',
     'data',
     'error',
@@ -110,6 +116,12 @@ class _AuditPageState extends State<AuditPage> {
     'export_csv': 'Export CSV',
     // Système
     'manual_test_log': 'Journal de test manuel',
+    // Utilisateurs
+    'create_user': 'Utilisateur créé',
+    'update_user': 'Utilisateur mis à jour',
+    'delete_user': 'Utilisateur supprimé',
+    // Paramètres
+    'update_settings': 'Paramètres mis à jour',
   };
 
   String _displayAction(String? action) {
@@ -168,10 +180,14 @@ class _AuditPageState extends State<AuditPage> {
     d = d.replaceAll('term=', 'trimestre=');
     d = d.replaceAll('subject=', 'matière=');
     d = d.replaceAll('course=', 'matière=');
+    d = d.replaceAll('value_old=', 'note_avant=');
+    d = d.replaceAll('value_new=', 'note_après=');
+    d = d.replaceAll('value=', 'note=');
     d = d.replaceAll('qty=', 'qté=');
     d = d.replaceAll('label=', 'libellé=');
     d = d.replaceAll('by=', 'par=');
     d = d.replaceAll('reason=', 'motif=');
+    d = d.replaceAll('role=', 'rôle=');
     d = d.replaceAll('old=', 'ancien=');
     d = d.replaceAll('new=', 'nouveau=');
     // Remplacer élève=<id> par élève=<Nom> si connu
@@ -266,6 +282,7 @@ class _AuditPageState extends State<AuditPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDesktop = MediaQuery.of(context).size.width > 900;
+    final filtered = _filteredLogs();
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
@@ -278,7 +295,79 @@ class _AuditPageState extends State<AuditPage> {
                 spacing: 8,
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
+              children: [
+                  // Raccourcis de période
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      ChoiceChip(
+                        label: const Text("Aujourd'hui"),
+                        selected: _quickRange == 'today',
+                        onSelected: (v) {
+                          setState(() {
+                            _quickRange = v ? 'today' : null;
+                            if (v) _selectedDate = null;
+                          });
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('7 derniers jours'),
+                        selected: _quickRange == '7d',
+                        onSelected: (v) {
+                          setState(() {
+                            _quickRange = v ? '7d' : null;
+                            if (v) _selectedDate = null;
+                          });
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('Cette semaine'),
+                        selected: _quickRange == 'week',
+                        onSelected: (v) {
+                          setState(() {
+                            _quickRange = v ? 'week' : null;
+                            if (v) _selectedDate = null;
+                          });
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('Ce mois'),
+                        selected: _quickRange == 'month',
+                        onSelected: (v) {
+                          setState(() {
+                            _quickRange = v ? 'month' : null;
+                            if (v) _selectedDate = null;
+                          });
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('Cette année'),
+                        selected: _quickRange == 'year',
+                        onSelected: (v) {
+                          setState(() {
+                            _quickRange = v ? 'year' : null;
+                            if (v) _selectedDate = null;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  // Date
+                  OutlinedButton.icon(
+                    onPressed: _pickDate,
+                    icon: const Icon(Icons.event),
+                    label: Text(
+                      _selectedDate == null
+                          ? 'Date'
+                          : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+                    ),
+                  ),
+                  if (_selectedDate != null)
+                    TextButton.icon(
+                      onPressed: () => setState(() => _selectedDate = null),
+                      icon: const Icon(Icons.clear),
+                      label: const Text('Effacer la date'),
+                    ),
                   // Catégorie
                   DropdownButton<String?>(
                     value: _selectedCategory,
@@ -363,19 +452,41 @@ class _AuditPageState extends State<AuditPage> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _logs.isEmpty
-                      ? const Center(child: Text('Aucun audit trouvé'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                          itemCount: _filteredLogs().length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (ctx, i) {
-                            final l = _filteredLogs()[i];
-                            return _buildActionCard(context, l);
-                          },
+              child: Builder(
+                builder: (ctx) {
+                  if (_loading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (_logs.isEmpty) {
+                    return Center(
+                      child: _buildEmptyState(
+                        context,
+                        icon: Icons.pending_actions,
+                        title: 'Aucun journal d\'audit',
+                        subtitle:
+                            'Les actions de l\'application apparaîtront ici dès qu\'elles seront enregistrées.',
+                      ),
+                    );
+                  }
+                  if (filtered.isEmpty) {
+                    return Center(
+                      child: _buildEmptyState(
+                        context,
+                        icon: Icons.filter_alt_off,
+                        title: 'Aucun résultat',
+                        subtitle:
+                            'Aucun journal ne correspond à votre recherche ou vos filtres.',
+                        action: OutlinedButton.icon(
+                          onPressed: _resetFilters,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Réinitialiser les filtres'),
                         ),
+                      ),
+                    );
+                  }
+                  return _buildGroupedByDayList(context, filtered);
+                },
+              ),
             ),
           ],
         ),
@@ -507,11 +618,113 @@ class _AuditPageState extends State<AuditPage> {
     );
   }
 
+  void _resetFilters() {
+    setState(() {
+      _selectedCategory = null;
+      _statusFilter = null;
+      _sortOrder = 'desc';
+      _searchUser.clear();
+      _searchQuery = '';
+    });
+    _load();
+  }
+
+  Widget _buildEmptyState(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? action,
+  }) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, size: 40, color: theme.colorScheme.primary),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: 420,
+            child: Text(
+              subtitle,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color:
+                    theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          if (action != null) ...[
+            const SizedBox(height: 12),
+            action,
+          ],
+        ],
+      ),
+    );
+  }
+
   List<Map<String, dynamic>> _filteredLogs() {
     Iterable<Map<String, dynamic>> iter = _logs;
     if (_statusFilter != null) {
       final want = _statusFilter == 'success';
       iter = iter.where((l) => ((l['success'] ?? 1) == 1) == want);
+    }
+    if (_quickRange != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      DateTime start;
+      DateTime end;
+      if (_quickRange == 'today') {
+        start = today;
+        end = today.add(const Duration(days: 1));
+      } else if (_quickRange == '7d') {
+        end = today.add(const Duration(days: 1));
+        start = today.subtract(const Duration(days: 6));
+      } else if (_quickRange == 'week') {
+        // Semaine commençant le lundi
+        final weekday = today.weekday; // 1..7
+        start = today.subtract(Duration(days: weekday - 1));
+        end = start.add(const Duration(days: 7));
+      } else if (_quickRange == 'month') {
+        start = DateTime(today.year, today.month, 1);
+        end = DateTime(today.year, today.month + 1, 1);
+      } else {
+        // year
+        start = DateTime(today.year, 1, 1);
+        end = DateTime(today.year + 1, 1, 1);
+      }
+      iter = iter.where((l) {
+        final ts = (l['timestamp'] ?? '').toString();
+        final dt = DateTime.tryParse(ts);
+        if (dt == null) return false;
+        return dt.isAfter(start.subtract(const Duration(milliseconds: 1))) && dt.isBefore(end);
+      });
+    }
+    if (_selectedDate != null) {
+      final target = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day);
+      iter = iter.where((l) {
+        final ts = (l['timestamp'] ?? '').toString();
+        final dt = DateTime.tryParse(ts);
+        if (dt == null) return false;
+        final d = DateTime(dt.year, dt.month, dt.day);
+        return d == target;
+      });
     }
     if (_searchQuery.isNotEmpty) {
       iter = iter.where((l) {
@@ -547,10 +760,98 @@ class _AuditPageState extends State<AuditPage> {
     return list;
   }
 
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final first = DateTime(now.year - 5, 1, 1);
+    final last = DateTime(now.year + 1, 12, 31);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now,
+      firstDate: first,
+      lastDate: last,
+      helpText: 'Sélectionnez une date',
+      cancelText: 'Annuler',
+      confirmText: 'OK',
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
+  Widget _buildGroupedByDayList(BuildContext context, List<Map<String, dynamic>> logs) {
+    // Grouper par jour (date sans heure)
+    final Map<DateTime, List<Map<String, dynamic>>> groups = {};
+    for (final l in logs) {
+      final ts = (l['timestamp'] ?? '').toString();
+      final dt = DateTime.tryParse(ts);
+      if (dt == null) continue;
+      final key = DateTime(dt.year, dt.month, dt.day);
+      groups.putIfAbsent(key, () => []).add(l);
+    }
+    final dates = groups.keys.toList()
+      ..sort((a, b) => _sortOrder == 'desc' ? b.compareTo(a) : a.compareTo(b));
+
+    String labelFor(DateTime d) {
+      final today = DateTime.now();
+      final t = DateTime(today.year, today.month, today.day);
+      final y = t.subtract(const Duration(days: 1));
+      final dd = DateTime(d.year, d.month, d.day);
+      if (dd == t) return 'Aujourd\'hui';
+      if (dd == y) return 'Hier';
+      return DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(d);
+    }
+
+    final children = <Widget>[];
+    for (final d in dates) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  labelFor(d),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      final items = groups[d]!;
+      // Optionnel: re-trier dans le groupe
+      items.sort((a, b) {
+        final da = DateTime.tryParse((a['timestamp'] ?? '').toString());
+        final db = DateTime.tryParse((b['timestamp'] ?? '').toString());
+        int c = 0;
+        if (da != null && db != null) c = da.compareTo(db);
+        return _sortOrder == 'desc' ? -c : c;
+      });
+      for (final l in items) {
+        children.add(Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: _buildActionCard(context, l),
+        ));
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 16),
+      children: children,
+    );
+  }
+
   Color _categoryColor(String key, ThemeData theme) {
     switch (key) {
       case 'auth':
         return const Color(0xFF6366F1);
+      case 'user':
+        return const Color(0xFF0EA5E9);
       case 'payment':
         return const Color(0xFFF59E0B);
       case 'student':
@@ -569,6 +870,8 @@ class _AuditPageState extends State<AuditPage> {
         return const Color(0xFFEF4444);
       case 'class_course':
         return const Color(0xFF38BDF8);
+      case 'settings':
+        return const Color(0xFF06B6D4);
       case 'export':
         return const Color(0xFF0EA5E9);
       case 'data':
@@ -586,6 +889,8 @@ class _AuditPageState extends State<AuditPage> {
     switch (key) {
       case 'auth':
         return Icons.lock_outline;
+      case 'user':
+        return Icons.person_outline;
       case 'payment':
         return Icons.payment;
       case 'student':
@@ -604,6 +909,8 @@ class _AuditPageState extends State<AuditPage> {
         return Icons.receipt_long_outlined;
       case 'class_course':
         return Icons.grid_view_rounded;
+      case 'settings':
+        return Icons.settings_outlined;
       case 'export':
         return Icons.file_upload_outlined;
       case 'data':
@@ -656,7 +963,8 @@ class _AuditPageState extends State<AuditPage> {
     final Color catColor = _categoryColor(catKey, theme);
     final String user = (l['username'] ?? '').toString();
     final String ts = _fmtTs((l['timestamp'] ?? '').toString());
-    final String details = _frDetails((l['details'] ?? '').toString(), catKey);
+    final String rawDetails = (l['details'] ?? '').toString();
+    final String details = _frDetails(rawDetails, catKey);
     final String actionTitle = _displayAction((l['action'] ?? '').toString());
     final int? id = (l['id'] is int)
         ? (l['id'] as int)
@@ -712,6 +1020,41 @@ class _AuditPageState extends State<AuditPage> {
             ],
           ),
           const SizedBox(height: 10),
+          // Affichage spécifique: mise à jour de note (avant -> après)
+          Builder(builder: (context) {
+            final actionKey = (l['action'] ?? '').toString();
+            if (actionKey != 'update_grade') return const SizedBox.shrink();
+            double? before;
+            double? after;
+            final ro = RegExp(r'value_old=([0-9]+(?:\.[0-9]+)?)').firstMatch(rawDetails);
+            final rn = RegExp(r'value_new=([0-9]+(?:\.[0-9]+)?)').firstMatch(rawDetails);
+            if (ro != null) before = double.tryParse(ro.group(1)!);
+            if (rn != null) after = double.tryParse(rn.group(1)!);
+            if (before == null && after == null) return const SizedBox.shrink();
+            final bool improved = (before != null && after != null) ? after! > before! : false;
+            final Color deltaColor = improved ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+            final IconData deltaIcon = improved ? Icons.trending_up : Icons.trending_down;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(deltaIcon, size: 18, color: deltaColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Note: ' +
+                        (before != null ? before!.toStringAsFixed(2) : '-') +
+                        ' → ' +
+                        (after != null ? after!.toStringAsFixed(2) : '-'),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: deltaColor,
+                        ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
           Wrap(
             spacing: 8,
             runSpacing: 8,

@@ -3015,6 +3015,16 @@ class DatabaseService {
 
   Future<void> updateGrade(Grade grade) async {
     final db = await database;
+    // Récupérer l'ancienne valeur pour journaliser avant/après
+    double? oldValue;
+    try {
+      final prev = await db.query('grades', where: 'id = ?', whereArgs: [grade.id], limit: 1);
+      if (prev.isNotEmpty) {
+        final v = prev.first['value'];
+        if (v is int) oldValue = v.toDouble();
+        if (v is double) oldValue = v;
+      }
+    } catch (_) {}
     await db.transaction((txn) async {
       await _ensureStudentExists(txn, grade.studentId);
       await _ensureClassExists(
@@ -3029,7 +3039,15 @@ class DatabaseService {
         whereArgs: [grade.id],
       );
     });
-    try { await logAudit(category: 'grade', action: 'update_grade', details: 'id=${grade.id} subject=${grade.subject} term=${grade.term}'); } catch (_) {}
+    try {
+      final before = (oldValue != null) ? oldValue!.toStringAsFixed(2) : '';
+      final after = grade.value.toStringAsFixed(2);
+      await logAudit(
+        category: 'grade',
+        action: 'update_grade',
+        details: 'id=${grade.id} subject=${grade.subject} term=${grade.term} value_old=$before value_new=$after',
+      );
+    } catch (_) {}
   }
 
   Future<void> deleteGrade(int id) async {
@@ -4009,11 +4027,29 @@ class DatabaseService {
   // ===================== Users (Authentication) =====================
   Future<void> upsertUser(Map<String, dynamic> userData) async {
     final db = await database;
+    final String username = (userData['username'] ?? '').toString();
+    bool existed = false;
+    try {
+      final existing = await db.query(
+        'users',
+        where: 'username = ?',
+        whereArgs: [username],
+        limit: 1,
+      );
+      existed = existing.isNotEmpty;
+    } catch (_) {}
     await db.insert(
       'users',
       userData,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    try {
+      await logAudit(
+        category: 'user',
+        action: existed ? 'update_user' : 'create_user',
+        details: 'username=$username role=${userData['role'] ?? ''}',
+      );
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>?> getUserRowByUsername(String username) async {
@@ -4224,6 +4260,13 @@ class DatabaseService {
   Future<void> deleteUserByUsername(String username) async {
     final db = await database;
     await db.delete('users', where: 'username = ?', whereArgs: [username]);
+    try {
+      await logAudit(
+        category: 'user',
+        action: 'delete_user',
+        details: 'username=$username',
+      );
+    } catch (_) {}
   }
 
   Future<void> updateUserLastLoginAt(String username) async {

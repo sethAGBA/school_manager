@@ -20,6 +20,7 @@ import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/screens/auth/users_management_page.dart';
 import 'package:flutter/services.dart';
 import 'package:school_manager/services/license_service.dart';
+import 'package:school_manager/services/auth_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -277,6 +278,16 @@ class _SettingsPageState extends State<SettingsPage>
         'Configuration de l\'école sauvegardée avec succès !',
       );
     }
+    // Audit: paramètres mis à jour
+    try {
+      final u = await AuthService.instance.getCurrentUser();
+      await DatabaseService().logAudit(
+        category: 'settings',
+        action: 'update_settings',
+        username: u?.username,
+        details: 'name=${_etablissementController.text.trim()} email=${_emailController.text.trim()} year=${_academicYearController.text.trim()}',
+      );
+    } catch (_) {}
   }
 
   Future<void> _applyAcademicYear(String year) async {
