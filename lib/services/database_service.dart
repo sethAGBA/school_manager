@@ -4000,6 +4000,15 @@ class DatabaseService {
         });
       }
     });
+    // Journaliser l'archivage du bulletin
+    try {
+      await logAudit(
+        category: 'report_card',
+        action: 'archive_report_card',
+        details:
+            'student=$studentId class=$className year=$academicYear term=$term',
+      );
+    } catch (_) {}
   }
 
   /// Récupère les bulletins archivés pour une classe et une année, groupés par élève

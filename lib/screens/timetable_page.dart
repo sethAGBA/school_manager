@@ -65,10 +65,26 @@ class _TimetablePageState extends State<TimetablePage> {
 
   final List<String> _timeSlots = List.of(ttp.kDefaultSlots);
   Set<String> _breakSlots = <String>{};
+  // Auto-generation settings
+  final TextEditingController _morningStartCtrl = TextEditingController();
+  final TextEditingController _morningEndCtrl = TextEditingController();
+  final TextEditingController _afternoonStartCtrl = TextEditingController();
+  final TextEditingController _afternoonEndCtrl = TextEditingController();
+  final TextEditingController _sessionMinutesCtrl = TextEditingController(text: '60');
+  final TextEditingController _sessionsPerSubjectCtrl = TextEditingController(text: '1');
+  final TextEditingController _teacherMaxPerDayCtrl = TextEditingController(text: '0');
+  final TextEditingController _classMaxPerDayCtrl = TextEditingController(text: '0');
+  final TextEditingController _subjectMaxPerDayCtrl = TextEditingController(text: '0');
+  bool _clearBeforeGen = false;
+  bool _isGenerating = false;
 
   final DatabaseService _dbService = DatabaseService();
   late final SchedulingService _scheduling;
   Set<String> _teacherUnavailKeys = <String>{}; // format: 'Day|HH:mm'
+  // Scroll controllers for navigating the timetable
+  final ScrollController _classListScrollCtrl = ScrollController();
+  final ScrollController _tableVScrollCtrl = ScrollController();
+  final ScrollController _tableHScrollCtrl = ScrollController();
 
   @override
   void initState() {
@@ -131,6 +147,13 @@ class _TimetablePageState extends State<TimetablePage> {
       ..clear()
       ..addAll(prefSlots);
     _breakSlots = prefBreaks;
+
+    // Load auto-gen prefs
+    _morningStartCtrl.text = await ttp.loadMorningStart();
+    _morningEndCtrl.text = await ttp.loadMorningEnd();
+    _afternoonStartCtrl.text = await ttp.loadAfternoonStart();
+    _afternoonEndCtrl.text = await ttp.loadAfternoonEnd();
+    _sessionMinutesCtrl.text = (await ttp.loadSessionMinutes()).toString();
 
     setState(() {
       // initialiser la sélection de classe/enseignant si nécessaire
@@ -196,6 +219,18 @@ class _TimetablePageState extends State<TimetablePage> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _morningStartCtrl.dispose();
+    _morningEndCtrl.dispose();
+    _afternoonStartCtrl.dispose();
+    _afternoonEndCtrl.dispose();
+    _sessionMinutesCtrl.dispose();
+    _sessionsPerSubjectCtrl.dispose();
+    _teacherMaxPerDayCtrl.dispose();
+    _classMaxPerDayCtrl.dispose();
+    _subjectMaxPerDayCtrl.dispose();
+    _classListScrollCtrl.dispose();
+    _tableVScrollCtrl.dispose();
+    _tableHScrollCtrl.dispose();
     super.dispose();
   }
 
@@ -213,6 +248,7 @@ class _TimetablePageState extends State<TimetablePage> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                _buildAutoGenPanel(context),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -427,31 +463,47 @@ class _TimetablePageState extends State<TimetablePage> {
               children: [
                 SizedBox(
                   width: 200,
-                  child: ListView.builder(
-                    itemCount: _classes.length,
-                    itemBuilder: (context, index) {
-                      final aClass = _classes[index];
-                      return ListTile(
-                        title: Text(
-                          _classLabel(aClass),
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                        selected: _classKey(aClass) == _selectedClassKey,
-                        onTap: () {
-                          setState(() {
-                            _selectedClassKey = _classKey(aClass);
-                          });
-                        },
-                      );
-                    },
+                  child: Scrollbar(
+                    controller: _classListScrollCtrl,
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      controller: _classListScrollCtrl,
+                      itemCount: _classes.length,
+                      itemBuilder: (context, index) {
+                        final aClass = _classes[index];
+                        return ListTile(
+                          title: Text(
+                            _classLabel(aClass),
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          selected: _classKey(aClass) == _selectedClassKey,
+                          onTap: () {
+                            setState(() {
+                              _selectedClassKey = _classKey(aClass);
+                            });
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
+                  child: Scrollbar(
+                    controller: _tableVScrollCtrl,
+                    thumbVisibility: true,
                     child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: _buildTimetableGrid(context),
+                      controller: _tableVScrollCtrl,
+                      scrollDirection: Axis.vertical,
+                      child: Scrollbar(
+                        controller: _tableHScrollCtrl,
+                        thumbVisibility: true,
+                        notificationPredicate: (notif) => notif.metrics.axis == Axis.horizontal,
+                        child: SingleChildScrollView(
+                          controller: _tableHScrollCtrl,
+                          scrollDirection: Axis.horizontal,
+                          child: _buildTimetableGrid(context),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -461,6 +513,405 @@ class _TimetablePageState extends State<TimetablePage> {
         ],
       ),
     );
+  }
+
+  int _toMin(String t) {
+    try {
+      final p = t.split(':');
+      return int.parse(p[0]) * 60 + int.parse(p[1]);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  String _fmtHHmm(int m) {
+    final h = (m ~/ 60).toString().padLeft(2, '0');
+    final mi = (m % 60).toString().padLeft(2, '0');
+    return '$h:$mi';
+  }
+
+  List<String> _buildSlotsFromSegments() {
+    final int session = int.tryParse(_sessionMinutesCtrl.text) ?? 60;
+    final segs = <List<int>>[];
+    final ms = _toMin(_morningStartCtrl.text);
+    final me = _toMin(_morningEndCtrl.text);
+    final as = _toMin(_afternoonStartCtrl.text);
+    final ae = _toMin(_afternoonEndCtrl.text);
+    if (me > ms + 10) segs.add([ms, me]);
+    if (ae > as + 10) segs.add([as, ae]);
+    final slots = <String>[];
+    for (final seg in segs) {
+      int cur = seg[0];
+      while (cur + session <= seg[1]) {
+        final start = _fmtHHmm(cur);
+        final end = _fmtHHmm(cur + session);
+        slots.add('$start - $end');
+        cur += session;
+      }
+    }
+    return slots;
+  }
+
+  Widget _buildAutoGenPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_mode, color: AppColors.primaryBlue),
+              const SizedBox(width: 8),
+              Text(
+                'Auto-génération des emplois du temps',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              if (_isGenerating) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              // Jours de la semaine (sélection)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                ),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Text('Jours:'),
+                    ...['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
+                        .map((d) => FilterChip(
+                              label: Text(d),
+                              selected: _daysOfWeek.contains(d),
+                              onSelected: (sel) async {
+                                setState(() {
+                                  if (sel) {
+                                    if (!_daysOfWeek.contains(d)) _daysOfWeek.add(d);
+                                  } else {
+                                    _daysOfWeek.remove(d);
+                                  }
+                                });
+                                await ttp.saveDays(_daysOfWeek);
+                              },
+                            ))
+                        .toList(),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _morningStartCtrl,
+                  decoration: const InputDecoration(labelText: 'Début matin'),
+                ),
+              ),
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _morningEndCtrl,
+                  decoration: const InputDecoration(labelText: 'Fin matin'),
+                ),
+              ),
+              SizedBox(
+                width: 140,
+                child: TextField(
+                  controller: _afternoonStartCtrl,
+                  decoration: const InputDecoration(labelText: 'Début après-midi'),
+                ),
+              ),
+              SizedBox(
+                width: 140,
+                child: TextField(
+                  controller: _afternoonEndCtrl,
+                  decoration: const InputDecoration(labelText: 'Fin après-midi'),
+                ),
+              ),
+              SizedBox(
+                width: 140,
+                child: TextField(
+                  controller: _sessionMinutesCtrl,
+                  decoration: const InputDecoration(labelText: 'Durée cours (min)'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 160,
+                child: TextField(
+                  controller: _sessionsPerSubjectCtrl,
+                  decoration: const InputDecoration(labelText: 'Séances/matière (semaine)'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 160,
+                child: TextField(
+                  controller: _teacherMaxPerDayCtrl,
+                  decoration: const InputDecoration(labelText: 'Max cours/jour (enseignant)'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 160,
+                child: TextField(
+                  controller: _classMaxPerDayCtrl,
+                  decoration: const InputDecoration(labelText: 'Max cours/jour (classe)'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              SizedBox(
+                width: 180,
+                child: TextField(
+                  controller: _subjectMaxPerDayCtrl,
+                  decoration: const InputDecoration(labelText: 'Max par matière/jour (classe)'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Switch(
+                    value: _clearBeforeGen,
+                    onChanged: (v) => setState(() => _clearBeforeGen = v),
+                  ),
+                  const Text('Effacer avant génération'),
+                ],
+              ),
+              ElevatedButton.icon(
+                onPressed: _isGenerating ? null : _onGenerateForAllClasses,
+                icon: const Icon(Icons.apartment, color: Colors.white),
+                label: const Text('Générer pour toutes les classes', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+              ),
+              ElevatedButton.icon(
+                onPressed: _isGenerating ? null : _onGenerateForAllTeachers,
+                icon: const Icon(Icons.person, color: Colors.white),
+                label: const Text('Générer pour tous les enseignants', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.successGreen),
+              ),
+              // Génération ciblée selon la vue
+              if (_isClassView)
+                ElevatedButton.icon(
+                  onPressed: _isGenerating ? null : _onGenerateForSelectedClass,
+                  icon: const Icon(Icons.class_, color: Colors.white),
+                  label: const Text('Générer pour la classe sélectionnée', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6)),
+                )
+              else
+                ElevatedButton.icon(
+                  onPressed: _isGenerating ? null : _onGenerateForSelectedTeacher,
+                  icon: const Icon(Icons.person_outline, color: Colors.white),
+                  label: const Text('Générer pour l\'enseignant sélectionné', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveAutoGenPrefs() async {
+    await ttp.saveMorningStart(_morningStartCtrl.text.trim());
+    await ttp.saveMorningEnd(_morningEndCtrl.text.trim());
+    await ttp.saveAfternoonStart(_afternoonStartCtrl.text.trim());
+    await ttp.saveAfternoonEnd(_afternoonEndCtrl.text.trim());
+    final minutes = int.tryParse(_sessionMinutesCtrl.text) ?? 60;
+    await ttp.saveSessionMinutes(minutes);
+    // Also persist generated slots for consistency
+    final slots = _buildSlotsFromSegments();
+    await ttp.saveSlots(slots);
+    setState(() {
+      _timeSlots
+        ..clear()
+        ..addAll(slots);
+    });
+  }
+
+  Future<void> _onGenerateForAllClasses() async {
+    setState(() => _isGenerating = true);
+    try {
+      await _saveAutoGenPrefs();
+      final slots = List<String>.from(_timeSlots);
+      int total = 0;
+      for (final cls in _classes) {
+        final created = await _scheduling.autoGenerateForClass(
+          targetClass: cls,
+          daysOfWeek: _daysOfWeek,
+          timeSlots: slots,
+          breakSlots: _breakSlots,
+          clearExisting: _clearBeforeGen,
+          sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+          enforceTeacherWeeklyHours: true,
+          teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+          classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+          subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+        );
+        total += created;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Génération terminée: $total cours créés.')),
+        );
+      }
+      try {
+        await _dbService.logAudit(
+          category: 'timetable',
+          action: 'auto_generate_classes',
+          details: 'classes=${_classes.length} slots=${slots.length} days=${_daysOfWeek.length}',
+        );
+      } catch (_) {}
+    } finally {
+      setState(() => _isGenerating = false);
+      await _loadData();
+    }
+  }
+
+  Future<void> _onGenerateForAllTeachers() async {
+    setState(() => _isGenerating = true);
+    try {
+      await _saveAutoGenPrefs();
+      final slots = List<String>.from(_timeSlots);
+      int total = 0;
+      for (final t in _teachers) {
+        final created = await _scheduling.autoGenerateForTeacher(
+          teacher: t,
+          daysOfWeek: _daysOfWeek,
+          timeSlots: slots,
+          breakSlots: _breakSlots,
+          clearExisting: _clearBeforeGen,
+          sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+          enforceTeacherWeeklyHours: true,
+          teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+          classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+          subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+        );
+        total += created;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Génération (enseignants) terminée: $total cours créés.')),
+        );
+      }
+      try {
+        await _dbService.logAudit(
+          category: 'timetable',
+          action: 'auto_generate_teachers',
+          details: 'teachers=${_teachers.length} slots=${slots.length} days=${_daysOfWeek.length}',
+        );
+      } catch (_) {}
+    } finally {
+      setState(() => _isGenerating = false);
+      await _loadData();
+    }
+  }
+
+  Future<void> _onGenerateForSelectedClass() async {
+    final cls = _selectedClass();
+    if (cls == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucune classe sélectionnée.')),
+      );
+      return;
+    }
+    setState(() => _isGenerating = true);
+    try {
+      await _saveAutoGenPrefs();
+      final created = await _scheduling.autoGenerateForClass(
+        targetClass: cls,
+        daysOfWeek: _daysOfWeek,
+        timeSlots: List<String>.from(_timeSlots),
+        breakSlots: _breakSlots,
+        clearExisting: _clearBeforeGen,
+        sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+        enforceTeacherWeeklyHours: true,
+        teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+        classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+        subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Génération: $created cours pour ${cls.name}.')),
+        );
+      }
+      try {
+        await _dbService.logAudit(
+          category: 'timetable',
+          action: 'auto_generate_class',
+          details: 'class=${cls.name} year=${cls.academicYear}',
+        );
+      } catch (_) {}
+    } finally {
+      setState(() => _isGenerating = false);
+      await _loadData();
+    }
+  }
+
+  Future<void> _onGenerateForSelectedTeacher() async {
+    final teacherName = _selectedTeacherFilter;
+    if (teacherName == null || teacherName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucun enseignant sélectionné.')),
+      );
+      return;
+    }
+    final teacher = _teachers.firstWhere(
+      (t) => t.name == teacherName,
+      orElse: () => Staff.empty(),
+    );
+    if (teacher.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enseignant introuvable.')),
+      );
+      return;
+    }
+    setState(() => _isGenerating = true);
+    try {
+      await _saveAutoGenPrefs();
+      final created = await _scheduling.autoGenerateForTeacher(
+        teacher: teacher,
+        daysOfWeek: _daysOfWeek,
+        timeSlots: List<String>.from(_timeSlots),
+        breakSlots: _breakSlots,
+        clearExisting: _clearBeforeGen,
+        sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+        enforceTeacherWeeklyHours: true,
+        teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+        classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+        subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Génération: $created cours pour $teacherName.')),
+        );
+      }
+      try {
+        await _dbService.logAudit(
+          category: 'timetable',
+          action: 'auto_generate_teacher',
+          details: 'teacher=$teacherName',
+        );
+      } catch (_) {}
+    } finally {
+      setState(() => _isGenerating = false);
+      await _loadData();
+    }
   }
 
   Widget _buildTimetableDisplay(BuildContext context) {

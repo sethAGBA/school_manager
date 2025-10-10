@@ -4,6 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _kDaysKey = 'timetable_days';
 const _kSlotsKey = 'timetable_slots';
 const _kBreakSlotsKey = 'timetable_break_slots';
+const _kMorningStartKey = 'timetable_morning_start';
+const _kMorningEndKey = 'timetable_morning_end';
+const _kAfternoonStartKey = 'timetable_afternoon_start';
+const _kAfternoonEndKey = 'timetable_afternoon_end';
+const _kSessionMinutesKey = 'timetable_session_minutes';
 
 const List<String> kDefaultDays = [
   'Lundi',
@@ -64,4 +69,54 @@ Future<Set<String>> loadBreakSlots() async {
 Future<void> saveBreakSlots(Set<String> breaks) async {
   final p = await SharedPreferences.getInstance();
   await p.setString(_kBreakSlotsKey, jsonEncode(breaks.toList()));
+}
+
+Future<String> loadMorningStart() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getString(_kMorningStartKey) ?? '08:00';
+}
+
+Future<String> loadMorningEnd() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getString(_kMorningEndKey) ?? '12:00';
+}
+
+Future<String> loadAfternoonStart() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getString(_kAfternoonStartKey) ?? '13:00';
+}
+
+Future<String> loadAfternoonEnd() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getString(_kAfternoonEndKey) ?? '16:00';
+}
+
+Future<int> loadSessionMinutes() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getInt(_kSessionMinutesKey) ?? 60;
+}
+
+Future<void> saveMorningStart(String v) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setString(_kMorningStartKey, v);
+}
+
+Future<void> saveMorningEnd(String v) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setString(_kMorningEndKey, v);
+}
+
+Future<void> saveAfternoonStart(String v) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setString(_kAfternoonStartKey, v);
+}
+
+Future<void> saveAfternoonEnd(String v) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setString(_kAfternoonEndKey, v);
+}
+
+Future<void> saveSessionMinutes(int minutes) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setInt(_kSessionMinutesKey, minutes);
 }

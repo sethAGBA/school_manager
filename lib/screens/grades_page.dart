@@ -18,6 +18,7 @@ import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/models/category.dart';
 import 'package:printing/printing.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:school_manager/services/auth_service.dart';
 import 'package:excel/excel.dart' as ex show Excel;
 import 'package:sqflite/sqflite.dart';
 // import 'package:pdf/pdf.dart' as pw; // removed unused import
@@ -7167,6 +7168,16 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
           backgroundColor: Colors.green,
         ),
       );
+      try {
+        final u = await AuthService.instance.getCurrentUser();
+        await _dbService.logAudit(
+          category: 'report_card',
+          action: 'export_report_cards',
+          username: u?.username,
+          details:
+              'class=$selectedClass year=$selectedAcademicYear term=$selectedTerm count=${studentsInClass.length} file=$fileName',
+        );
+      } catch (_) {}
     }
   }
 

@@ -11,6 +11,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:school_manager/utils/snackbar.dart';
 import 'package:intl/intl.dart';
+import 'package:school_manager/services/auth_service.dart';
 
 class StudentProfilePage extends StatefulWidget {
   final Student student;
@@ -1792,6 +1793,16 @@ class _StudentProfilePageState extends State<StudentProfilePage>
                                       backgroundColor: Colors.green,
                                     ),
                                   );
+                                  try {
+                                    final u = await AuthService.instance.getCurrentUser();
+                                    await _dbService.logAudit(
+                                      category: 'report_card',
+                                      action: 'export_report_card_pdf',
+                                      username: u?.username,
+                                      details:
+                                          'student=${widget.student.id} class=${reportCard['className'] ?? ''} year=${reportCard['academicYear'] ?? ''} term=${reportCard['term'] ?? ''} file=$fileName',
+                                    );
+                                  } catch (_) {}
                                 }
                               },
                               icon: Icon(Icons.picture_as_pdf, size: 18),

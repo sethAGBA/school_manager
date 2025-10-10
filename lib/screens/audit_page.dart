@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:school_manager/services/database_service.dart';
 import 'package:school_manager/models/student.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:open_file/open_file.dart';
 import 'package:flutter/services.dart';
 
 class AuditPage extends StatefulWidget {
@@ -29,6 +32,8 @@ class _AuditPageState extends State<AuditPage> {
   // Libellés FR pour les catégories et actions d'audit
   final Map<String, String> _categoryLabels = const {
     'auth': 'Authentification',
+    'timetable': 'Emploi du temps',
+    'report_card': 'Bulletin',
     'user': 'Utilisateur',
     'payment': 'Paiement',
     'student': 'Élève',
@@ -47,6 +52,8 @@ class _AuditPageState extends State<AuditPage> {
   };
   final List<String> _categoryOrder = const [
     'auth',
+    'timetable',
+    'report_card',
     'user',
     'payment',
     'student',
@@ -122,6 +129,13 @@ class _AuditPageState extends State<AuditPage> {
     'delete_user': 'Utilisateur supprimé',
     // Paramètres
     'update_settings': 'Paramètres mis à jour',
+    // Bulletins
+    'export_report_cards': 'Export bulletins (ZIP)',
+    'export_report_card_pdf': 'Export bulletin PDF',
+    'archive_report_card': 'Archivage du bulletin',
+    // Emploi du temps
+    'auto_generate_classes': 'Auto-génération (classes)',
+    'auto_generate_teachers': 'Auto-génération (enseignants)',
   };
 
   String _displayAction(String? action) {
@@ -188,6 +202,8 @@ class _AuditPageState extends State<AuditPage> {
     d = d.replaceAll('by=', 'par=');
     d = d.replaceAll('reason=', 'motif=');
     d = d.replaceAll('role=', 'rôle=');
+    d = d.replaceAll('file=', 'fichier=');
+    d = d.replaceAll('count=', 'nombre=');
     d = d.replaceAll('old=', 'ancien=');
     d = d.replaceAll('new=', 'nouveau=');
     // Remplacer élève=<id> par élève=<Nom> si connu
@@ -252,6 +268,13 @@ class _AuditPageState extends State<AuditPage> {
 
   Future<void> _exportCsv() async {
     final filtered = _filteredLogs();
+    if (filtered.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucune donnée à exporter.')),
+      );
+      return;
+    }
     final rows = [
       ['horodatage', 'utilisateur', 'catégorie', 'action', 'succès', 'détails']
     ];
@@ -270,12 +293,28 @@ class _AuditPageState extends State<AuditPage> {
         detailsDisplay,
       ]);
     }
-    final csv = rows.map((r) => r.map((c) => '"${c.toString().replaceAll('"', '""')}"').join(',')).join('\n');
-    debugPrint('[Audit] CSV bytes: ${utf8.encode(csv).length}');
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Export CSV simulé (sauvegarde à implémenter).')),
-    );
+    final csv = rows
+        .map((r) => r
+            .map((c) => '"${c.toString().replaceAll('"', '""')}"')
+            .join(','))
+        .join('\n');
+    try {
+      final dir = await FilePicker.platform.getDirectoryPath();
+      if (dir == null) return; // annulé
+      final ts = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final file = File('$dir/audit_$ts.csv');
+      await file.writeAsBytes(utf8.encode(csv));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('CSV exporté: ${file.path.split('/').last}')),
+      );
+      await OpenFile.open(file.path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur export CSV: $e')),
+      );
+    }
   }
 
   @override
@@ -850,6 +889,10 @@ class _AuditPageState extends State<AuditPage> {
     switch (key) {
       case 'auth':
         return const Color(0xFF6366F1);
+      case 'timetable':
+        return const Color(0xFFA78BFA);
+      case 'report_card':
+        return const Color(0xFF3B82F6);
       case 'user':
         return const Color(0xFF0EA5E9);
       case 'payment':
@@ -889,6 +932,10 @@ class _AuditPageState extends State<AuditPage> {
     switch (key) {
       case 'auth':
         return Icons.lock_outline;
+      case 'timetable':
+        return Icons.calendar_today;
+      case 'report_card':
+        return Icons.description_outlined;
       case 'user':
         return Icons.person_outline;
       case 'payment':
