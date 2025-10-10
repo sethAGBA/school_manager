@@ -1770,6 +1770,7 @@ class _StudentProfilePageState extends State<StudentProfilePage>
                                       reportCard['moyenne_annuelle']
                                           ?.toDouble() ??
                                       0.0,
+                                  duplicata: true,
                                 );
 
                                 String? directoryPath = await FilePicker

@@ -14,6 +14,8 @@ import 'package:school_manager/constants/strings.dart';
 import 'package:school_manager/models/class.dart';
 import 'package:school_manager/models/payment.dart';
 import 'package:school_manager/models/student.dart';
+import 'package:school_manager/models/staff.dart';
+import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/screens/students/widgets/custom_dialog.dart';
 import 'package:school_manager/screens/students/widgets/form_field.dart';
 import 'package:school_manager/screens/students/widgets/student_registration_form.dart';
@@ -1840,6 +1842,28 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                         const SizedBox(width: 8),
                         Flexible(
                           child: ElevatedButton.icon(
+                            onPressed: _showSubjectTemplateDialog,
+                            icon: const Icon(
+                              Icons.view_list,
+                              color: Colors.white,
+                            ),
+                            label: const Text('Modèle par matière'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF059669),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: ElevatedButton.icon(
                             onPressed: _exportStudentsPdf,
                             icon: const Icon(
                               Icons.picture_as_pdf,
@@ -2422,7 +2446,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Définissez le coefficient de chaque matière. La somme doit faire 20.',
+                                  'Définissez le coefficient de chaque matière. Aucune somme imposée (pondération libre).',
                                   style: Theme.of(context).textTheme.bodyMedium,
                                 ),
                               ),
@@ -2433,22 +2457,16 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: ((_sumCoeffs - 20).abs() < 1e-6)
-                                      ? Colors.green.shade50
-                                      : Colors.red.shade50,
+                                  color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: ((_sumCoeffs - 20).abs() < 1e-6)
-                                        ? Colors.green.shade200
-                                        : Colors.red.shade200,
+                                    color: Colors.blue.shade200,
                                   ),
                                 ),
                                 child: Text(
-                                  'Somme: ${_sumCoeffs.toStringAsFixed(2)} / 20',
+                                  'Somme: ${_sumCoeffs.toStringAsFixed(2)}',
                                   style: TextStyle(
-                                    color: ((_sumCoeffs - 20).abs() < 1e-6)
-                                        ? Colors.green.shade700
-                                        : Colors.red.shade700,
+                                    color: Colors.blue.shade700,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -2717,6 +2735,580 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _exportSubjectGradesTemplateExcel(
+    String subjectName,
+    String selectedTerm,
+    int devCount,
+    int compCount,
+  ) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Génération du modèle Excel [$subjectName]...'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      final workbook = xls.Workbook();
+      final sheet = workbook.worksheets[0];
+      sheet.name = 'Matiere_${subjectName.replaceAll(' ', '_')}';
+
+      final headerStyle = workbook.styles.add('headerSubjectStyle');
+      headerStyle.bold = true;
+      headerStyle.backColor = '#E5F2FF';
+      headerStyle.hAlign = xls.HAlignType.center;
+      headerStyle.vAlign = xls.VAlignType.center;
+
+      int col = 1;
+      void setHeader(int c, String text) {
+        final range = sheet.getRangeByIndex(1, c);
+        range.setText(text);
+        range.cellStyle = headerStyle;
+        sheet.autoFitColumn(c);
+      }
+
+      setHeader(col++, 'ID_Eleve');
+      setHeader(col++, 'Nom');
+      setHeader(col++, 'Classe');
+      setHeader(col++, 'Annee');
+      setHeader(col++, 'Periode');
+      // Colonnes dynamiques Devoir(s) (valeurs uniquement)
+      final List<int> devoirCols = [];
+      for (int i = 0; i < devCount; i++) {
+        final String label = devCount == 1 ? 'Devoir' : 'Devoir ${i + 1}';
+        final dCol = col++;
+        setHeader(dCol, '$label [$subjectName]');
+        devoirCols.add(dCol);
+      }
+      // Colonnes dynamiques Composition(s) (valeurs uniquement)
+      final List<int> compCols = [];
+      for (int i = 0; i < compCount; i++) {
+        final String label = compCount == 1 ? 'Composition' : 'Composition ${i + 1}';
+        final cCol = col++;
+        setHeader(cCol, '$label [$subjectName]');
+        compCols.add(cCol);
+      }
+
+      final Map<String, double> subjectCoeffs = await _dbService
+          .getClassSubjectCoefficients(_nameController.text, _yearController.text);
+      final double coeffMatiere = subjectCoeffs[subjectName] ?? 1;
+
+      for (int i = 0; i < _students.length; i++) {
+        final row = i + 2;
+        final s = _students[i];
+        sheet.getRangeByIndex(row, 1).setText(s.id);
+        sheet.getRangeByIndex(row, 2).setText(s.name);
+        sheet.getRangeByIndex(row, 3).setText(_nameController.text);
+        sheet.getRangeByIndex(row, 4).setText(_yearController.text);
+        sheet.getRangeByIndex(row, 5).setText(selectedTerm);
+
+        // aucune préremplissage pour devoir/comp: l'utilisateur saisit uniquement les notes
+        // Pas de colonnes prof/app/moyClasse dans ce modèle simplifié
+      }
+
+      final lastRow = (_students.isNotEmpty ? _students.length : 1) + 1;
+      // Validation 0-20 sur toutes colonnes de notes (devoirs + compositions)
+      for (final colIndex in [...devoirCols, ...compCols]) {
+        try {
+          final dv = sheet.getRangeByIndex(2, colIndex, lastRow, colIndex).dataValidation;
+          (dv as dynamic).allowType = 2; // decimal
+          try { (dv as dynamic).operator = 6; } catch (_) { try { (dv as dynamic).compareOperator = 6; } catch (_) {} }
+          (dv as dynamic).firstFormula = '0';
+          (dv as dynamic).secondFormula = '20';
+          (dv as dynamic).promptBoxTitle = 'Validation';
+          (dv as dynamic).promptBoxText = 'Entrez une note entre 0 et 20';
+          (dv as dynamic).showPromptBox = true;
+        } catch (_) {}
+      }
+
+      try { (sheet as dynamic).freezePanes(2, 1); } catch (_) {}
+      for (int c = 1; c <= col; c++) { sheet.autoFitColumn(c); }
+
+      // Masquer les colonnes de métadonnées (ID, Classe, Annee, Periode)
+      try { (sheet as dynamic).hideColumn(1); } catch (_) { try { sheet.getRangeByIndex(1,1,1,1).columnWidth = 0; } catch (_) {} }
+      try { (sheet as dynamic).hideColumn(3); } catch (_) { try { sheet.getRangeByIndex(1,3,1,3).columnWidth = 0; } catch (_) {} }
+      try { (sheet as dynamic).hideColumn(4); } catch (_) { try { sheet.getRangeByIndex(1,4,1,4).columnWidth = 0; } catch (_) {} }
+      try { (sheet as dynamic).hideColumn(5); } catch (_) { try { sheet.getRangeByIndex(1,5,1,5).columnWidth = 0; } catch (_) {} }
+
+      final bytes = workbook.saveAsStream();
+      workbook.dispose();
+
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
+      if (dirPath == null) return;
+
+      final now = DateTime.now();
+      final formattedDate =
+          '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
+      final safeSubject = subjectName.replaceAll(' ', '_');
+      final fileName =
+          'modele_notes_${_nameController.text}_${safeSubject}_${_yearController.text}_${selectedTerm.replaceAll(' ', '_')}_$formattedDate.xlsx';
+      final file = File('$dirPath/$fileName');
+      await file.writeAsBytes(bytes, flush: true);
+      await OpenFile.open(file.path);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Modèle Excel [$subjectName] généré : ${file.path}'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur génération modèle Excel [$subjectName] : $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _exportSubjectGradesTemplatePdf(
+    String subjectName,
+    String selectedTerm,
+    int devCount,
+    int compCount,
+  ) async {
+    try {
+      final pdf = pw.Document();
+      final title = 'Modèle de saisie des notes';
+      final className = _nameController.text;
+      final year = _yearController.text;
+
+      // Charger coefficient matière et enseignant assigné
+      final subjectCoeffs = await _dbService.getClassSubjectCoefficients(
+        className,
+        year,
+      );
+      final double coeffMatiere = subjectCoeffs[subjectName] ?? 1;
+      String teacherName = (_titulaireController.text).trim();
+      try {
+        final courses = await _dbService.getCoursesForClass(className, year);
+        final subj = courses.firstWhere(
+          (c) => c.name == subjectName,
+          orElse: () => Course.empty(),
+        );
+        final staff = await _dbService.getStaff();
+        bool teachesSubject(Staff s) {
+          final crs = s.courses;
+          final cls = s.classes;
+          final matchCourse =
+              crs.contains(subj.id) ||
+              crs.any((x) => x.toLowerCase() == subjectName.toLowerCase());
+          final matchClass = cls.contains(className);
+          return matchCourse && matchClass;
+        }
+        final t = staff.firstWhere(teachesSubject, orElse: () => Staff.empty());
+        if (t.id.isNotEmpty) {
+          teacherName = t.name;
+        }
+      } catch (_) {}
+
+      // Charger infos établissement et préparer thème (filigrane)
+      final SchoolInfo? schoolInfo = await _dbService.getSchoolInfo();
+      final PdfPageFormat _pageFormat = PdfPageFormat.a4;
+      final pw.PageTheme _pageTheme = pw.PageTheme(
+        pageFormat: _pageFormat,
+        margin: const pw.EdgeInsets.all(24),
+        buildBackground: (schoolInfo != null &&
+                schoolInfo.logoPath != null &&
+                File(schoolInfo.logoPath!).existsSync())
+            ? (context) => pw.FullPage(
+                  ignoreMargins: true,
+                  child: pw.Opacity(
+                    opacity: 0.06,
+                    child: pw.Image(
+                      pw.MemoryImage(
+                        File(schoolInfo.logoPath!).readAsBytesSync(),
+                      ),
+                      fit: pw.BoxFit.cover,
+                    ),
+                  ),
+                )
+            : null,
+      );
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageTheme: _pageTheme,
+          build: (context) {
+            final headers = <String>['N°', 'Nom'];
+            for (int i = 0; i < devCount; i++) {
+              final String label = devCount == 1 ? 'Devoir' : 'Devoir ${i + 1}';
+              headers.add(label);
+            }
+            for (int i = 0; i < compCount; i++) {
+              final String label = compCount == 1 ? 'Composition' : 'Composition ${i + 1}';
+              headers.add(label);
+            }
+            final rows = <List<String>>[];
+            for (int i = 0; i < _students.length; i++) {
+              final s = _students[i];
+              final row = <String>[
+                (i + 1).toString(),
+                s.name,
+              ];
+              for (int j = 0; j < devCount; j++) {
+                row.add('');
+              }
+              for (int j = 0; j < compCount; j++) {
+                row.add('');
+              }
+              rows.add(row);
+            }
+            // En-tête harmonisé (ministère / république)
+            pw.Widget buildHeader() {
+              final left = (schoolInfo?.ministry ?? '').trim();
+              final rightTop = (schoolInfo?.republic ?? '').trim();
+              final rightBottom = (schoolInfo?.republicMotto ?? '').trim();
+              final schoolName = (schoolInfo?.name ?? '').trim().toUpperCase();
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: [
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            if (left.isNotEmpty)
+                              pw.Text(left.toUpperCase(),
+                                  style: pw.TextStyle(fontSize: 8)),
+                            if ((schoolInfo?.educationDirection ?? '').isNotEmpty)
+                              pw.Text(
+                                (schoolInfo?.educationDirection ?? '').toUpperCase(),
+                                style: const pw.TextStyle(fontSize: 8),
+                              ),
+                            if ((schoolInfo?.inspection ?? '').isNotEmpty)
+                              pw.Text(
+                                (schoolInfo?.inspection ?? '').toUpperCase(),
+                                style: const pw.TextStyle(fontSize: 8),
+                              ),
+                          ],
+                        ),
+                      ),
+                      pw.SizedBox(width: 12),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            if (rightTop.isNotEmpty)
+                              pw.Text(rightTop.toUpperCase(),
+                                  style: const pw.TextStyle(fontSize: 8)),
+                            if (rightBottom.isNotEmpty)
+                              pw.Text(
+                                rightBottom.toUpperCase(),
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  fontStyle: pw.FontStyle.italic,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 6),
+                  if (schoolInfo != null &&
+                      (schoolInfo.logoPath ?? '').isNotEmpty &&
+                      File(schoolInfo.logoPath!).existsSync())
+                    pw.Center(
+                      child: pw.Container(
+                        height: 40,
+                        width: 40,
+                        child: pw.Image(
+                          pw.MemoryImage(
+                            File(schoolInfo.logoPath!).readAsBytesSync(),
+                          ),
+                          fit: pw.BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  pw.SizedBox(height: 4),
+                  pw.Center(
+                    child: pw.Text(
+                      schoolName.isNotEmpty ? schoolName : 'FEUILLE DE NOTES',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Divider(color: PdfColors.blueGrey300),
+                ],
+              );
+            }
+
+            return [
+              buildHeader(),
+              pw.SizedBox(height: 6),
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Expanded(
+                    child: pw.Text('Classe: $className\nAnnée: $year'),
+                  ),
+                  pw.SizedBox(width: 8),
+                  pw.Expanded(
+                    child: pw.Text(
+                      'Matière: $subjectName\nProfesseur: $teacherName',
+                      textAlign: pw.TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Coefficient matière: ${coeffMatiere.toStringAsFixed(2)}',
+                  ),
+                  pw.Text('Sur: 20    Période: $selectedTerm'),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Table.fromTextArray(
+                headers: headers,
+                data: rows,
+                headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                headerDecoration: const pw.BoxDecoration(
+                  color: PdfColors.blue50,
+                ),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                cellAlignment: pw.Alignment.centerLeft,
+                border: pw.TableBorder.all(color: PdfColors.blue100),
+                headerAlignment: pw.Alignment.center,
+              ),
+              pw.SizedBox(height: 14),
+              pw.Text('Remarques:'),
+              pw.SizedBox(height: 6),
+              pw.Container(height: 0.8, color: PdfColors.blueGrey300),
+              pw.SizedBox(height: 6),
+              pw.Container(height: 0.8, color: PdfColors.blueGrey300),
+              pw.SizedBox(height: 18),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Fait à: ______________________'),
+                  pw.Text('Le: ____ / ____ / ______'),
+                ],
+              ),
+              pw.SizedBox(height: 16),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(children: [
+                    pw.Text("Signature de l'enseignant"),
+                    pw.SizedBox(height: 28),
+                    pw.Container(width: 160, height: 0.8, color: PdfColors.blueGrey300),
+                  ]),
+                  pw.Column(children: [
+                    pw.Text("Cachet et signature de l'établissement"),
+                    pw.SizedBox(height: 28),
+                    pw.Container(width: 200, height: 0.8, color: PdfColors.blueGrey300),
+                  ]),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choisissez un dossier de sauvegarde',
+      );
+      if (dirPath == null) return;
+      final now = DateTime.now();
+      final formattedDate =
+          '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
+      final safeSubject = subjectName.replaceAll(' ', '_');
+      final fileName =
+          'modele_notes_${_nameController.text}_${safeSubject}_${_yearController.text}_$formattedDate.pdf';
+      final file = File('$dirPath/$fileName');
+      await file.writeAsBytes(await pdf.save());
+      await OpenFile.open(file.path);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Modèle PDF [$subjectName] généré : ${file.path}'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur génération modèle PDF [$subjectName] : $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showSubjectTemplateDialog() async {
+    final subjects = await _dbService.getCoursesForClass(
+      _nameController.text,
+      _yearController.text,
+    );
+    if (subjects.isEmpty) {
+      _showModernSnackBar("Aucune matière n'est associée à cette classe", isError: true);
+      return;
+    }
+    String selected = subjects.first.name;
+    String mode = 'Trimestre';
+    List<String> terms = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
+    String term = terms.first;
+    int devCount = 1;
+    int compCount = 1;
+    // ignore: use_build_context_synchronously
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Modèle par matière'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Choisissez une matière :'),
+                  const SizedBox(height: 8),
+                  DropdownButton<String>(
+                    value: selected,
+                    isExpanded: true,
+                    items: subjects
+                        .map((c) => DropdownMenuItem<String>(
+                              value: c.name,
+                              child: Text(c.name),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => selected = v ?? selected),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Période :'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: mode,
+                          isExpanded: true,
+                          items: const [
+                            DropdownMenuItem(value: 'Trimestre', child: Text('Trimestre')),
+                            DropdownMenuItem(value: 'Semestre', child: Text('Semestre')),
+                          ],
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() {
+                              mode = v;
+                              terms = v == 'Trimestre'
+                                  ? ['Trimestre 1', 'Trimestre 2', 'Trimestre 3']
+                                  : ['Semestre 1', 'Semestre 2'];
+                              term = terms.first;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: term,
+                          isExpanded: true,
+                          items: terms
+                              .map((t) => DropdownMenuItem<String>(
+                                    value: t,
+                                    child: Text(t),
+                                  ))
+                              .toList(),
+                          onChanged: (v) => setState(() => term = v ?? term),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Nombre de colonnes par type :'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Text('Devoirs: '),
+                            const SizedBox(width: 8),
+                            DropdownButton<int>(
+                              value: devCount,
+                              items: [1,2,3,4,5]
+                                  .map((n) => DropdownMenuItem<int>(value: n, child: Text(n.toString())))
+                                  .toList(),
+                              onChanged: (v) => setState(() => devCount = v ?? devCount),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Text('Compositions: '),
+                            const SizedBox(width: 8),
+                            DropdownButton<int>(
+                              value: compCount,
+                              items: [1,2,3,4,5]
+                                  .map((n) => DropdownMenuItem<int>(value: n, child: Text(n.toString())))
+                                  .toList(),
+                              onChanged: (v) => setState(() => compCount = v ?? compCount),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _exportSubjectGradesTemplatePdf(selected, term, devCount, compCount);
+                  },
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('PDF'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _exportSubjectGradesTemplateExcel(selected, term, devCount, compCount);
+                  },
+                  icon: const Icon(Icons.table_view),
+                  label: const Text('Excel'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

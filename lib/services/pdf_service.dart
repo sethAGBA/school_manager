@@ -2094,6 +2094,7 @@ class PdfService {
     double? moyenneLaPlusForte,
     double? moyenneLaPlusFaible,
     double? moyenneAnnuelle,
+    bool duplicata = false,
   }) async {
     final pdf = pw.Document();
     final times = await pw.Font.times();
@@ -2656,6 +2657,29 @@ class PdfService {
                 // (Inspection / Direction déjà affichées sous Ministère / République)
               ],
             ),
+            if (duplicata)
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.red, width: 1),
+                    color: PdfColors.red50,
+                    borderRadius: pw.BorderRadius.circular(6),
+                  ),
+                  child: pw.Text(
+                    'DUPLICATA',
+                    style: pw.TextStyle(
+                      font: timesBold,
+                      fontSize: 10,
+                      color: PdfColors.red800,
+                    ),
+                  ),
+                ),
+              ),
             pw.SizedBox(height: isLandscape ? 2 : 6),
             // (photo élève supprimée ici; elle est affichée sous Inspection)
             // Titre + photo (photo à droite, sous l'entête)
@@ -3145,9 +3169,9 @@ class PdfService {
                   );
                 }
 
-                // Ligne de totaux avec validation des coefficients
+                // Ligne de totaux (aucune contrainte stricte sur la somme des coefficients)
                 if (showTotals) {
-                  final bool sumOk = (sumCoefficients - 20).abs() < 1e-6;
+                  final bool sumOk = sumCoefficients > 0;
                   final PdfColor totalColor = sumOk
                       ? secondaryColor
                       : PdfColors.red;
@@ -3272,8 +3296,8 @@ class PdfService {
                   if (mcVal != null) sumPointsClasse += mcVal * subjectWeight;
                 }
 
-                // Validation des coefficients pour les totaux globaux
-                final bool sumOk = (sumCoefficients - 20).abs() < 1e-6;
+                // Validation minimale: somme des coefficients doit être > 0
+                final bool sumOk = sumCoefficients > 0;
                 final PdfColor totalColor = sumOk
                     ? secondaryColor
                     : PdfColors.red;
@@ -4019,24 +4043,35 @@ class PdfService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text(
-                          'Fait à :',
-                          style: pw.TextStyle(
-                            font: timesBold,
-                            color: mainColor,
-                            fontSize: baseFont,
-                          ),
-                        ),
-                        pw.SizedBox(height: 2),
-                        pw.Text(
-                          faitA.isNotEmpty
-                              ? faitA
-                              : '__________________________',
-                          style: pw.TextStyle(
-                            font: times,
-                            color: secondaryColor,
-                            fontSize: baseFont,
-                          ),
+                        pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'Fait à : ',
+                              style: pw.TextStyle(
+                                font: timesBold,
+                                color: mainColor,
+                                fontSize: baseFont,
+                              ),
+                            ),
+                            pw.Expanded(
+                              child: pw.Text(
+                                () {
+                                  final String v = faitA.trim();
+                                  if (v.isNotEmpty) return v;
+                                  final String addr = (schoolInfo.address).trim();
+                                  return addr.isNotEmpty
+                                      ? addr
+                                      : '__________________________';
+                                }(),
+                                style: pw.TextStyle(
+                                  font: times,
+                                  color: secondaryColor,
+                                  fontSize: baseFont,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         pw.SizedBox(height: spacing / 2),
                         pw.Text(
@@ -4076,24 +4111,30 @@ class PdfService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text(
-                          'Le :',
-                          style: pw.TextStyle(
-                            font: timesBold,
-                            color: mainColor,
-                            fontSize: baseFont,
-                          ),
-                        ),
-                        pw.SizedBox(height: 2),
-                        pw.Text(
-                          leDate.isNotEmpty
-                              ? leDate
-                              : '__________________________',
-                          style: pw.TextStyle(
-                            font: times,
-                            color: secondaryColor,
-                            fontSize: baseFont,
-                          ),
+                        pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'Le : ',
+                              style: pw.TextStyle(
+                                font: timesBold,
+                                color: mainColor,
+                                fontSize: baseFont,
+                              ),
+                            ),
+                            pw.Text(
+                              () {
+                                final String v = leDate.trim();
+                                if (v.isNotEmpty) return _formatDate(v);
+                                return DateFormat('dd/MM/yyyy').format(DateTime.now());
+                              }(),
+                              style: pw.TextStyle(
+                                font: times,
+                                color: secondaryColor,
+                                fontSize: baseFont,
+                              ),
+                            ),
+                          ],
                         ),
                         pw.SizedBox(height: spacing / 2),
                         pw.Column(
@@ -6449,100 +6490,38 @@ class PdfService {
                   ],
                 ),
                 pw.SizedBox(height: 8),
-                // En-tête avec logo et informations de l'école
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    borderRadius: pw.BorderRadius.circular(12),
-                    border: pw.Border.all(color: light, width: 1),
-                  ),
-                  child: pw.Row(
+                // En-tête centré (logo + nom + adresse + date)
+                pw.Center(
+                  child: pw.Column(
                     children: [
-                      if (schoolInfo.logoPath != null &&
-                          File(schoolInfo.logoPath!).existsSync())
+                      if (schoolInfo.logoPath != null && File(schoolInfo.logoPath!).existsSync())
                         pw.Container(
-                          width: 60,
-                          height: 60,
-                          decoration: pw.BoxDecoration(
-                            color: PdfColors.white,
-                            borderRadius: pw.BorderRadius.circular(8),
-                          ),
+                          height: 46,
+                          width: 46,
+                          margin: const pw.EdgeInsets.only(bottom: 4),
                           child: pw.Image(
-                            pw.MemoryImage(
-                              File(schoolInfo.logoPath!).readAsBytesSync(),
-                            ),
+                            pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
                             fit: pw.BoxFit.contain,
                           ),
                         ),
-                      pw.SizedBox(width: 20),
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              schoolInfo.name,
-                              style: pw.TextStyle(
-                                font: timesBold,
-                                fontSize: 20,
-                                color: primary,
-                              ),
-                            ),
-                            pw.SizedBox(height: 4),
-                            pw.Text(
-                              title,
-                              style: pw.TextStyle(
-                                font: timesBold,
-                                fontSize: 16,
-                                color: primary,
-                              ),
-                            ),
-                            pw.SizedBox(height: 4),
-                            pw.Text(
-                              'Année académique: $academicYear',
-                              style: pw.TextStyle(
-                                font: times,
-                                fontSize: 12,
-                                color: PdfColors.grey600,
-                              ),
-                            ),
-                            pw.Text(
-                              'Généré le: ${DateFormat('dd/MM/yyyy à HH:mm').format(DateTime.now())}',
-                              style: pw.TextStyle(
-                                font: times,
-                                fontSize: 10,
-                                color: PdfColors.grey600,
-                              ),
-                            ),
-                            pw.SizedBox(height: 2),
-                            if ((schoolInfo.email ?? '').isNotEmpty)
-                              pw.Text(
-                                'Email : ${schoolInfo.email}',
-                                style: pw.TextStyle(
-                                  font: times,
-                                  fontSize: 10,
-                                  color: PdfColors.grey700,
-                                ),
-                              ),
-                            if ((schoolInfo.website ?? '').isNotEmpty)
-                              pw.Text(
-                                'Site web : ${schoolInfo.website}',
-                                style: pw.TextStyle(
-                                  font: times,
-                                  fontSize: 10,
-                                  color: PdfColors.grey700,
-                                ),
-                              ),
-                            if ((schoolInfo.telephone ?? '').isNotEmpty)
-                              pw.Text(
-                                'Téléphone : ${schoolInfo.telephone}',
-                                style: pw.TextStyle(
-                                  font: times,
-                                  fontSize: 10,
-                                  color: PdfColors.grey700,
-                                ),
-                              ),
-                          ],
+                      pw.Text(
+                        schoolInfo.name.toUpperCase(),
+                        style: pw.TextStyle(font: timesBold, fontSize: 14, color: primary),
+                      ),
+                      if ((schoolInfo.address).isNotEmpty)
+                        pw.Text(
+                          schoolInfo.address,
+                          style: pw.TextStyle(font: times, fontSize: 9, color: PdfColors.grey700),
                         ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'Année académique: $academicYear  -  Généré le: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+                        style: pw.TextStyle(font: times, fontSize: 9, color: PdfColors.grey700),
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        title,
+                        style: pw.TextStyle(font: timesBold, fontSize: 16, color: primary),
                       ),
                     ],
                   ),

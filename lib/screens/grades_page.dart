@@ -1870,6 +1870,15 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
               mailEtabController.text = prefs.getString('school_email') ?? '';
               webEtabController.text = prefs.getString('school_website') ?? '';
             });
+            // Préremplir Fait à (adresse de l'établissement) et date (aujourd'hui) si vides
+            loadSchoolInfo().then((info) {
+              if (faitAController.text.trim().isEmpty) {
+                faitAController.text = info.address;
+              }
+              if (leDateController.text.trim().isEmpty) {
+                leDateController.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
+              }
+            });
             // Fonction de sauvegarde automatique
             void saveEtabField(String key, String value) async {
               final prefs = await SharedPreferences.getInstance();
@@ -4349,19 +4358,27 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Fait à :',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: mainColor,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                faitAController.text.isNotEmpty
-                                    ? faitAController.text
-                                    : '__________________________',
-                                style: TextStyle(color: secondaryColor),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Fait à : ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: mainColor,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      faitAController.text.isNotEmpty
+                                          ? faitAController.text
+                                          : (info.address.isNotEmpty
+                                              ? info.address
+                                              : '__________________________'),
+                                      style: TextStyle(color: secondaryColor),
+                                      overflow: TextOverflow.visible,
+                                    ),
+                                  ),
+                                ],
                               ),
                               SizedBox(height: 16),
                               Text(
@@ -4388,19 +4405,23 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Le :',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: mainColor,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                leDateController.text.isNotEmpty
-                                    ? leDateController.text
-                                    : '__________________________',
-                                style: TextStyle(color: secondaryColor),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Le : ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: mainColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    leDateController.text.isNotEmpty
+                                        ? leDateController.text
+                                        : DateFormat('dd/MM/yyyy')
+                                            .format(DateTime.now()),
+                                    style: TextStyle(color: secondaryColor),
+                                  ),
+                                ],
                               ),
                               SizedBox(height: 16),
                               Builder(
@@ -4511,8 +4532,11 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             final telEtab = telEtabController.text;
                             final mailEtab = mailEtabController.text;
                             final webEtab = webEtabController.text;
-                            final faitA = faitAController.text;
-                            final leDate = leDateController.text;
+                            // Adresse et date d'export automatiques
+                            final String faitA = (faitAController.text.trim().isNotEmpty)
+                                ? faitAController.text.trim()
+                                : info.address;
+                            final String leDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
                             final currentClass = classes.firstWhere(
                               (c) => c.name == selectedClass,
                               orElse: () => Class.empty(),
@@ -4675,8 +4699,11 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             final telEtab = telEtabController.text;
                             final mailEtab = mailEtabController.text;
                             final webEtab = webEtabController.text;
-                            final faitA = faitAController.text;
-                            final leDate = leDateController.text;
+                            // Adresse et date d'export automatiques
+                            final String faitA = (faitAController.text.trim().isNotEmpty)
+                                ? faitAController.text.trim()
+                                : info.address;
+                            final String leDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
                             final currentClass = classes.firstWhere(
                               (c) => c.name == selectedClass,
                               orElse: () => Class.empty(),
@@ -5214,6 +5241,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                                               as double?),
                                       moyenneAnnuelle:
                                           (data['moyenneAnnuelle'] as double?),
+                                      duplicata: true,
                                     );
                                 await Printing.layoutPdf(
                                   onLayout: (format) async =>
@@ -5745,6 +5773,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
 
       Future<void> upsertGrade({
         required String type,
+        required String label,
         required String valueKey,
         required String coeffKey,
         required String surKey,
@@ -5756,12 +5785,20 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
         }
         final coeff = parseNum(data[coeffKey]) ?? 1.0;
         final sur = parseNum(data[surKey]) ?? 20.0;
-        // check existing
+        // check existing (inclure label pour gérer plusieurs devoirs/compositions)
         final existing = await txn.query(
           'grades',
           where:
-              'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ? AND type = ?',
-          whereArgs: [studentId, className, academicYear, subject, term, type],
+              'studentId = ? AND className = ? AND academicYear = ? AND subject = ? AND term = ? AND type = ? AND label = ?',
+          whereArgs: [
+            studentId,
+            className,
+            academicYear,
+            subject,
+            term,
+            type,
+            label,
+          ],
         );
         final courseRow = subjectRows.firstWhere(
           (r) => r['name'] == subject,
@@ -5775,7 +5812,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
           'subject': subject,
           'term': term,
           'value': val,
-          'label': type,
+          'label': label,
           'maxValue': sur,
           'coefficient': coeff,
           'type': type,
@@ -5792,17 +5829,53 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
         }
       }
 
-      await upsertGrade(
+      // Import Devoir simple + séries Devoir i
+      Future<void> importSeries({
+        required String type,
+        required String baseKey,
+        required String coeffBaseKey,
+        required String surBaseKey,
+      }) async {
+        // Base non numérotée
+        await upsertGrade(
+          type: type,
+          label: type,
+          valueKey: baseKey,
+          coeffKey: coeffBaseKey,
+          surKey: surBaseKey,
+        );
+        // Série 1..10
+        for (int i = 1; i <= 10; i++) {
+          final valueKey = '$type $i [$subject]';
+          final coeffKey = 'Coeff $type $i [$subject]';
+          final surKey = 'Sur $type $i [$subject]';
+          final v = parseNum(data[valueKey]);
+          if (v == null) continue;
+          await upsertGrade(
+            type: type,
+            label: '$type $i',
+            valueKey: valueKey,
+            coeffKey: (data.containsKey(coeffKey) && parseNum(data[coeffKey]) != null)
+                ? coeffKey
+                : coeffBaseKey,
+            surKey: (data.containsKey(surKey) && parseNum(data[surKey]) != null)
+                ? surKey
+                : surBaseKey,
+          );
+        }
+      }
+
+      await importSeries(
         type: 'Devoir',
-        valueKey: devKey,
-        coeffKey: coeffDevKey,
-        surKey: surDevKey,
+        baseKey: devKey,
+        coeffBaseKey: coeffDevKey,
+        surBaseKey: surDevKey,
       );
-      await upsertGrade(
+      await importSeries(
         type: 'Composition',
-        valueKey: compKey,
-        coeffKey: coeffCompKey,
-        surKey: surCompKey,
+        baseKey: compKey,
+        coeffBaseKey: coeffCompKey,
+        surBaseKey: surCompKey,
       );
 
       // Appréciations/prof
@@ -6839,7 +6912,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
 
     final archive = Archive();
 
-    // Validation: somme des coefficients doit être 20
+    // Validation minimale: les coefficients de matières doivent totaliser > 0
     if (studentsInClass.isNotEmpty) {
       final coeffs = await _dbService.getClassSubjectCoefficients(
         selectedClass!,
@@ -6849,11 +6922,11 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
       coeffs.forEach((_, v) {
         sumWeights += v;
       });
-      if ((sumWeights - 20).abs() > 1e-6) {
+      if (sumWeights <= 0) {
         showRootSnackBar(
           SnackBar(
             content: Text(
-              'La somme des coefficients doit être égale à 20 (actuel: ${sumWeights.toStringAsFixed(2)})',
+              'Coefficients de matières invalides (somme ≤ 0). Veuillez les définir pour la classe.',
             ),
             backgroundColor: Colors.red,
           ),
@@ -6924,6 +6997,10 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
       final conduite = rc?['conduite'] as String? ?? '';
       final faitA = rc?['fait_a'] as String? ?? '';
       final leDate = rc?['le_date'] as String? ?? '';
+      final String faitAEff = faitA.trim().isNotEmpty
+          ? faitA.trim()
+          : (data['schoolInfo'].address as String? ?? '');
+      final String leDateEff = DateFormat('dd/MM/yyyy').format(DateTime.now());
 
       // Ensure professor fallback from staff/titulaire if not saved
       for (final subject in subjectNames) {
@@ -6997,8 +7074,8 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
         periodLabel: data['periodLabel'],
         selectedTerm: data['selectedTerm'],
         academicYear: data['academicYear'],
-        faitA: faitA,
-        leDate: leDate,
+        faitA: faitAEff,
+        leDate: leDateEff,
         isLandscape: isLandscape,
         niveau: data['niveau'],
         moyenneGeneraleDeLaClasse: data['moyenneGeneraleDeLaClasse'],

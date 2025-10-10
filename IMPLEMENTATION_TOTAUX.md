@@ -11,11 +11,11 @@ Implémenter une ligne de totaux dans les bulletins PDF qui affiche :
 
 ### 1. Fonction `buildTableForSubjects` (lignes 1677-1807)
 
-**Ajout de la validation des coefficients :**
+**Validation minimale des coefficients :**
 ```dart
 // Ligne de totaux avec validation des coefficients
 if (showTotals) {
-  final bool sumOk = (sumCoefficients - 20).abs() < 1e-6;
+  final bool sumOk = sumCoefficients > 0;
   final PdfColor totalColor = sumOk ? secondaryColor : PdfColors.red;
   
   rows.add(
@@ -65,10 +65,10 @@ if (showTotals) {
 
 ### 2. Fonction `buildGlobalTotals` (lignes 1809-1887)
 
-**Ajout de la validation des coefficients :**
+**Validation minimale des coefficients :**
 ```dart
 // Validation des coefficients pour les totaux globaux
-final bool sumOk = (sumCoefficients - 20).abs() < 1e-6;
+final bool sumOk = sumCoefficients > 0;
 final PdfColor totalColor = sumOk ? secondaryColor : PdfColors.red;
 ```
 
@@ -91,8 +91,8 @@ for (final subject in names) {
 }
 ```
 - **Source** : Coefficients définis au niveau classe ou calculés automatiquement
-- **Validation** : Doit être égal à 20 (système français)
-- **Affichage** : Rouge si ≠ 20, couleur normale si = 20
+- **Validation** : Aucune contrainte; seule la somme > 0 est requise
+- **Affichage** : Couleur normale si somme > 0, rouge si 0
 
 ### 2. Total Points Élève (`sumPointsEleve`)
 ```dart
@@ -150,7 +150,7 @@ for (final subject in names) {
 - **Couleur** : 
   - "TOTAUX" : `mainColor` (bleu principal)
   - Valeurs : `secondaryColor` (bleu-gris)
-  - Coefficients : Rouge si ≠ 20, bleu-gris si = 20
+  - Coefficients : Bleu-gris si somme > 0, rouge si 0
 - **Taille** : `fontSize: 9`
 
 ## ✅ Validation et Tests
@@ -159,7 +159,7 @@ for (final subject in names) {
 Le fichier `test_totaux_bulletin.dart` contient un test complet qui :
 1. **Calcule manuellement** les totaux pour vérification
 2. **Génère un PDF** avec des données de test
-3. **Valide les coefficients** (doivent totaliser 20)
+3. **Valide les coefficients** (somme > 0)
 4. **Vérifie les calculs** de moyennes et points
 
 ### Exécution du Test
@@ -179,7 +179,7 @@ Total Coefficients: 20.00
 Total Points Élève: 105.00
 Total Points Classe: 26.70
 Moyenne Générale: 14.25
-Validation Coefficients: ✅ OK (attendu: 20.00, obtenu: 20.00)
+Validation Coefficients: ✅ Somme > 0 (20.00)
 ```
 
 ## 🔄 Cohérence avec l'Aperçu
@@ -199,8 +199,8 @@ Les totaux apparaissent automatiquement dans tous les bulletins PDF :
 
 ## 📝 Notes Importantes
 
-1. **Coefficients** : Le système s'attend à ce que la somme = 20
-2. **Validation visuelle** : Les coefficients incorrects apparaissent en rouge
+1. **Coefficients** : Aucune somme imposée; la moyenne générale utilise la somme réelle des pondérations
+2. **Validation visuelle** : Rouge uniquement si somme = 0
 3. **Calculs en temps réel** : Les totaux sont recalculés à chaque modification
 4. **Formatage uniforme** : Toutes les valeurs avec 2 décimales
 5. **Gestion d'erreurs** : Affichage de '0' pour les valeurs nulles ou négatives

@@ -248,10 +248,10 @@ void main() async {
     'Moyenne Générale: ${(sumPointsEleve / sumCoefficients).toStringAsFixed(2)}',
   );
 
-  // Validation des coefficients
-  final bool sumOk = (sumCoefficients - 20).abs() < 1e-6;
+  // Validation minimale des coefficients (aucune contrainte de somme = 20)
+  final bool sumOk = sumCoefficients > 0;
   print(
-    'Validation Coefficients: ${sumOk ? "✅ OK" : "❌ ERREUR"} (attendu: 20.00, obtenu: ${sumCoefficients.toStringAsFixed(2)})',
+    'Validation Coefficients: ${sumOk ? "✅ Somme > 0" : "❌ Somme ≤ 0"} (somme: ${sumCoefficients.toStringAsFixed(2)})',
   );
 
   print('\n📄 Génération du PDF de test...');

@@ -43,6 +43,12 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
   String _year = '';
   double _totalPayments = 0.0;
   double _totalExpenses = 0.0;
+  double _expectedTotal = 0.0;
+  double _remainingTotal = 0.0;
+  // Per-class finance summary (for selected year + current filters)
+  List<_ClassFinance> _perClassFinance = [];
+  String _classSearchQuery = '';
+  String _classSortKey = 'classe'; // 'classe' | 'reste' | 'solde' | 'encaissements' | 'depenses' | 'attendu'
   List<InventoryItem> _inventoryItems = [];
   // Expenses state
   List<Expense> _expenses = [];
@@ -181,7 +187,12 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     if (bytes != null) {
       final file = File('$directory/$fileName');
       await file.writeAsBytes(bytes);
-      OpenFile.open(file.path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Excel exporté: $fileName')),
+        );
+      }
+      await OpenFile.open(file.path);
     }
   }
 
@@ -202,6 +213,19 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     final total = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
     final depTotal = expenses.fold<double>(0.0, (sum, e) => sum + e.amount);
     final now = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+    // Expected & remaining global
+    final classes = await _db.getClasses();
+    double expectedTotal = 0.0;
+    for (final c in classes.where((c) => c.academicYear == selectedYear)) {
+      if (_selectedClassFilter != null && _selectedClassFilter!.isNotEmpty) {
+        if (c.name != _selectedClassFilter) continue;
+      }
+      final double unitFee = (c.fraisEcole ?? 0) + (c.fraisCotisationParallele ?? 0);
+      if (unitFee <= 0) continue;
+      final students = await _db.getStudentsByClassAndClassYear(c.name, selectedYear);
+      expectedTotal += unitFee * (students.length);
+    }
+    final remainingTotal = (expectedTotal - total) < 0 ? 0 : (expectedTotal - total);
     // Student names for display
     final students = await _db.getStudents();
     final Map<String, String> studentNames = {
@@ -219,12 +243,6 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         footer: (context) {
-          final parts = <String>[];
-          if ((schoolInfo?.ministry ?? '').isNotEmpty) parts.add((schoolInfo!.ministry!).toUpperCase());
-          if ((schoolInfo?.republic ?? '').isNotEmpty) parts.add((schoolInfo!.republic!).toUpperCase());
-          if ((schoolInfo?.inspection ?? '').isNotEmpty) parts.add('Inspection: ${schoolInfo!.inspection!}');
-          if ((schoolInfo?.educationDirection ?? '').isNotEmpty) parts.add("Direction: ${schoolInfo!.educationDirection!}");
-          final infoText = parts.join(' - ');
           return pw.Container(
             padding: const pw.EdgeInsets.only(top: 6),
             decoration: pw.BoxDecoration(
@@ -240,11 +258,6 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                     pw.Text('Page ${context.pageNumber} / ${context.pagesCount}', style: pw.TextStyle(font: times, fontSize: 9, color: PdfColors.grey700)),
                   ],
                 ),
-                if (infoText.isNotEmpty)
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.only(top: 2),
-                    child: pw.Text(infoText, style: pw.TextStyle(font: times, fontSize: 8, color: PdfColors.grey600)),
-                  ),
               ],
             ),
           );
@@ -268,56 +281,65 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Header with logo and school info
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(16),
-                  decoration: pw.BoxDecoration(
-                    color: light,
-                    borderRadius: pw.BorderRadius.circular(8),
-                    border: pw.Border.all(color: accent, width: 1),
-                  ),
-                  child: pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                // Bandeau administratif léger
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          if ((schoolInfo?.ministry ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.ministry!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                          if ((schoolInfo?.educationDirection ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.educationDirection!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                          if ((schoolInfo?.inspection ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.inspection!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                        ],
+                      ),
+                    ),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          if ((schoolInfo?.republic ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.republic!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                          if ((schoolInfo?.republicMotto ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.republicMotto!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8, fontStyle: pw.FontStyle.italic)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 6),
+                // Header centré (logo + nom)
+                pw.Center(
+                  child: pw.Column(
                     children: [
                       if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.only(right: 16),
+                        pw.Container(
+                          height: 46,
+                          width: 46,
+                          margin: const pw.EdgeInsets.only(bottom: 4),
                           child: pw.Image(
                             pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
-                            width: 60,
-                            height: 60,
+                            fit: pw.BoxFit.contain,
                           ),
                         ),
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              schoolInfo?.name ?? 'Établissement',
-                              style: pw.TextStyle(font: timesBold, fontSize: 16, color: accent),
-                            ),
-                            if ((schoolInfo?.address ?? '').isNotEmpty)
-                              pw.Text(
-                                schoolInfo!.address,
-                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
-                              ),
-                            if ((schoolInfo?.email ?? '').isNotEmpty)
-                              pw.Text(
-                                'Email : ${schoolInfo!.email}',
-                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
-                              ),
-                            if ((schoolInfo?.telephone ?? '').isNotEmpty)
-                              pw.Text(
-                                'Téléphone : ${schoolInfo!.telephone}',
-                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
-                              ),
-                            pw.SizedBox(height: 4),
-                            pw.Text(
-                              'Année académique: $selectedYear  -  Généré le: $now',
-                              style: pw.TextStyle(font: times, fontSize: 10, color: primary),
-                            ),
-                          ],
+                      pw.Text(
+                        (schoolInfo?.name ?? 'Établissement').toUpperCase(),
+                        style: pw.TextStyle(font: timesBold, fontSize: 14),
+                      ),
+                      if ((schoolInfo?.address ?? '').isNotEmpty)
+                        pw.Text(
+                          schoolInfo!.address,
+                          style: pw.TextStyle(font: times, fontSize: 9, color: primary),
                         ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'Année académique: $selectedYear  -  Généré le: $now',
+                        style: pw.TextStyle(font: times, fontSize: 9, color: primary),
                       ),
                     ],
                   ),
@@ -356,6 +378,19 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                         pw.Text(
                           formatter.format(total - depTotal),
                           style: pw.TextStyle(font: timesBold, fontSize: 12, color: (total - depTotal) >= 0 ? PdfColors.green800 : PdfColors.red800),
+                        ),
+                      ]),
+                      pw.Column(children: [
+                        pw.Text('Attendu', style: pw.TextStyle(font: times, fontSize: 10, color: primary)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(formatter.format(expectedTotal), style: pw.TextStyle(font: timesBold, fontSize: 12)),
+                      ]),
+                      pw.Column(children: [
+                        pw.Text('Reste', style: pw.TextStyle(font: times, fontSize: 10, color: primary)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          formatter.format(remainingTotal),
+                          style: pw.TextStyle(font: timesBold, fontSize: 12, color: remainingTotal > 0 ? PdfColors.orange800 : PdfColors.green800),
                         ),
                       ]),
                     ],
@@ -472,6 +507,44 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                     ),
                   ]),
                 ],
+              ),
+              pw.SizedBox(height: 14),
+              // Signature & cachet
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Row(children: [
+                          pw.Text('Fait à : ', style: pw.TextStyle(font: timesBold, fontSize: 10, color: primary)),
+                          pw.Text((schoolInfo?.address ?? '').isNotEmpty ? schoolInfo!.address : '__________________________', style: pw.TextStyle(font: times, fontSize: 10)),
+                        ]),
+                        pw.SizedBox(height: 2),
+                        pw.Row(children: [
+                          pw.Text('Le : ', style: pw.TextStyle(font: timesBold, fontSize: 10, color: primary)),
+                          pw.Text(DateFormat('dd/MM/yyyy').format(DateTime.now()), style: pw.TextStyle(font: times, fontSize: 10)),
+                        ]),
+                        pw.SizedBox(height: 18),
+                        pw.Text('Signature du responsable', style: pw.TextStyle(font: times, fontSize: 10)),
+                        pw.SizedBox(height: 28),
+                        pw.Container(width: 160, height: 0.8, color: PdfColors.grey400),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(width: 24),
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text("Cachet et signature de l'établissement", style: pw.TextStyle(font: times, fontSize: 10)),
+                        pw.SizedBox(height: 56),
+                        pw.Container(width: 200, height: 0.8, color: PdfColors.grey400),
+                      ],
+                    ),
+                  ),
+                ],
               )
             ],
             )
@@ -482,7 +555,12 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     final fileName = 'finances_${(_selectedYearFilter ?? _year).replaceAll('/', '_')}.pdf';
     final file = File('$directory/$fileName');
     await file.writeAsBytes(await pdf.save());
-    OpenFile.open(file.path);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF exporté: $fileName')),
+      );
+    }
+    await OpenFile.open(file.path);
   }
 
   Future<void> _exportInventoryToExcel() async {
@@ -559,12 +637,6 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         footer: (context) {
-          final parts = <String>[];
-          if ((schoolInfo?.ministry ?? '').isNotEmpty) parts.add((schoolInfo!.ministry!).toUpperCase());
-          if ((schoolInfo?.republic ?? '').isNotEmpty) parts.add((schoolInfo!.republic!).toUpperCase());
-          if ((schoolInfo?.inspection ?? '').isNotEmpty) parts.add('Inspection: ${schoolInfo!.inspection!}');
-          if ((schoolInfo?.educationDirection ?? '').isNotEmpty) parts.add("Direction: ${schoolInfo!.educationDirection!}");
-          final infoText = parts.join(' - ');
           return pw.Container(
             padding: const pw.EdgeInsets.only(top: 6),
             decoration: pw.BoxDecoration(
@@ -580,11 +652,6 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                     pw.Text('Page ${context.pageNumber} / ${context.pagesCount}', style: pw.TextStyle(font: times, fontSize: 9, color: PdfColors.grey700)),
                   ],
                 ),
-                if (infoText.isNotEmpty)
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.only(top: 2),
-                    child: pw.Text(infoText, style: pw.TextStyle(font: times, fontSize: 8, color: PdfColors.grey600)),
-                  ),
               ],
             ),
           );
@@ -607,54 +674,66 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Header with logo and info
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(16),
-                  decoration: pw.BoxDecoration(
-                    color: light,
-                    borderRadius: pw.BorderRadius.circular(8),
-                    border: pw.Border.all(color: accent, width: 1),
-                  ),
-                  child: pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.only(right: 16),
-                          child: pw.Image(
-                            pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
-                            width: 60,
-                            height: 60,
-                          ),
-                        ),
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              schoolInfo?.name ?? 'Établissement',
-                              style: pw.TextStyle(font: timesBold, fontSize: 16, color: accent),
-                            ),
-                            if ((schoolInfo?.address ?? '').isNotEmpty)
-                              pw.Text(
-                                schoolInfo!.address,
-                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
-                              ),
-                            if ((schoolInfo?.email ?? '').isNotEmpty)
-                              pw.Text(
-                                'Email : ${schoolInfo!.email}',
-                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
-                              ),
-                            if ((schoolInfo?.telephone ?? '').isNotEmpty)
-                              pw.Text(
-                                'Téléphone : ${schoolInfo!.telephone}',
-                                style: pw.TextStyle(font: times, fontSize: 10, color: primary),
-                              ),
-                          ],
+                // Bandeau administratif (ministère / direction / inspection) & (république / devise)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          if ((schoolInfo?.ministry ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.ministry!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                          if ((schoolInfo?.educationDirection ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.educationDirection!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                          if ((schoolInfo?.inspection ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.inspection!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                        ],
+                      ),
+                    ),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          if ((schoolInfo?.republic ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.republic!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                          if ((schoolInfo?.republicMotto ?? '').isNotEmpty)
+                            pw.Text((schoolInfo!.republicMotto!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8, fontStyle: pw.FontStyle.italic)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 6),
+                // En-tête centré (logo + nom + adresse + date)
+                pw.Center(
+                  child: pw.Column(children: [
+                    if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+                      pw.Container(
+                        height: 46,
+                        width: 46,
+                        margin: const pw.EdgeInsets.only(bottom: 4),
+                        child: pw.Image(
+                          pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
+                          fit: pw.BoxFit.contain,
                         ),
                       ),
-                    ],
-                  ),
+                    pw.Text(
+                      (schoolInfo?.name ?? 'Établissement').toUpperCase(),
+                      style: pw.TextStyle(font: timesBold, fontSize: 14),
+                    ),
+                    if ((schoolInfo?.address ?? '').isNotEmpty)
+                      pw.Text(
+                        schoolInfo!.address,
+                        style: pw.TextStyle(font: times, fontSize: 9, color: primary),
+                      ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      'Année académique: ${_selectedYearFilter ?? _year}  -  Généré le: ' + DateFormat('dd/MM/yyyy').format(DateTime.now()),
+                      style: pw.TextStyle(font: times, fontSize: 9, color: primary),
+                    ),
+                  ]),
                 ),
                 pw.SizedBox(height: 12),
                 // Title bar
@@ -751,6 +830,44 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                       ]),
                     ],
                 ),
+                pw.SizedBox(height: 14),
+                // Signature & cachet
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Row(children: [
+                            pw.Text('Fait à : ', style: pw.TextStyle(font: timesBold, fontSize: 10, color: primary)),
+                            pw.Text((schoolInfo?.address ?? '').isNotEmpty ? schoolInfo!.address : '__________________________', style: pw.TextStyle(font: times, fontSize: 10)),
+                          ]),
+                          pw.SizedBox(height: 2),
+                          pw.Row(children: [
+                            pw.Text('Le : ', style: pw.TextStyle(font: timesBold, fontSize: 10, color: primary)),
+                            pw.Text(DateFormat('dd/MM/yyyy').format(DateTime.now()), style: pw.TextStyle(font: times, fontSize: 10)),
+                          ]),
+                          pw.SizedBox(height: 18),
+                          pw.Text('Signature du responsable', style: pw.TextStyle(font: times, fontSize: 10)),
+                          pw.SizedBox(height: 28),
+                          pw.Container(width: 160, height: 0.8, color: PdfColors.grey400),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(width: 24),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text("Cachet et signature de l'établissement", style: pw.TextStyle(font: times, fontSize: 10)),
+                          pw.SizedBox(height: 56),
+                          pw.Container(width: 200, height: 0.8, color: PdfColors.grey400),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
             ],
             )
           ])];
@@ -760,7 +877,12 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     final fileName = 'inventaire_${(_selectedYearFilter ?? _year).replaceAll('/', '_')}.pdf';
     final file = File('$directory/$fileName');
     await file.writeAsBytes(await pdf.save());
-    OpenFile.open(file.path);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF exporté: $fileName')),
+      );
+    }
+    await OpenFile.open(file.path);
   }
 
   Future<void> _openInventoryFiltersDialog() async {
@@ -880,6 +1002,7 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
 
     final selectedYear = _selectedYearFilter ?? currentYear;
     double sum = 0.0;
+    final Map<String, double> payByClass = {};
     for (final Payment p in payments) {
       if (p.classAcademicYear != selectedYear) continue;
       if (_selectedClassFilter != null && _selectedClassFilter!.isNotEmpty) {
@@ -890,12 +1013,50 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
         if (st == null || st.gender != _selectedGenderFilter) continue;
       }
       sum += p.amount;
+      payByClass[p.className] = (payByClass[p.className] ?? 0) + p.amount;
     }
     // Compute expenses total for selected filters
     final expensesTotal = await _db.getTotalExpenses(
       className: _selectedClassFilter,
       academicYear: selectedYear,
     );
+    // Build per-class expenses map using same filters (but grouped by class)
+    final allExpenses = await _db.getExpenses(
+      academicYear: selectedYear,
+      category: _selectedExpenseCategory,
+      supplier: _selectedExpenseSupplier,
+    );
+    final Map<String, double> depByClass = {};
+    for (final e in allExpenses) {
+      final cls = (e.className ?? '').trim();
+      if (_selectedClassFilter != null && _selectedClassFilter!.isNotEmpty) {
+        if (cls != _selectedClassFilter) continue;
+      }
+      depByClass[cls] = (depByClass[cls] ?? 0) + e.amount;
+    }
+    // Compute expected amount per class = (fraisEcole + fraisCotisationParallele) * nb élèves de la classe (année sélectionnée)
+    final Map<String, double> expectedByClass = {};
+    final Map<String, int> countByClass = {};
+    final Map<String, double> unitFeeByClass = {};
+    double expectedTotal = 0.0;
+    for (final c in classes.where((c) => c.academicYear == selectedYear)) {
+      if (_selectedClassFilter != null && _selectedClassFilter!.isNotEmpty) {
+        if (c.name != _selectedClassFilter) continue;
+      }
+      final double unitFee = (c.fraisEcole ?? 0) + (c.fraisCotisationParallele ?? 0);
+      if (unitFee <= 0) {
+        expectedByClass[c.name] = 0.0;
+        countByClass[c.name] = 0;
+        unitFeeByClass[c.name] = unitFee;
+        continue;
+      }
+      final students = await _db.getStudentsByClassAndClassYear(c.name, selectedYear);
+      final double exp = unitFee * (students.length);
+      expectedByClass[c.name] = exp;
+      countByClass[c.name] = students.length;
+      unitFeeByClass[c.name] = unitFee;
+      expectedTotal += exp;
+    }
     if (!mounted) return;
     setState(() {
       _classes = classes.where((c) => c.academicYear == selectedYear).toList();
@@ -904,6 +1065,21 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
       _year = selectedYear;
       _totalPayments = sum;
       _totalExpenses = expensesTotal;
+      // Compose per-class list (for all classes of the selected year)
+      _perClassFinance = _classes
+          .map((c) {
+            final pay = payByClass[c.name] ?? 0.0;
+            final dep = depByClass[c.name] ?? 0.0;
+            final exp = expectedByClass[c.name] ?? 0.0;
+            final cnt = countByClass[c.name] ?? 0;
+            final uf = unitFeeByClass[c.name] ?? 0.0;
+            return _ClassFinance(className: c.name, payments: pay, expenses: dep, expected: exp, count: cnt, unitFee: uf);
+          })
+          .toList()
+        ..sort((a, b) => a.className.compareTo(b.className));
+      _expectedTotal = expectedTotal;
+      final paidTotal = sum;
+      _remainingTotal = (expectedTotal - paidTotal).clamp(0, 1e15);
       _loading = false;
     });
     // Load inventory items after updating filters
@@ -1469,9 +1645,596 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.shadowColor.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: theme.dividerColor.withOpacity(0.6)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(child: _infoCard(context,
+                      title: 'Montant attendu (' + (_year.isEmpty ? '-' : _year) + ')',
+                      value: _loading ? '...' : _formatCurrency(_expectedTotal),
+                      color: const Color(0xFF0EA5E9))),
+                  const SizedBox(width: 12),
+                  Expanded(child: _infoCard(context,
+                      title: 'Reste à payer',
+                      value: _loading ? '...' : _formatCurrency(_remainingTotal),
+                      color: const Color(0xFFF59E0B))),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildPerClassSection(context),
           const SizedBox(height: 16),
           _buildExpensesCard(context),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPerClassSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDesktop = MediaQuery.of(context).size.width > 900;
+    return Card(
+      color: theme.cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Par classe (${_year.isEmpty ? '-' : _year})',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(children: [
+                  SizedBox(
+                    width: 200,
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        prefixIcon: Icon(Icons.search, size: 18),
+                        hintText: 'Rechercher une classe...',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) => setState(() => _classSearchQuery = v.trim()),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  DropdownButton<String>(
+                    value: _classSortKey,
+                    items: const [
+                      DropdownMenuItem(value: 'classe', child: Text('Tri: Classe')),
+                      DropdownMenuItem(value: 'reste', child: Text('Tri: Reste')),
+                      DropdownMenuItem(value: 'solde', child: Text('Tri: Solde net')),
+                      DropdownMenuItem(value: 'encaissements', child: Text('Tri: Encaissements')),
+                      DropdownMenuItem(value: 'depenses', child: Text('Tri: Dépenses')),
+                      DropdownMenuItem(value: 'attendu', child: Text('Tri: Attendu')),
+                    ],
+                    onChanged: (v) => setState(() => _classSortKey = v ?? 'classe'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _exportPerClassToPdf,
+                    icon: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 18),
+                    label: const Text('Exporter PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _exportPerClassToExcel,
+                    icon: const Icon(Icons.grid_on, color: Colors.white, size: 18),
+                    label: const Text('Exporter Excel'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (isDesktop)
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: _filteredSortedPerClass().isEmpty
+                    ? [Text('Aucune donnée pour cette année.', style: theme.textTheme.bodyMedium)]
+                    : _filteredSortedPerClass().map((s) => _classFinanceCard(context, s)).toList(),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('Classe')),
+                    DataColumn(label: Text('Encaissements')),
+                    DataColumn(label: Text('Dépenses')),
+                    DataColumn(label: Text('Solde net')),
+                    DataColumn(label: Text('Effectif')),
+                    DataColumn(label: Text('Frais unit.')),
+                    DataColumn(label: Text('Attendu')),
+                    DataColumn(label: Text('Reste')),
+                  ],
+                  rows: _filteredSortedPerClass()
+                      .map(
+                        (s) => DataRow(
+                          cells: [
+                            DataCell(Text(s.className)),
+                            DataCell(Text(_formatCurrency(s.payments))),
+                            DataCell(Text(_formatCurrency(s.expenses))),
+                            DataCell(Text(
+                              _formatCurrency(s.net),
+                              style: TextStyle(
+                                color: s.net >= 0 ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )),
+                            DataCell(Text(s.count.toString())),
+                            DataCell(Text(_formatCurrency(s.unitFee))),
+                            DataCell(Text(_formatCurrency(s.expected))),
+                            DataCell(Text(_formatCurrency(s.remaining))),
+                          ],
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<_ClassFinance> _filteredSortedPerClass() {
+    var list = _perClassFinance;
+    if (_classSearchQuery.isNotEmpty) {
+      final q = _classSearchQuery.toLowerCase();
+      list = list.where((e) => e.className.toLowerCase().contains(q)).toList();
+    }
+    int cmp(double a, double b) => b.compareTo(a); // desc by default for numeric
+    switch (_classSortKey) {
+      case 'reste':
+        list.sort((a, b) => cmp(a.remaining, b.remaining));
+        break;
+      case 'solde':
+        list.sort((a, b) => cmp(a.net, b.net));
+        break;
+      case 'encaissements':
+        list.sort((a, b) => cmp(a.payments, b.payments));
+        break;
+      case 'depenses':
+        list.sort((a, b) => cmp(a.expenses, b.expenses));
+        break;
+      case 'attendu':
+        list.sort((a, b) => cmp(a.expected, b.expected));
+        break;
+      case 'classe':
+      default:
+        list.sort((a, b) => a.className.compareTo(b.className));
+    }
+    return list;
+  }
+
+  Future<void> _exportPerClassToPdf() async {
+    final selectedYear = _selectedYearFilter ?? await getCurrentAcademicYear();
+    String? directory = await FilePicker.platform.getDirectoryPath();
+    if (directory == null) return;
+    final pdf = pw.Document();
+    final title = 'Récapitulatif par classe - Année ${selectedYear}';
+    final formatter = NumberFormat('#,##0 FCFA', 'fr_FR');
+    final schoolInfo = await _db.getSchoolInfo();
+    final times = await pw.Font.times();
+    final timesBold = await pw.Font.timesBold();
+    final primary = PdfColor.fromHex('#1F2937');
+    final accent = PdfColor.fromHex('#2563EB');
+    final list = _filteredSortedPerClass();
+    double tPay = 0, tDep = 0, tNet = 0, tExp = 0, tRem = 0; int tCnt = 0;
+    for (final s in list) {
+      tPay += s.payments;
+      tDep += s.expenses;
+      tNet += s.net;
+      tExp += s.expected;
+      tRem += s.remaining;
+      tCnt += s.count;
+    }
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (ctx) {
+          return [
+            pw.Stack(children: [
+              if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+                pw.Positioned.fill(
+                  child: pw.Center(
+                    child: pw.Opacity(
+                      opacity: 0.06,
+                      child: pw.Image(
+                        pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
+                        width: 400,
+                      ),
+                    ),
+                  ),
+                ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Bandeau administratif léger
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            if ((schoolInfo?.ministry ?? '').isNotEmpty)
+                              pw.Text((schoolInfo!.ministry!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                            if ((schoolInfo?.educationDirection ?? '').isNotEmpty)
+                              pw.Text((schoolInfo!.educationDirection!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                            if ((schoolInfo?.inspection ?? '').isNotEmpty)
+                              pw.Text((schoolInfo!.inspection!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                          ],
+                        ),
+                      ),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            if ((schoolInfo?.republic ?? '').isNotEmpty)
+                              pw.Text((schoolInfo!.republic!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8)),
+                            if ((schoolInfo?.republicMotto ?? '').isNotEmpty)
+                              pw.Text((schoolInfo!.republicMotto!).toUpperCase(), style: pw.TextStyle(font: times, fontSize: 8, fontStyle: pw.FontStyle.italic)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 6),
+                  // Titre centré avec logo au-dessus
+                  pw.Center(
+                    child: pw.Column(
+                      children: [
+                        if (schoolInfo?.logoPath != null && File(schoolInfo!.logoPath!).existsSync())
+                          pw.Container(
+                            height: 46,
+                            width: 46,
+                            margin: const pw.EdgeInsets.only(bottom: 4),
+                            child: pw.Image(
+                              pw.MemoryImage(File(schoolInfo.logoPath!).readAsBytesSync()),
+                              fit: pw.BoxFit.contain,
+                            ),
+                          ),
+                        pw.Text(
+                          (schoolInfo?.name ?? 'Établissement').toUpperCase(),
+                          style: pw.TextStyle(font: timesBold, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: pw.BoxDecoration(color: accent, borderRadius: pw.BorderRadius.circular(6)),
+                    child: pw.Text(title, style: pw.TextStyle(font: timesBold, fontSize: 14, color: PdfColors.white)),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Table.fromTextArray(
+                    headers: ['Classe', 'Encaissements', 'Dépenses', 'Solde net', 'Effectif', 'Frais unit.', 'Attendu', 'Reste'],
+                    data: list.map((s) => [
+                      s.className,
+                      formatter.format(s.payments),
+                      formatter.format(s.expenses),
+                      formatter.format(s.net),
+                      s.count.toString(),
+                      formatter.format(s.unitFee),
+                      formatter.format(s.expected),
+                      formatter.format(s.remaining),
+                    ]).toList(),
+                    headerStyle: pw.TextStyle(font: timesBold, fontSize: 10),
+                    cellStyle: pw.TextStyle(font: times, fontSize: 9),
+                    headerDecoration: const pw.BoxDecoration(color: PdfColors.blue50),
+                    border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                    cellAlignment: pw.Alignment.centerLeft,
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Align(
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.grey100,
+                        borderRadius: pw.BorderRadius.circular(6),
+                      ),
+                      child: pw.Text(
+                        'Totaux - Enc.: ${formatter.format(tPay)}   Dép.: ${formatter.format(tDep)}   Solde: ${formatter.format(tNet)}   Effectif: ${tCnt}   Attendu: ${formatter.format(tExp)}   Reste: ${formatter.format(tRem)}',
+                        style: pw.TextStyle(font: timesBold, fontSize: 10),
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(height: 14),
+                  // Signature & cachet
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Row(children: [
+                              pw.Text('Fait à : ', style: pw.TextStyle(font: timesBold, fontSize: 10, color: primary)),
+                              pw.Text((schoolInfo?.address ?? '').isNotEmpty ? schoolInfo!.address : '__________________________', style: pw.TextStyle(font: times, fontSize: 10)),
+                            ]),
+                            pw.SizedBox(height: 2),
+                            pw.Row(children: [
+                              pw.Text('Le : ', style: pw.TextStyle(font: timesBold, fontSize: 10, color: primary)),
+                              pw.Text(DateFormat('dd/MM/yyyy').format(DateTime.now()), style: pw.TextStyle(font: times, fontSize: 10)),
+                            ]),
+                            pw.SizedBox(height: 18),
+                            pw.Text('Signature du responsable', style: pw.TextStyle(font: times, fontSize: 10)),
+                            pw.SizedBox(height: 28),
+                            pw.Container(width: 160, height: 0.8, color: PdfColors.grey400),
+                          ],
+                        ),
+                      ),
+                      pw.SizedBox(width: 24),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text("Cachet et signature de l'établissement", style: pw.TextStyle(font: times, fontSize: 10)),
+                            pw.SizedBox(height: 56),
+                            pw.Container(width: 200, height: 0.8, color: PdfColors.grey400),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ]),
+          ];
+        },
+      ),
+    );
+    final fileName = 'finances_par_classe_${selectedYear.replaceAll('/', '_')}.pdf';
+    final file = File('$directory/$fileName');
+    await file.writeAsBytes(await pdf.save());
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF exporté: $fileName')),
+      );
+    }
+    await OpenFile.open(file.path);
+  }
+
+  Future<void> _exportPerClassToExcel() async {
+    final selectedYear = _selectedYearFilter ?? await getCurrentAcademicYear();
+    String? directory = await FilePicker.platform.getDirectoryPath();
+    if (directory == null) return;
+    final excel = Excel.createExcel();
+    final sheet = excel['ParClasse'];
+    sheet.appendRow([
+      TextCellValue('Classe'),
+      TextCellValue('Encaissements'),
+      TextCellValue('Dépenses'),
+      TextCellValue('Solde net'),
+      TextCellValue('Effectif'),
+      TextCellValue('Frais unitaire'),
+      TextCellValue('Attendu'),
+      TextCellValue('Reste'),
+    ]);
+    double tPay = 0, tDep = 0, tNet = 0, tExp = 0, tRem = 0; int tCnt = 0;
+    for (final s in _filteredSortedPerClass()) {
+      tPay += s.payments;
+      tDep += s.expenses;
+      tNet += s.net;
+      tExp += s.expected;
+      tRem += s.remaining;
+      tCnt += s.count;
+      sheet.appendRow([
+        TextCellValue(s.className),
+        DoubleCellValue(s.payments),
+        DoubleCellValue(s.expenses),
+        DoubleCellValue(s.net),
+        IntCellValue(s.count),
+        DoubleCellValue(s.unitFee),
+        DoubleCellValue(s.expected),
+        DoubleCellValue(s.remaining),
+      ]);
+    }
+    sheet.appendRow([
+      TextCellValue('TOTALS'),
+      DoubleCellValue(tPay),
+      DoubleCellValue(tDep),
+      DoubleCellValue(tNet),
+      IntCellValue(tCnt),
+      TextCellValue(''),
+      DoubleCellValue(tExp),
+      DoubleCellValue(tRem),
+    ]);
+    final fileName = 'finances_par_classe_${selectedYear.replaceAll('/', '_')}.xlsx';
+    final bytes = excel.encode();
+    if (bytes != null) {
+      final file = File('$directory/$fileName');
+      await file.writeAsBytes(bytes);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Excel exporté: $fileName')),
+        );
+      }
+      await OpenFile.open(file.path);
+    }
+  }
+
+  Widget _classFinanceCard(BuildContext context, _ClassFinance s) {
+    final theme = Theme.of(context);
+    return Container(
+      width: 280,
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.6)),
+        boxShadow: [
+          BoxShadow(color: theme.shadowColor.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    s.className,
+                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (s.net >= 0 ? const Color(0xFFECFDF5) : const Color(0xFFFEE2E2)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    s.net >= 0 ? 'Positif' : 'Négatif',
+                    style: TextStyle(
+                      color: s.net >= 0 ? const Color(0xFF065F46) : const Color(0xFF7F1D1D),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.arrow_downward_rounded, color: const Color(0xFF10B981), size: 18),
+                const SizedBox(width: 6),
+                Text('Encaissements:', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 6),
+                Text(
+                  _formatCurrency(s.payments),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.arrow_upward_rounded, color: const Color(0xFFEF4444), size: 18),
+                const SizedBox(width: 6),
+                Text('Dépenses:', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 6),
+                Text(
+                  _formatCurrency(s.expenses),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.account_balance_wallet_outlined, color: const Color(0xFF3B82F6), size: 18),
+                const SizedBox(width: 6),
+                Text('Solde net:', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 6),
+                Text(
+                  _formatCurrency(s.net),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: s.net >= 0 ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.people_alt_outlined, color: const Color(0xFF64748B), size: 18),
+                const SizedBox(width: 6),
+                Text('Effectif:', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 6),
+                Text(
+                  s.count.toString(),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.attach_money, color: const Color(0xFF64748B), size: 18),
+                const SizedBox(width: 6),
+                Text('Frais unit.:', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 6),
+                Text(
+                  _formatCurrency(s.unitFee),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.assignment_turned_in_outlined, color: const Color(0xFF0EA5E9), size: 18),
+                const SizedBox(width: 6),
+                Text('Attendu:', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 6),
+                Text(
+                  _formatCurrency(s.expected),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.pending_actions_outlined, color: const Color(0xFFF59E0B), size: 18),
+                const SizedBox(width: 6),
+                Text('Reste:', style: theme.textTheme.bodySmall),
+                const SizedBox(width: 6),
+                Text(
+                  _formatCurrency(s.remaining),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800,
+                      color: s.remaining > 0 ? const Color(0xFFF59E0B) : theme.textTheme.bodyMedium?.color),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2391,4 +3154,23 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
   String _formatCurrency(double v) {
     return '${v.toStringAsFixed(0)} FCFA';
   }
+}
+
+class _ClassFinance {
+  final String className;
+  final double payments;
+  final double expenses;
+  final double expected;
+  final int count;
+  final double unitFee;
+  const _ClassFinance({
+    required this.className,
+    required this.payments,
+    required this.expenses,
+    required this.expected,
+    required this.count,
+    required this.unitFee,
+  });
+  double get net => payments - expenses;
+  double get remaining => (expected - payments) < 0 ? 0 : (expected - payments);
 }
