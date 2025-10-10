@@ -115,6 +115,13 @@ class SchedulingService {
       academicYear: computedYear,
     );
 
+    // Busy map for teachers across all classes to avoid same-hour clashes
+    final Map<String, Set<String>> teacherBusyAll = {};
+    final allEntriesForBusy = await db.getTimetableEntries();
+    for (final e in allEntriesForBusy) {
+      teacherBusyAll.putIfAbsent(e.teacher, () => <String>{}).add('${e.dayOfWeek}|${e.startTime}');
+    }
+
     final Map<String, int> classDailyCount = {};
     final Map<String, Map<String, int>> classSubjectDaily = {};
     for (final e in current) {
@@ -165,7 +172,7 @@ class SchedulingService {
       );
     }
 
-    // Determine target weekly sessions per subject
+    // Determine target weekly sessions per subject (weighted by coefficients)
     bool isOptional(Course c) => (c.categoryId ?? '').toLowerCase() == 'optional';
     bool isEPS(String name) {
       final s = name.toLowerCase();
@@ -174,14 +181,28 @@ class SchedulingService {
     final Map<String, int> targetSessions = {};
     final Map<String, int> optionalMinutes = {}; // subject -> minutes placed
     const int optionalMaxMinutes = 120; // 2h max/semaine
+    // Weight by coefficients: need = round((coeff/avgCoeff) * sessionsPerSubject)
+    final coeffs = await db.getClassSubjectCoefficients(targetClass.name, computedYear);
+    double sumCoeff = 0;
+    int countCoeff = 0;
+    for (final c in subjects) {
+      if (isOptional(c) || isEPS(c.name)) continue;
+      final w = coeffs[c.name] ?? 1.0;
+      sumCoeff += w;
+      countCoeff++;
+    }
+    final avgCoeff = (countCoeff > 0 && sumCoeff > 0) ? (sumCoeff / countCoeff) : 1.0;
     for (final c in subjectsOrder) {
       if (isOptional(c)) {
-        targetSessions[c.name] = 2; // 2h ~ 2 sessions
+        targetSessions[c.name] = 2; // cap by 2h; actual cap enforced by minutes
         optionalMinutes[c.name] = 0;
       } else if (isEPS(c.name)) {
-        targetSessions[c.name] = 2; // split across 2 days
+        targetSessions[c.name] = 2; // two 1h sessions on different days
       } else {
-        targetSessions[c.name] = sessionsPerSubject;
+        final w = coeffs[c.name] ?? 1.0;
+        final scaled = (w / (avgCoeff <= 0 ? 1.0 : avgCoeff)) * sessionsPerSubject;
+        final need = scaled.round().clamp(1, 1000);
+        targetSessions[c.name] = need;
       }
     }
 
@@ -222,6 +243,9 @@ class SchedulingService {
             if (placedMin + slotMin > optionalMaxMinutes) continue;
           }
           if (hasClassConflict(day, start)) continue;
+          // Avoid teacher clash across other classes at same hour
+          if (teacher.isNotEmpty && (teacherBusyAll[teacher]?.contains('$day|$start') ?? false))
+            continue;
           if (teacher.isNotEmpty && hasTeacherConflict(teacher, day, start))
             continue;
           if (teacher.isNotEmpty &&
@@ -276,16 +300,84 @@ class SchedulingService {
             teacherLoad[teacher] = (teacherLoad[teacher] ?? 0) + slotMin;
             teacherDaily[teacher]![day] =
                 (teacherDaily[teacher]![day] ?? 0) + 1;
+            teacherBusyAll.putIfAbsent(teacher, () => <String>{}).add('$day|$start');
           }
           classDailyCount[day] = (classDailyCount[day] ?? 0) + 1;
           final bySubj = classSubjectDaily[day] ?? <String,int>{};
           bySubj[subj] = (bySubj[subj] ?? 0) + 1;
           classSubjectDaily[day] = bySubj;
           created++;
-          placed++;
+          placed++; // count 1 block
           if (isEPS(subj)) epsDaysUsed.add(day);
           if (isOptional(course)) {
             optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + slotMin;
+          }
+          // Determine block size: 1 for EPS, 2 for default, 3 for high coeff; facultatives up to 2h max
+          int blockSlots = 2;
+          final wSubj = coeffs[subj] ?? 1.0;
+          if (isEPS(subj)) blockSlots = 1;
+          else if (isOptional(course)) {
+            // allow chaining 2 slots if cap allows, otherwise 1
+            final remaining = optionalMaxMinutes - (optionalMinutes[subj] ?? 0);
+            blockSlots = remaining >= (2 * slotMin) ? 2 : 1;
+          } else if (wSubj >= avgCoeff * 1.5) {
+            blockSlots = 3;
+          } else {
+            blockSlots = 2;
+          }
+          // Try to chain next contiguous slots within same day
+          if (blockSlots > 1) {
+            final allSlots = timeSlots; // original order
+            final idxSlot = allSlots.indexOf(slot);
+            for (int chain = 1; chain < blockSlots; chain++) {
+              final nextIdx = idxSlot + chain;
+              if (nextIdx >= allSlots.length) break;
+              final nextSlot = allSlots[nextIdx];
+              if (breakSlots.contains(nextSlot)) break;
+              final nParts = nextSlot.split(' - ');
+              final nStart = nParts.first;
+              final nEnd = nParts.length > 1 ? nParts[1] : nParts.first;
+              final nMin = _slotMinutes(nStart, nEnd);
+              // Optional cap
+              if (isOptional(course)) {
+                final used = optionalMinutes[subj] ?? 0;
+                if (used + nMin > optionalMaxMinutes) break;
+              }
+              // Conflicts
+              if (hasClassConflict(day, nStart)) break;
+              if (teacher.isNotEmpty && (teacherBusyAll[teacher]?.contains('$day|$nStart') ?? false)) break;
+              if (teacher.isNotEmpty && hasTeacherConflict(teacher, day, nStart)) break;
+              if (teacher.isNotEmpty && (teacherUnavail[teacher]?.contains('$day|$nStart') == true)) break;
+              // Place chained slot
+              final e2 = TimetableEntry(
+                subject: subj,
+                teacher: teacher,
+                className: targetClass.name,
+                academicYear: computedYear,
+                dayOfWeek: day,
+                startTime: nStart,
+                endTime: nEnd,
+                room: '',
+              );
+              await db.insertTimetableEntry(e2);
+              current = await db.getTimetableEntries(
+                className: targetClass.name,
+                academicYear: computedYear,
+              );
+              if (teacher.isNotEmpty) {
+                teacherLoad[teacher] = (teacherLoad[teacher] ?? 0) + nMin;
+                teacherDaily[teacher]![day] = (teacherDaily[teacher]![day] ?? 0) + 1;
+                teacherBusyAll.putIfAbsent(teacher, () => <String>{}).add('$day|$nStart');
+              }
+              classDailyCount[day] = (classDailyCount[day] ?? 0) + 1;
+              final byS = classSubjectDaily[day] ?? <String,int>{};
+              byS[subj] = (byS[subj] ?? 0) + 1;
+              classSubjectDaily[day] = byS;
+              created++;
+              if (isOptional(course)) {
+                optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + nMin;
+              }
+            }
           }
           if (placed >= need) break outer;
         }
