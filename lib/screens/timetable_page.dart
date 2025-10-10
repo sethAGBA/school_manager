@@ -79,6 +79,9 @@ class _TimetablePageState extends State<TimetablePage>
   bool _clearBeforeGen = false;
   bool _isGenerating = false;
   bool _saturateAll = false;
+  // Block sizing settings
+  final TextEditingController _blockDefaultCtrl = TextEditingController(text: '2');
+  final TextEditingController _threeHourThresholdCtrl = TextEditingController(text: '1.5');
 
   final DatabaseService _dbService = DatabaseService();
   late final SchedulingService _scheduling;
@@ -158,6 +161,8 @@ class _TimetablePageState extends State<TimetablePage>
     _afternoonStartCtrl.text = await ttp.loadAfternoonStart();
     _afternoonEndCtrl.text = await ttp.loadAfternoonEnd();
     _sessionMinutesCtrl.text = (await ttp.loadSessionMinutes()).toString();
+    _blockDefaultCtrl.text = (await ttp.loadBlockDefaultSlots()).toString();
+    _threeHourThresholdCtrl.text = (await ttp.loadThreeHourThreshold()).toString();
 
     setState(() {
       // initialiser la sélection de classe/enseignant si nécessaire
@@ -232,6 +237,8 @@ class _TimetablePageState extends State<TimetablePage>
     _teacherMaxPerDayCtrl.dispose();
     _classMaxPerDayCtrl.dispose();
     _subjectMaxPerDayCtrl.dispose();
+    _blockDefaultCtrl.dispose();
+    _threeHourThresholdCtrl.dispose();
     _tabController.dispose();
     _classListScrollCtrl.dispose();
     _tableVScrollCtrl.dispose();
@@ -690,6 +697,29 @@ class _TimetablePageState extends State<TimetablePage>
                 ),
               ),
               SizedBox(
+                width: 140,
+                child: DropdownButtonFormField<String>(
+                  value: _blockDefaultCtrl.text,
+                  decoration: const InputDecoration(labelText: 'Taille bloc par défaut'),
+                  items: const [
+                    DropdownMenuItem(value: '1', child: Text('1h')),
+                    DropdownMenuItem(value: '2', child: Text('2h')),
+                    DropdownMenuItem(value: '3', child: Text('3h')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _blockDefaultCtrl.text = v);
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 160,
+                child: TextField(
+                  controller: _threeHourThresholdCtrl,
+                  decoration: const InputDecoration(labelText: 'Seuil bloc 3h (coef×moyenne)'),
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                ),
+              ),
+              SizedBox(
                 width: 160,
                 child: TextField(
                   controller: _sessionsPerSubjectCtrl,
@@ -782,6 +812,8 @@ class _TimetablePageState extends State<TimetablePage>
     await ttp.saveAfternoonEnd(_afternoonEndCtrl.text.trim());
     final minutes = int.tryParse(_sessionMinutesCtrl.text) ?? 60;
     await ttp.saveSessionMinutes(minutes);
+    await ttp.saveBlockDefaultSlots(int.tryParse(_blockDefaultCtrl.text) ?? 2);
+    await ttp.saveThreeHourThreshold(double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5);
     // Also persist generated slots for consistency
     final slots = _buildSlotsFromSegments();
     await ttp.saveSlots(slots);
@@ -820,6 +852,8 @@ class _TimetablePageState extends State<TimetablePage>
             teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
             classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
             subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+            blockDefaultSlots: int.tryParse(_blockDefaultCtrl.text) ?? 2,
+            threeHourThreshold: double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5,
           );
         }
         total += created;
@@ -922,6 +956,8 @@ class _TimetablePageState extends State<TimetablePage>
               teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
               classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
               subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+              blockDefaultSlots: int.tryParse(_blockDefaultCtrl.text) ?? 2,
+              threeHourThreshold: double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5,
             );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

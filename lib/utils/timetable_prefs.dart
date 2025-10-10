@@ -9,6 +9,8 @@ const _kMorningEndKey = 'timetable_morning_end';
 const _kAfternoonStartKey = 'timetable_afternoon_start';
 const _kAfternoonEndKey = 'timetable_afternoon_end';
 const _kSessionMinutesKey = 'timetable_session_minutes';
+const _kBlockDefaultSlotsKey = 'timetable_block_default_slots';
+const _kThreeHourThresholdKey = 'timetable_three_hour_threshold';
 
 const List<String> kDefaultDays = [
   'Lundi',
@@ -119,4 +121,31 @@ Future<void> saveAfternoonEnd(String v) async {
 Future<void> saveSessionMinutes(int minutes) async {
   final p = await SharedPreferences.getInstance();
   await p.setInt(_kSessionMinutesKey, minutes);
+}
+
+Future<int> loadBlockDefaultSlots() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getInt(_kBlockDefaultSlotsKey) ?? 2;
+}
+
+Future<void> saveBlockDefaultSlots(int slots) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setInt(_kBlockDefaultSlotsKey, slots);
+}
+
+Future<double> loadThreeHourThreshold() async {
+  final p = await SharedPreferences.getInstance();
+  final val = p.getDouble(_kThreeHourThresholdKey);
+  if (val != null) return val;
+  final asString = p.getString(_kThreeHourThresholdKey);
+  if (asString != null) {
+    final parsed = double.tryParse(asString);
+    if (parsed != null) return parsed;
+  }
+  return 1.5;
+}
+
+Future<void> saveThreeHourThreshold(double v) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setDouble(_kThreeHourThresholdKey, v);
 }
