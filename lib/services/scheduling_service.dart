@@ -76,14 +76,13 @@ class SchedulingService {
       await db.deleteTimetableForClass(targetClass.name, computedYear);
     }
 
-    // Get class subjects (fallback to all courses if none linked)
+    // Get class subjects (assigned to class)
     List<Course> subjects = await db.getCoursesForClass(
       targetClass.name,
       computedYear,
     );
-    if (subjects.isEmpty) {
-      subjects = await db.getCourses();
-    }
+    // If no subjects assigned, skip to avoid using a shared template across classes
+    if (subjects.isEmpty) return 0;
 
     // Diversify pattern per class using seeded shuffle
     final seedBase = '${targetClass.name}|$computedYear';
@@ -166,20 +165,62 @@ class SchedulingService {
       );
     }
 
+    // Determine target weekly sessions per subject
+    bool isOptional(Course c) => (c.categoryId ?? '').toLowerCase() == 'optional';
+    bool isEPS(String name) {
+      final s = name.toLowerCase();
+      return s.contains('eps') || s.contains('sport') || s.contains('éducation physique') || s.contains('education physique');
+    }
+    final Map<String, int> targetSessions = {};
+    final Map<String, int> optionalMinutes = {}; // subject -> minutes placed
+    const int optionalMaxMinutes = 120; // 2h max/semaine
+    for (final c in subjectsOrder) {
+      if (isOptional(c)) {
+        targetSessions[c.name] = 2; // 2h ~ 2 sessions
+        optionalMinutes[c.name] = 0;
+      } else if (isEPS(c.name)) {
+        targetSessions[c.name] = 2; // split across 2 days
+      } else {
+        targetSessions[c.name] = sessionsPerSubject;
+      }
+    }
+
+    // Seed optional minutes from existing timetable
+    for (final e in current) {
+      if (subjects.any((c) => c.name == e.subject && isOptional(c))) {
+        final sm = _parseHHmm(e.startTime);
+        final em = _parseHHmm(e.endTime);
+        final diff = em > sm ? (em - sm) : 0;
+        optionalMinutes[e.subject] = (optionalMinutes[e.subject] ?? 0) + diff;
+      }
+    }
+
+    final Set<String> epsDaysUsed = {};
+
     int created = 0;
-    // Greedy placement: iterate subjects, place N sessions scanning days/timeSlots.
+    // Greedy placement: iterate subjects, place target sessions scanning shuffled days/timeSlots.
     for (final course in subjectsOrder) {
       final subj = course.name;
       final teacher = findTeacherFor(subj)?.name ?? '';
+      final need = (targetSessions[subj] ?? sessionsPerSubject).clamp(0, 1000);
       int placed = 0;
       outer:
       for (final day in daysOrder) {
+        // EPS: ensure different days if possible
+        if (isEPS(subj) && epsDaysUsed.contains(day) && epsDaysUsed.length < daysOrder.length) {
+          continue;
+        }
         for (final slot in slotsOrder) {
           if (breakSlots.contains(slot)) continue;
           final parts = slot.split(' - ');
           final start = parts.first;
           final end = parts.length > 1 ? parts[1] : parts.first;
           final slotMin = _slotMinutes(start, end);
+          // Optional cap by minutes
+          if (isOptional(course)) {
+            final placedMin = optionalMinutes[subj] ?? 0;
+            if (placedMin + slotMin > optionalMaxMinutes) continue;
+          }
           if (hasClassConflict(day, start)) continue;
           if (teacher.isNotEmpty && hasTeacherConflict(teacher, day, start))
             continue;
@@ -242,7 +283,11 @@ class SchedulingService {
           classSubjectDaily[day] = bySubj;
           created++;
           placed++;
-          if (placed >= sessionsPerSubject) break outer;
+          if (isEPS(subj)) epsDaysUsed.add(day);
+          if (isOptional(course)) {
+            optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + slotMin;
+          }
+          if (placed >= need) break outer;
         }
       }
     }
@@ -315,6 +360,21 @@ class SchedulingService {
     final slotsOrder = _shuffled(timeSlots, Random(rng.nextInt(1 << 31)));
     final subjOrder = _shuffled(subjects, Random(rng.nextInt(1 << 31)));
 
+    // Optional cap tracking (per subject) by minutes (seeded from existing)
+    const int optionalMaxMinutes = 120;
+    final Map<String, int> optionalMinutes = {
+      for (final c in subjects)
+        if ((c.categoryId ?? '').toLowerCase() == 'optional') c.name: 0
+    };
+    for (final e in classEntries) {
+      if (optionalMinutes.containsKey(e.subject)) {
+        final sm = _parseHHmm(e.startTime);
+        final em = _parseHHmm(e.endTime);
+        final diff = em > sm ? (em - sm) : 0;
+        optionalMinutes[e.subject] = (optionalMinutes[e.subject] ?? 0) + diff;
+      }
+    }
+
     int created = 0;
     int idx = subjOrder.isNotEmpty ? rng.nextInt(subjOrder.length) : 0;
     for (final day in daysOrder) {
@@ -327,6 +387,15 @@ class SchedulingService {
         // Choose subject in round-robin
         final subj = subjOrder[idx % subjOrder.length].name;
         idx++;
+
+        // Enforce optional cap per subject for this class
+        final parts = slot.split(' - ');
+        final end = parts.length > 1 ? parts[1] : parts.first;
+        final slotMin = _slotMinutes(parts.first, end);
+        if (optionalMinutes.containsKey(subj)) {
+          final used = optionalMinutes[subj] ?? 0;
+          if (used + slotMin > optionalMaxMinutes) continue;
+        }
 
         // Find teacher without conflict/unavailability
         String teacherName = '';
@@ -343,15 +412,13 @@ class SchedulingService {
           break;
         }
 
-        final parts = slot.split(' - ');
-        final end = parts.length > 1 ? parts[1] : parts.first;
         final entry = TimetableEntry(
           subject: subj,
           teacher: teacherName,
           className: targetClass.name,
           academicYear: computedYear,
           dayOfWeek: day,
-          startTime: start,
+          startTime: parts.first,
           endTime: end,
           room: '',
         );
@@ -361,6 +428,9 @@ class SchedulingService {
           teacherBusy.putIfAbsent(teacherName, () => <String>{}).add(key);
         }
         created++;
+        if (optionalMinutes.containsKey(subj)) {
+          optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + slotMin;
+        }
       }
     }
 
@@ -420,6 +490,8 @@ class SchedulingService {
       }
     }
 
+    const int optionalMaxMinutes = 120;
+    final Map<String, int> optionalMinutesByClassSubj = {}; // key: class|subj
     final Map<String, int> rrIndex = {};
     int created = 0;
     for (final day in _shuffled(daysOfWeek, rng)) {
@@ -430,7 +502,7 @@ class SchedulingService {
         if (tBusy.contains(key) || tUn.contains(key)) continue;
         // Try to place teacher in one of their classes with a teachable subject
         bool placed = false;
-        for (final className in teacher.classes) {
+        for (final className in teacherClasses) {
           final cb = classBusy[className] ?? <String>{};
           if (cb.contains(key)) continue;
           final teachables = classTeachables[className] ?? const <String>[];
@@ -441,6 +513,18 @@ class SchedulingService {
           final end = slot.split(' - ').length > 1
               ? slot.split(' - ')[1]
               : slot.split(' - ').first;
+          // Enforce optional cap per class/subject
+          final isOptional = (await db.getCoursesForClass(className, computedYear))
+              .any((c) => c.name == subj && (c.categoryId ?? '').toLowerCase() == 'optional');
+          if (isOptional) {
+            final slotMin = _slotMinutes(start, end);
+            final keyOS = '$className|$subj';
+            final used = optionalMinutesByClassSubj[keyOS] ?? 0;
+            if (used + slotMin > optionalMaxMinutes) {
+              continue;
+            }
+            optionalMinutesByClassSubj[keyOS] = used + slotMin;
+          }
           final entry = TimetableEntry(
             subject: subj,
             teacher: teacher.name,
@@ -529,6 +613,22 @@ class SchedulingService {
         className: cls.name,
         academicYear: cls.academicYear,
       );
+      // Seed optional minutes per (class, subject) from existing entries
+      const int optionalMaxMinutes = 120;
+      final Map<String, int> optionalMinutesByClassSubj = {};
+      final optionalSet = classSubjects
+          .where((c) => (c.categoryId ?? '').toLowerCase() == 'optional')
+          .map((c) => c.name)
+          .toSet();
+      for (final e in current) {
+        if (optionalSet.contains(e.subject)) {
+          final sm = _parseHHmm(e.startTime);
+          final em = _parseHHmm(e.endTime);
+          final diff = em > sm ? (em - sm) : 0;
+          final keyOS = '${cls.name}|${e.subject}';
+          optionalMinutesByClassSubj[keyOS] = (optionalMinutesByClassSubj[keyOS] ?? 0) + diff;
+        }
+      }
 
       final Map<String, int> classSubjectDaily = {};
       for (final e in current) {
@@ -553,33 +653,40 @@ class SchedulingService {
         int placed = 0;
         outer:
         for (final day in _shuffled(daysOfWeek, Random(rng.nextInt(1 << 31)))) {
-          for (final slot in _shuffled(timeSlots, Random(rng.nextInt(1 << 31)))) {
-            if (breakSlots.contains(slot)) continue;
-            final parts = slot.split(' - ');
-            final start = parts.first;
-            final end = parts.length > 1 ? parts[1] : parts.first;
-            final slotMin = _slotMinutes(start, end);
-            if (hasClassConflict(day, start)) continue;
-            if (hasTeacherConflict(day, start)) continue;
-            if (teacherMaxPerDay != null && teacherMaxPerDay > 0) {
-              final cnt = teacherDaily[day] ?? 0;
-              if (cnt >= teacherMaxPerDay) continue;
-            }
-            if (teacherUnavail.contains('$day|$start')) continue;
-            if (classMaxPerDay != null && classMaxPerDay > 0) {
-              final cntClass = current.where((e) => e.dayOfWeek == day).length;
-              if (cntClass >= classMaxPerDay) continue;
-            }
-            if (subjectMaxPerDay != null && subjectMaxPerDay > 0) {
-              final key = "$day|${course.name}";
-              final cntSubj = classSubjectDaily[key] ?? 0;
-              if (cntSubj >= subjectMaxPerDay) continue;
-            }
-            if (enforceTeacherWeeklyHours) {
-              final max = (teacherWeeklyHours ?? teacher.weeklyHours) ?? 0;
-              final maxMin = max > 0 ? max * 60 : 0;
-              if (maxMin > 0 && teacherLoad + slotMin > maxMin) continue;
-            }
+        for (final slot in _shuffled(timeSlots, Random(rng.nextInt(1 << 31)))) {
+          if (breakSlots.contains(slot)) continue;
+          final parts = slot.split(' - ');
+          final start = parts.first;
+          final end = parts.length > 1 ? parts[1] : parts.first;
+          final slotMin = _slotMinutes(start, end);
+          // Enforce optional cap: subject optional for this class cannot exceed 120 minutes
+          final isOptional = classSubjects.any((c) => c.name == course.name && (c.categoryId ?? '').toLowerCase() == 'optional');
+          if (isOptional) {
+            final keyOS = '${cls.name}|${course.name}';
+            final used = optionalMinutesByClassSubj[keyOS] ?? 0;
+            if (used + slotMin > optionalMaxMinutes) continue;
+          }
+          if (hasClassConflict(day, start)) continue;
+          if (hasTeacherConflict(day, start)) continue;
+          if (teacherMaxPerDay != null && teacherMaxPerDay > 0) {
+            final cnt = teacherDaily[day] ?? 0;
+            if (cnt >= teacherMaxPerDay) continue;
+          }
+          if (teacherUnavail.contains('$day|$start')) continue;
+          if (classMaxPerDay != null && classMaxPerDay > 0) {
+            final cntClass = current.where((e) => e.dayOfWeek == day).length;
+            if (cntClass >= classMaxPerDay) continue;
+          }
+          if (subjectMaxPerDay != null && subjectMaxPerDay > 0) {
+            final key = "$day|${course.name}";
+            final cntSubj = classSubjectDaily[key] ?? 0;
+            if (cntSubj >= subjectMaxPerDay) continue;
+          }
+          if (enforceTeacherWeeklyHours) {
+            final max = (teacherWeeklyHours ?? teacher.weeklyHours) ?? 0;
+            final maxMin = max > 0 ? max * 60 : 0;
+            if (maxMin > 0 && teacherLoad + slotMin > maxMin) continue;
+          }
 
             final entry = TimetableEntry(
               subject: course.name,
@@ -602,6 +709,10 @@ class SchedulingService {
             classSubjectDaily[key] = (classSubjectDaily[key] ?? 0) + 1;
             created++;
             placed++;
+            if (isOptional) {
+              final keyOS = '${cls.name}|${course.name}';
+              optionalMinutesByClassSubj[keyOS] = (optionalMinutesByClassSubj[keyOS] ?? 0) + slotMin;
+            }
             if (placed >= sessionsPerSubject) break outer;
           }
         }

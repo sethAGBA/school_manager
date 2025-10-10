@@ -420,6 +420,7 @@ class _TimetablePageState extends State<TimetablePage>
                             ],
                           ),
                           const SizedBox(height: 12),
+                          if (_isClassView) _buildClassSubjectHoursSummary(context),
                           if (_isClassView) _buildSubjectPalette(context),
                         ],
                       ),
@@ -476,6 +477,79 @@ class _TimetablePageState extends State<TimetablePage>
           ),
         ],
       ),
+    );
+  }
+
+  Future<Map<String, int>> _computeClassSubjectMinutes(Class cls) async {
+    final assigned = await _dbService.getCoursesForClass(cls.name, cls.academicYear);
+    final names = assigned.map((c) => c.name).toSet();
+    final Map<String, int> minutes = { for (final n in names) n: 0 };
+    for (final e in _timetableEntries) {
+      if (e.className == cls.name && e.academicYear == cls.academicYear) {
+        final start = _toMin(e.startTime);
+        final end = _toMin(e.endTime);
+        final diff = (end > start) ? (end - start) : 0;
+        minutes[e.subject] = (minutes[e.subject] ?? 0) + diff;
+      }
+    }
+    return minutes;
+  }
+
+  Widget _buildClassSubjectHoursSummary(BuildContext context) {
+    final cls = _selectedClass();
+    if (cls == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return FutureBuilder<Map<String, int>>(
+      future: _computeClassSubjectMinutes(cls),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const SizedBox.shrink();
+        }
+        final data = snap.data!;
+        if (data.isEmpty) return const SizedBox.shrink();
+        String fmtHours(int minutes) {
+          final h = minutes / 60.0;
+          if ((h - h.round()).abs() < 1e-6) return '${h.round()}h';
+          return '${h.toStringAsFixed(1)}h';
+        }
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: data.entries.map((e) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.schedule, size: 14, color: Color(0xFF3B82F6)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${e.key}: ${fmtHours(e.value)}',
+                      style: const TextStyle(
+                        color: Color(0xFF3B82F6),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 
