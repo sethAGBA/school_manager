@@ -9,6 +9,7 @@ import 'package:school_manager/models/staff.dart';
 import 'package:school_manager/models/student.dart';
 import 'package:school_manager/models/grade.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/models/timetable_entry.dart';
 import 'package:school_manager/models/expense.dart';
@@ -514,9 +515,81 @@ class DatabaseService {
     await _ensureInventoryTable(db);
     await _ensureExpensesTable(db);
     await _ensurePaymentCancelReason(db);
+    await _ensureAuditTable(db);
     await _ensureExpensesTable(db);
     debugPrint(
       '[DatabaseService][MIGRATION] All post-open migrations completed',
+    );
+  }
+
+  Future<void> _ensureAuditTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS audit_logs(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        username TEXT,
+        category TEXT NOT NULL,
+        action TEXT NOT NULL,
+        details TEXT,
+        success INTEGER NOT NULL DEFAULT 1
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_logs(timestamp)'
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_audit_cat ON audit_logs(category)'
+    );
+  }
+
+  Future<void> logAudit({
+    required String category,
+    required String action,
+    String? details,
+    String? username,
+    bool success = true,
+  }) async {
+    final db = await database;
+    // Récupérer le nom d'utilisateur courant si non fourni
+    String? effectiveUser = username;
+    if (effectiveUser == null || effectiveUser.isEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        effectiveUser = prefs.getString('current_username');
+      } catch (_) {}
+    }
+    await db.insert('audit_logs', {
+      'timestamp': DateTime.now().toIso8601String(),
+      'username': effectiveUser,
+      'category': category,
+      'action': action,
+      'details': details,
+      'success': success ? 1 : 0,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getAuditLogs({
+    String? category,
+    String? username,
+    int limit = 500,
+  }) async {
+    final db = await database;
+    String where = '';
+    final args = <Object?>[];
+    if (category != null && category.isNotEmpty) {
+      where += (where.isEmpty ? '' : ' AND ') + 'category = ?';
+      args.add(category);
+    }
+    if (username != null && username.isNotEmpty) {
+      where += (where.isEmpty ? '' : ' AND ') + 'username = ?';
+      args.add(username);
+    }
+    return await db.query(
+      'audit_logs',
+      where: where.isEmpty ? null : where,
+      whereArgs: args.isEmpty ? null : args,
+      orderBy: 'timestamp DESC',
+      limit: limit,
     );
   }
 
@@ -1805,6 +1878,13 @@ class DatabaseService {
       debugPrint('[DatabaseService][ERROR] insertClass failed: $e');
       rethrow;
     }
+    try {
+      await logAudit(
+        category: 'class',
+        action: 'insert_class',
+        details: 'name=${cls.name} year=${cls.academicYear}',
+      );
+    } catch (_) {}
   }
 
   Future<List<Class>> getClasses() async {
@@ -1874,6 +1954,13 @@ class DatabaseService {
         );
       }
     });
+    try {
+      await logAudit(
+        category: 'class',
+        action: 'update_class',
+        details: 'old=$oldName new=${updatedClass.name} year=$oldAcademicYear',
+      );
+    } catch (_) {}
   }
 
   // Diagnostics: count orphan rows for known foreign key relations
@@ -2211,6 +2298,13 @@ class DatabaseService {
       student.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    try {
+      await logAudit(
+        category: 'student',
+        action: 'insert_student',
+        details: 'id=${student.id} name=${student.name} class=${student.className}',
+      );
+    } catch (_) {}
   }
 
   Future<List<Student>> getStudents({
@@ -2271,11 +2365,19 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [oldId],
     );
+    try {
+      await logAudit(
+        category: 'student',
+        action: 'update_student',
+        details: 'id=$oldId -> ${updatedStudent.id}',
+      );
+    } catch (_) {}
   }
 
   Future<void> deleteStudent(String id) async {
     final db = await database;
     await db.delete('students', where: 'id = ?', whereArgs: [id]);
+    try { await logAudit(category: 'student', action: 'delete_student', details: 'id=$id'); } catch (_) {}
   }
 
   /// Delete a student and all dependent data (payments, grades, appreciations, report cards, archives).
@@ -2306,6 +2408,7 @@ class DatabaseService {
       // Finally the student
       await txn.delete('students', where: 'id = ?', whereArgs: [id]);
     });
+    try { await logAudit(category: 'student', action: 'delete_student_deep', details: 'id=$id'); } catch (_) {}
   }
 
   // Aggregate data for charts and table
@@ -2364,6 +2467,7 @@ class DatabaseService {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     });
+    try { await logAudit(category: 'payment', action: 'insert_payment', details: 'student=${payment.studentId} class=${payment.className} amount=${payment.amount}'); } catch (_) {}
   }
 
   Future<void> cancelPayment(int id) async {
@@ -2374,6 +2478,7 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    try { await logAudit(category: 'payment', action: 'cancel_payment', details: 'id=$id'); } catch (_) {}
   }
 
   Future<void> cancelPaymentWithReason(int id, String reason, {String? by}) async {
@@ -2389,6 +2494,7 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    try { await logAudit(category: 'payment', action: 'cancel_payment_reason', details: 'id=$id reason=$reason by=${by ?? ''}'); } catch (_) {}
   }
 
   Future<List<Payment>> getPaymentsForStudent(String studentId) async {
@@ -2417,6 +2523,7 @@ class DatabaseService {
   Future<void> deletePayment(int id) async {
     final db = await database;
     await db.delete('payments', where: 'id = ?', whereArgs: [id]);
+    try { await logAudit(category: 'payment', action: 'delete_payment', details: 'id=$id'); } catch (_) {}
   }
 
   Future<List<Payment>> getAllPayments() async {
@@ -2461,23 +2568,28 @@ class DatabaseService {
       staff.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    try { await logAudit(category: 'staff', action: 'insert_staff', details: 'id=${staff.id} name=${staff.name}'); } catch (_) {}
   }
 
   // Inventory operations
   Future<int> insertInventoryItem(InventoryItem item) async {
     final db = await database;
-    return await db.insert(
+    final id = await db.insert(
       'inventory_items',
       item.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    try { await logAudit(category: 'inventory', action: 'insert_item', details: 'id=$id name=${item.name} qty=${item.quantity}'); } catch (_) {}
+    return id;
   }
 
   // Expenses operations
   Future<int> insertExpense(Expense e) async {
     final db = await database;
-    return await db.insert('expenses', e.toMap(),
+    final id = await db.insert('expenses', e.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
+    try { await logAudit(category: 'expense', action: 'insert_expense', details: 'id=$id label=${e.label} amount=${e.amount}'); } catch (_) {}
+    return id;
   }
 
   Future<void> updateExpense(Expense e) async {
@@ -2485,11 +2597,13 @@ class DatabaseService {
     final db = await database;
     await db.update('expenses', e.toMap(),
         where: 'id = ?', whereArgs: [e.id]);
+    try { await logAudit(category: 'expense', action: 'update_expense', details: 'id=${e.id} label=${e.label} amount=${e.amount}'); } catch (_) {}
   }
 
   Future<void> deleteExpense(int id) async {
     final db = await database;
     await db.delete('expenses', where: 'id = ?', whereArgs: [id]);
+    try { await logAudit(category: 'expense', action: 'delete_expense', details: 'id=$id'); } catch (_) {}
   }
 
   Future<List<Expense>> getExpenses({
@@ -2558,11 +2672,13 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [item.id],
     );
+    try { await logAudit(category: 'inventory', action: 'update_item', details: 'id=${item.id} name=${item.name} qty=${item.quantity}'); } catch (_) {}
   }
 
   Future<void> deleteInventoryItem(int id) async {
     final db = await database;
     await db.delete('inventory_items', where: 'id = ?', whereArgs: [id]);
+    try { await logAudit(category: 'inventory', action: 'delete_item', details: 'id=$id'); } catch (_) {}
   }
 
   Future<List<InventoryItem>> getInventoryItems({
@@ -2609,6 +2725,7 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    try { await logAudit(category: 'staff', action: 'update_staff', details: 'id=$id name=${updatedStaff.name}'); } catch (_) {}
   }
 
   Future<void> updateTeacherWeeklyHours(String id, int? weeklyHours) async {
@@ -2625,6 +2742,7 @@ class DatabaseService {
   Future<void> deleteStaff(String id) async {
     final db = await database;
     await db.delete('staff', where: 'id = ?', whereArgs: [id]);
+    try { await logAudit(category: 'staff', action: 'delete_staff', details: 'id=$id'); } catch (_) {}
   }
 
   // Category operations
@@ -2635,6 +2753,7 @@ class DatabaseService {
       category.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    try { await logAudit(category: 'subjects', action: 'insert_category', details: 'id=${category.id} name=${category.name}'); } catch (_) {}
   }
 
   Future<List<Category>> getCategories() async {
@@ -2654,6 +2773,7 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    try { await logAudit(category: 'subjects', action: 'update_category', details: 'id=$id name=${updatedCategory.name}'); } catch (_) {}
   }
 
   Future<void> deleteCategory(String id) async {
@@ -2669,6 +2789,7 @@ class DatabaseService {
       // Supprimer la catégorie
       await txn.delete('categories', where: 'id = ?', whereArgs: [id]);
     });
+    try { await logAudit(category: 'subjects', action: 'delete_category', details: 'id=$id'); } catch (_) {}
   }
 
   Future<void> initializeDefaultCategories() async {
@@ -2725,6 +2846,7 @@ class DatabaseService {
       course.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    try { await logAudit(category: 'subjects', action: 'insert_course', details: 'id=${course.id} name=${course.name}'); } catch (_) {}
   }
 
   Future<List<Course>> getCourses() async {
@@ -2741,6 +2863,7 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    try { await logAudit(category: 'subjects', action: 'update_course', details: 'id=$id name=${updatedCourse.name}'); } catch (_) {}
   }
 
   Future<void> deleteCourse(String id) async {
@@ -2750,6 +2873,7 @@ class DatabaseService {
       await txn.delete('class_courses', where: 'courseId = ?', whereArgs: [id]);
       await txn.delete('courses', where: 'id = ?', whereArgs: [id]);
     });
+    try { await logAudit(category: 'subjects', action: 'delete_course', details: 'id=$id'); } catch (_) {}
   }
 
   Future<void> closeDatabase() async {
@@ -2815,6 +2939,7 @@ class DatabaseService {
       where: 'name = ? AND academicYear = ?',
       whereArgs: [className, academicYear],
     );
+    try { await logAudit(category: 'class', action: 'delete_class', details: 'name=$className year=$academicYear'); } catch (_) {}
   }
 
   // Import logs operations
@@ -2885,6 +3010,7 @@ class DatabaseService {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     });
+    try { await logAudit(category: 'grade', action: 'insert_grade', details: 'student=${grade.studentId} subject=${grade.subject} term=${grade.term}'); } catch (_) {}
   }
 
   Future<void> updateGrade(Grade grade) async {
@@ -2903,11 +3029,13 @@ class DatabaseService {
         whereArgs: [grade.id],
       );
     });
+    try { await logAudit(category: 'grade', action: 'update_grade', details: 'id=${grade.id} subject=${grade.subject} term=${grade.term}'); } catch (_) {}
   }
 
   Future<void> deleteGrade(int id) async {
     final db = await database;
     await db.delete('grades', where: 'id = ?', whereArgs: [id]);
+    try { await logAudit(category: 'grade', action: 'delete_grade', details: 'id=$id'); } catch (_) {}
   }
 
   Future<List<Grade>> getGradesForSelection({
@@ -3022,6 +3150,7 @@ class DatabaseService {
         whereArgs: [studentId, className, academicYear, subject, term],
       );
     }
+    try { await logAudit(category: 'grade', action: 'upsert_subject_app', details: 'student=$studentId subject=$subject term=$term'); } catch (_) {}
   }
 
   Future<List<Map<String, dynamic>>> getSubjectAppreciations({
@@ -3096,6 +3225,7 @@ class DatabaseService {
         'courseId': courseId,
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
     });
+    try { await logAudit(category: 'class_course', action: 'add_course_to_class', details: 'class=$className year=$academicYear course=$courseId'); } catch (_) {}
   }
 
   Future<void> removeCourseFromClass(

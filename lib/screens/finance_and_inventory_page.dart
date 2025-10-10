@@ -16,6 +16,7 @@ import 'package:open_file/open_file.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:school_manager/screens/dashboard_home.dart';
+import 'package:school_manager/services/auth_service.dart';
 import 'package:intl/intl.dart';
 
 class FinanceAndInventoryPage extends StatefulWidget {
@@ -612,7 +613,21 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
     if (bytes != null) {
       final file = File('$directory/$fileName');
       await file.writeAsBytes(bytes);
-      OpenFile.open(file.path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Excel exporté: $fileName')),
+        );
+      }
+      await OpenFile.open(file.path);
+      try {
+        final u = await AuthService.instance.getCurrentUser();
+        await _db.logAudit(
+          category: 'export',
+          action: 'inventaire_excel',
+          details: fileName,
+          username: u?.username,
+        );
+      } catch (_) {}
     }
   }
 

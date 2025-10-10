@@ -122,6 +122,7 @@ class Sidebar extends StatelessWidget {
                   ),
                   _buildMenuItem(context, 9, Icons.book, 'Matières'),
                   _buildMenuItem(context, 10, Icons.inventory_2, 'Finance & Matériel'),
+                  _buildMenuItem(context, 11, Icons.receipt_long, 'Audits'),
                   // Place Paramètres as the penultimate item (just above logout)
                   _buildMenuItem(context, 5, Icons.settings, 'Paramètres'),
                   const SizedBox(height: 12),

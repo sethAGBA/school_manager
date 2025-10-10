@@ -22,6 +22,7 @@ import 'screens/license_page.dart' as app_license;
 import 'services/license_service.dart';
 import 'screens/subjects_page.dart';
 import 'screens/finance_and_inventory_page.dart';
+import 'screens/audit_page.dart';
 
 const List<String> kFontFallback = [
   // Common system fonts with broad glyph coverage
@@ -263,6 +264,7 @@ class _SchoolDashboardState extends State<SchoolDashboard>
       const app_license.LicensePage(),
       const SubjectsPage(),
       const FinanceAndInventoryPage(),
+      const AuditPage(),
     ];
     _pagePermissions = [
       'view_dashboard',
@@ -276,6 +278,7 @@ class _SchoolDashboardState extends State<SchoolDashboard>
       'view_license',
       'view_subjects',
       'view_finance_inventory',
+      'view_audits',
     ];
     _loadCurrentRole();
     _initLicenseListener();

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:school_manager/services/auth_service.dart';
 import 'package:school_manager/screens/auth/two_factor_page.dart';
+import 'package:school_manager/services/database_service.dart';
 
 class LoginPage extends StatefulWidget {
   final VoidCallback onSuccess;
@@ -86,6 +87,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     });
     if (!mounted) return;
     if (!res.ok) {
+      try {
+        await DatabaseService().logAudit(
+          category: 'auth',
+          action: 'login_failed',
+          details: 'username=${_usernameController.text.trim()}',
+          username: _usernameController.text.trim(),
+          success: false,
+        );
+      } catch (_) {}
       setState(() {
         _error = 'Identifiants invalides';
       });
@@ -97,6 +107,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           builder: (_) => TwoFactorPage(
             username: _usernameController.text.trim(),
             onSuccess: () async {
+              try {
+                await DatabaseService().logAudit(
+                  category: 'auth',
+                  action: 'login_success',
+                  details: '2FA',
+                  username: _usernameController.text.trim(),
+                );
+              } catch (_) {}
               await AuthService.instance.finalizeLogin(
                 _usernameController.text.trim(),
               );
@@ -121,6 +139,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         ),
       );
     } else {
+      try {
+        await DatabaseService().logAudit(
+          category: 'auth',
+          action: 'login_success',
+          username: _usernameController.text.trim(),
+        );
+      } catch (_) {}
       await AuthService.instance.finalizeLogin(_usernameController.text.trim());
       try {
         final prefs = await SharedPreferences.getInstance();
