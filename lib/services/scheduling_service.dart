@@ -4,6 +4,7 @@ import 'package:school_manager/models/staff.dart';
 import 'package:school_manager/models/timetable_entry.dart';
 import 'package:school_manager/services/database_service.dart';
 import 'package:school_manager/utils/academic_year.dart';
+import 'dart:math';
 
 /// Naive timetable auto-scheduling helper.
 ///
@@ -30,6 +31,25 @@ class SchedulingService {
     final em = _parseHHmm(end);
     final diff = em - sm;
     return diff > 0 ? diff : 60; // fallback 60min if invalid
+  }
+
+  int _hashSeed(String s) {
+    int h = 0;
+    for (final c in s.codeUnits) {
+      h = (h * 31 + c) & 0x7fffffff;
+    }
+    return h == 0 ? 1 : h;
+  }
+
+  List<T> _shuffled<T>(List<T> items, Random rng) {
+    final list = List<T>.from(items);
+    for (int i = list.length - 1; i > 0; i--) {
+      final j = rng.nextInt(i + 1);
+      final t = list[i];
+      list[i] = list[j];
+      list[j] = t;
+    }
+    return list;
   }
 
   /// Automatically generates a timetable for a given class.
@@ -64,6 +84,13 @@ class SchedulingService {
     if (subjects.isEmpty) {
       subjects = await db.getCourses();
     }
+
+    // Diversify pattern per class using seeded shuffle
+    final seedBase = '${targetClass.name}|$computedYear';
+    final rng = Random(_hashSeed(seedBase));
+    final daysOrder = _shuffled(daysOfWeek, rng);
+    final slotsOrder = _shuffled(timeSlots, Random(rng.nextInt(1 << 31)));
+    final subjectsOrder = _shuffled(subjects, Random(rng.nextInt(1 << 31)));
 
     // Build a quick teacher lookup: who can teach which subject for this class
     final teachers = await db.getStaff();
@@ -141,13 +168,13 @@ class SchedulingService {
 
     int created = 0;
     // Greedy placement: iterate subjects, place N sessions scanning days/timeSlots.
-    for (final course in subjects) {
+    for (final course in subjectsOrder) {
       final subj = course.name;
       final teacher = findTeacherFor(subj)?.name ?? '';
       int placed = 0;
       outer:
-      for (final day in daysOfWeek) {
-        for (final slot in timeSlots) {
+      for (final day in daysOrder) {
+        for (final slot in slotsOrder) {
           if (breakSlots.contains(slot)) continue;
           final parts = slot.split(' - ');
           final start = parts.first;
@@ -223,6 +250,225 @@ class SchedulingService {
     return created;
   }
 
+  /// Saturate all available time slots for a class across selected days/time slots.
+  /// Ignores per-day/weekly limits to fully fill the grid while avoiding conflicts
+  /// and respecting teacher unavailability and existing entries.
+  Future<int> autoSaturateForClass({
+    required Class targetClass,
+    required List<String> daysOfWeek,
+    required List<String> timeSlots,
+    Set<String> breakSlots = const {},
+    bool clearExisting = false,
+  }) async {
+    final computedYear = targetClass.academicYear.isNotEmpty
+        ? targetClass.academicYear
+        : await getCurrentAcademicYear();
+
+    if (clearExisting) {
+      await db.deleteTimetableForClass(targetClass.name, computedYear);
+    }
+
+    // Subjects for the class; fallback to all
+    List<Course> subjects = await db.getCoursesForClass(
+      targetClass.name,
+      computedYear,
+    );
+    if (subjects.isEmpty) subjects = await db.getCourses();
+    if (subjects.isEmpty) return 0;
+
+    final teachers = await db.getStaff();
+
+    List<Staff> candidatesFor(String subj) {
+      final both = teachers
+          .where((t) =>
+              t.courses.contains(subj) && t.classes.contains(targetClass.name))
+          .toList();
+      final any = teachers.where((t) => t.courses.contains(subj)).toList();
+      return both.isNotEmpty ? both : any;
+    }
+
+    // Busy map for teachers across all classes
+    final Map<String, Set<String>> teacherBusy = {};
+    final allEntries = await db.getTimetableEntries();
+    for (final e in allEntries) {
+      teacherBusy.putIfAbsent(e.teacher, () => <String>{}).add('${e.dayOfWeek}|${e.startTime}');
+    }
+    // Teacher unavailability map for current year
+    final Map<String, Set<String>> teacherUnavail = {};
+    for (final t in teachers) {
+      final un = await db.getTeacherUnavailability(t.name, computedYear);
+      teacherUnavail[t.name] =
+          un.map((e) => '${e['dayOfWeek']}|${e['startTime']}').toSet();
+    }
+
+    // Occupied slots for this class
+    final classEntries = await db.getTimetableEntries(
+      className: targetClass.name,
+      academicYear: computedYear,
+    );
+    final Set<String> classBusy =
+        classEntries.map((e) => '${e.dayOfWeek}|${e.startTime}').toSet();
+
+    // Shuffle orders deterministically per class to diversify
+    final rng = Random(_hashSeed('${targetClass.name}|$computedYear|sat'));
+    final daysOrder = _shuffled(daysOfWeek, rng);
+    final slotsOrder = _shuffled(timeSlots, Random(rng.nextInt(1 << 31)));
+    final subjOrder = _shuffled(subjects, Random(rng.nextInt(1 << 31)));
+
+    int created = 0;
+    int idx = subjOrder.isNotEmpty ? rng.nextInt(subjOrder.length) : 0;
+    for (final day in daysOrder) {
+      for (final slot in slotsOrder) {
+        if (breakSlots.contains(slot)) continue;
+        final start = slot.split(' - ').first;
+        final key = '$day|$start';
+        if (classBusy.contains(key)) continue; // already has an entry
+
+        // Choose subject in round-robin
+        final subj = subjOrder[idx % subjOrder.length].name;
+        idx++;
+
+        // Find teacher without conflict/unavailability
+        String teacherName = '';
+        final shuffledCands = _shuffled(
+          candidatesFor(subj),
+          Random(_hashSeed('${targetClass.name}|$computedYear|$day|$start|$subj')),
+        );
+        for (final cand in shuffledCands) {
+          final busy = teacherBusy[cand.name] ?? const <String>{};
+          final un = teacherUnavail[cand.name] ?? const <String>{};
+          if (busy.contains(key)) continue;
+          if (un.contains(key)) continue;
+          teacherName = cand.name;
+          break;
+        }
+
+        final parts = slot.split(' - ');
+        final end = parts.length > 1 ? parts[1] : parts.first;
+        final entry = TimetableEntry(
+          subject: subj,
+          teacher: teacherName,
+          className: targetClass.name,
+          academicYear: computedYear,
+          dayOfWeek: day,
+          startTime: start,
+          endTime: end,
+          room: '',
+        );
+        await db.insertTimetableEntry(entry);
+        classBusy.add(key);
+        if (teacherName.isNotEmpty) {
+          teacherBusy.putIfAbsent(teacherName, () => <String>{}).add(key);
+        }
+        created++;
+      }
+    }
+
+    return created;
+  }
+
+  /// Saturate for a teacher across their assigned classes, filling free slots.
+  Future<int> autoSaturateForTeacher({
+    required Staff teacher,
+    required List<String> daysOfWeek,
+    required List<String> timeSlots,
+    Set<String> breakSlots = const {},
+    bool clearExisting = false,
+  }) async {
+    final computedYear = await getCurrentAcademicYear();
+    if (clearExisting) {
+      await db.deleteTimetableForTeacher(teacher.name, academicYear: computedYear);
+    }
+
+    // Teacher busy + unavailability
+    final Set<String> tBusy = (await db.getTimetableEntries(teacherName: teacher.name))
+        .map((e) => '${e.dayOfWeek}|${e.startTime}')
+        .toSet();
+    final tUn = (await db.getTeacherUnavailability(teacher.name, computedYear))
+        .map((e) => '${e['dayOfWeek']}|${e['startTime']}')
+        .toSet();
+
+    // Class busy maps and class subjects intersection with teacher courses
+    final classes = await db.getClasses();
+    final rng = Random(_hashSeed('satteach|${teacher.name}|$computedYear'));
+    final Map<String, Set<String>> classBusy = {};
+    final Map<String, List<String>> classTeachables = {};
+    final teacherClasses = _shuffled(teacher.classes, rng);
+    for (final className in teacherClasses) {
+      final cls = classes.firstWhere(
+        (c) => c.name == className && c.academicYear == computedYear,
+        orElse: () => Class(name: className, academicYear: computedYear),
+      );
+      final entries = await db.getTimetableEntries(
+        className: cls.name,
+        academicYear: cls.academicYear,
+      );
+      classBusy[cls.name] = entries.map((e) => '${e.dayOfWeek}|${e.startTime}').toSet();
+      final classSubjects = await db.getCoursesForClass(cls.name, cls.academicYear);
+      final teachable = classSubjects
+          .where((c) => teacher.courses.contains(c.name))
+          .map((c) => c.name)
+          .toList();
+      if (teachable.isEmpty) {
+        final all = await db.getCourses();
+        classTeachables[cls.name] = all
+            .where((c) => teacher.courses.contains(c.name))
+            .map((c) => c.name)
+            .toList();
+      } else {
+        classTeachables[cls.name] = teachable;
+      }
+    }
+
+    final Map<String, int> rrIndex = {};
+    int created = 0;
+    for (final day in _shuffled(daysOfWeek, rng)) {
+      for (final slot in _shuffled(timeSlots, Random(rng.nextInt(1 << 31)))) {
+        if (breakSlots.contains(slot)) continue;
+        final start = slot.split(' - ').first;
+        final key = '$day|$start';
+        if (tBusy.contains(key) || tUn.contains(key)) continue;
+        // Try to place teacher in one of their classes with a teachable subject
+        bool placed = false;
+        for (final className in teacher.classes) {
+          final cb = classBusy[className] ?? <String>{};
+          if (cb.contains(key)) continue;
+          final teachables = classTeachables[className] ?? const <String>[];
+          if (teachables.isEmpty) continue;
+          final idx = (rrIndex[className] ?? 0) % teachables.length;
+          final subj = teachables[idx];
+          rrIndex[className] = idx + 1;
+          final end = slot.split(' - ').length > 1
+              ? slot.split(' - ')[1]
+              : slot.split(' - ').first;
+          final entry = TimetableEntry(
+            subject: subj,
+            teacher: teacher.name,
+            className: className,
+            academicYear: computedYear,
+            dayOfWeek: day,
+            startTime: start,
+            endTime: end,
+            room: '',
+          );
+          await db.insertTimetableEntry(entry);
+          tBusy.add(key);
+          cb.add(key);
+          classBusy[className] = cb;
+          created++;
+          placed = true;
+          break;
+        }
+        // If teacher cannot be placed in any class, leave the slot empty for teacher view
+        if (!placed) {
+          continue;
+        }
+      }
+    }
+
+    return created;
+  }
+
   /// Auto-generate for a teacher across their assigned classes.
   Future<int> autoGenerateForTeacher({
     required Staff teacher,
@@ -260,9 +506,11 @@ class SchedulingService {
       computedYear,
     )).map((e) => '${e['dayOfWeek']}|${e['startTime']}').toSet();
 
-    // Iterate classes the teacher is assigned to
+    // Iterate classes the teacher is assigned to, shuffled per teacher
     final classes = await db.getClasses();
-    for (final className in teacher.classes) {
+    final rng = Random(_hashSeed('teach|${teacher.name}|$computedYear'));
+    final teacherClasses = _shuffled(teacher.classes, rng);
+    for (final className in teacherClasses) {
       final cls = classes.firstWhere(
         (c) => c.name == className && c.academicYear == computedYear,
         orElse: () => Class(name: className, academicYear: computedYear),
@@ -300,11 +548,12 @@ class SchedulingService {
             e.teacher == teacher.name,
       );
 
-      for (final course in teachable) {
+      final shuffledTeachables = _shuffled(teachable, Random(rng.nextInt(1 << 31)));
+      for (final course in shuffledTeachables) {
         int placed = 0;
         outer:
-        for (final day in daysOfWeek) {
-          for (final slot in timeSlots) {
+        for (final day in _shuffled(daysOfWeek, Random(rng.nextInt(1 << 31)))) {
+          for (final slot in _shuffled(timeSlots, Random(rng.nextInt(1 << 31)))) {
             if (breakSlots.contains(slot)) continue;
             final parts = slot.split(' - ');
             final start = parts.first;

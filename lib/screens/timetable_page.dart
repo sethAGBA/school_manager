@@ -78,6 +78,7 @@ class _TimetablePageState extends State<TimetablePage>
   final TextEditingController _subjectMaxPerDayCtrl = TextEditingController(text: '0');
   bool _clearBeforeGen = false;
   bool _isGenerating = false;
+  bool _saturateAll = false;
 
   final DatabaseService _dbService = DatabaseService();
   late final SchedulingService _scheduling;
@@ -656,6 +657,16 @@ class _TimetablePageState extends State<TimetablePage>
                   const Text('Effacer avant génération'),
                 ],
               ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Switch(
+                    value: _saturateAll,
+                    onChanged: (v) => setState(() => _saturateAll = v),
+                  ),
+                  const Text('Saturer toutes les heures'),
+                ],
+              ),
               ElevatedButton.icon(
                 onPressed: _isGenerating ? null : _onGenerateForAllClasses,
                 icon: const Icon(Icons.apartment, color: Colors.white),
@@ -714,18 +725,29 @@ class _TimetablePageState extends State<TimetablePage>
       final slots = List<String>.from(_timeSlots);
       int total = 0;
       for (final cls in _classes) {
-        final created = await _scheduling.autoGenerateForClass(
-          targetClass: cls,
-          daysOfWeek: _daysOfWeek,
-          timeSlots: slots,
-          breakSlots: _breakSlots,
-          clearExisting: _clearBeforeGen,
-          sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
-          enforceTeacherWeeklyHours: true,
-          teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
-          classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
-          subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
-        );
+        int created = 0;
+        if (_saturateAll) {
+          created = await _scheduling.autoSaturateForClass(
+            targetClass: cls,
+            daysOfWeek: _daysOfWeek,
+            timeSlots: slots,
+            breakSlots: _breakSlots,
+            clearExisting: _clearBeforeGen,
+          );
+        } else {
+          created = await _scheduling.autoGenerateForClass(
+            targetClass: cls,
+            daysOfWeek: _daysOfWeek,
+            timeSlots: slots,
+            breakSlots: _breakSlots,
+            clearExisting: _clearBeforeGen,
+            sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+            enforceTeacherWeeklyHours: true,
+            teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+            classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+            subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+          );
+        }
         total += created;
       }
       if (mounted) {
@@ -737,7 +759,7 @@ class _TimetablePageState extends State<TimetablePage>
         await _dbService.logAudit(
           category: 'timetable',
           action: 'auto_generate_classes',
-          details: 'classes=${_classes.length} slots=${slots.length} days=${_daysOfWeek.length}',
+          details: 'classes=${_classes.length} slots=${slots.length} days=${_daysOfWeek.length} saturate=${_saturateAll ? 1 : 0}',
         );
       } catch (_) {}
     } finally {
@@ -753,18 +775,29 @@ class _TimetablePageState extends State<TimetablePage>
       final slots = List<String>.from(_timeSlots);
       int total = 0;
       for (final t in _teachers) {
-        final created = await _scheduling.autoGenerateForTeacher(
-          teacher: t,
-          daysOfWeek: _daysOfWeek,
-          timeSlots: slots,
-          breakSlots: _breakSlots,
-          clearExisting: _clearBeforeGen,
-          sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
-          enforceTeacherWeeklyHours: true,
-          teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
-          classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
-          subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
-        );
+        int created = 0;
+        if (_saturateAll) {
+          created = await _scheduling.autoSaturateForTeacher(
+            teacher: t,
+            daysOfWeek: _daysOfWeek,
+            timeSlots: slots,
+            breakSlots: _breakSlots,
+            clearExisting: _clearBeforeGen,
+          );
+        } else {
+          created = await _scheduling.autoGenerateForTeacher(
+            teacher: t,
+            daysOfWeek: _daysOfWeek,
+            timeSlots: slots,
+            breakSlots: _breakSlots,
+            clearExisting: _clearBeforeGen,
+            sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+            enforceTeacherWeeklyHours: true,
+            teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+            classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+            subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+          );
+        }
         total += created;
       }
       if (mounted) {
@@ -776,7 +809,7 @@ class _TimetablePageState extends State<TimetablePage>
         await _dbService.logAudit(
           category: 'timetable',
           action: 'auto_generate_teachers',
-          details: 'teachers=${_teachers.length} slots=${slots.length} days=${_daysOfWeek.length}',
+          details: 'teachers=${_teachers.length} slots=${slots.length} days=${_daysOfWeek.length} saturate=${_saturateAll ? 1 : 0}',
         );
       } catch (_) {}
     } finally {
@@ -796,18 +829,26 @@ class _TimetablePageState extends State<TimetablePage>
     setState(() => _isGenerating = true);
     try {
       await _saveAutoGenPrefs();
-      final created = await _scheduling.autoGenerateForClass(
-        targetClass: cls,
-        daysOfWeek: _daysOfWeek,
-        timeSlots: List<String>.from(_timeSlots),
-        breakSlots: _breakSlots,
-        clearExisting: _clearBeforeGen,
-        sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
-        enforceTeacherWeeklyHours: true,
-        teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
-        classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
-        subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
-      );
+      final created = _saturateAll
+          ? await _scheduling.autoSaturateForClass(
+              targetClass: cls,
+              daysOfWeek: _daysOfWeek,
+              timeSlots: List<String>.from(_timeSlots),
+              breakSlots: _breakSlots,
+              clearExisting: _clearBeforeGen,
+            )
+          : await _scheduling.autoGenerateForClass(
+              targetClass: cls,
+              daysOfWeek: _daysOfWeek,
+              timeSlots: List<String>.from(_timeSlots),
+              breakSlots: _breakSlots,
+              clearExisting: _clearBeforeGen,
+              sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+              enforceTeacherWeeklyHours: true,
+              teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+              classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+              subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+            );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Génération: $created cours pour ${cls.name}.')),
@@ -817,7 +858,7 @@ class _TimetablePageState extends State<TimetablePage>
         await _dbService.logAudit(
           category: 'timetable',
           action: 'auto_generate_class',
-          details: 'class=${cls.name} year=${cls.academicYear}',
+          details: 'class=${cls.name} year=${cls.academicYear} saturate=${_saturateAll ? 1 : 0}',
         );
       } catch (_) {}
     } finally {
@@ -847,18 +888,26 @@ class _TimetablePageState extends State<TimetablePage>
     setState(() => _isGenerating = true);
     try {
       await _saveAutoGenPrefs();
-      final created = await _scheduling.autoGenerateForTeacher(
-        teacher: teacher,
-        daysOfWeek: _daysOfWeek,
-        timeSlots: List<String>.from(_timeSlots),
-        breakSlots: _breakSlots,
-        clearExisting: _clearBeforeGen,
-        sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
-        enforceTeacherWeeklyHours: true,
-        teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
-        classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
-        subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
-      );
+      final created = _saturateAll
+          ? await _scheduling.autoSaturateForTeacher(
+              teacher: teacher,
+              daysOfWeek: _daysOfWeek,
+              timeSlots: List<String>.from(_timeSlots),
+              breakSlots: _breakSlots,
+              clearExisting: _clearBeforeGen,
+            )
+          : await _scheduling.autoGenerateForTeacher(
+              teacher: teacher,
+              daysOfWeek: _daysOfWeek,
+              timeSlots: List<String>.from(_timeSlots),
+              breakSlots: _breakSlots,
+              clearExisting: _clearBeforeGen,
+              sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+              enforceTeacherWeeklyHours: true,
+              teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+              classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+              subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+            );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Génération: $created cours pour $teacherName.')),
@@ -868,7 +917,7 @@ class _TimetablePageState extends State<TimetablePage>
         await _dbService.logAudit(
           category: 'timetable',
           action: 'auto_generate_teacher',
-          details: 'teacher=$teacherName',
+          details: 'teacher=$teacherName saturate=${_saturateAll ? 1 : 0}',
         );
       } catch (_) {}
     } finally {
