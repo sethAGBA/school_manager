@@ -507,6 +507,7 @@ class DatabaseService {
     await _dropClassesBackup(db);
     await _migrateStaffTable(db);
     await _ensureStudentMatriculeColumn(db);
+    await _ensureStudentNameColumns(db);
     await _ensureSchoolInfoColumns(db);
     await _ensureArchiveExtraColumns(db);
     await _ensureSubjectAppreciationCoeffColumns(db);
@@ -793,6 +794,38 @@ class DatabaseService {
       } catch (e) {
         debugPrint(
           '[DatabaseService][MIGRATION][ERROR] Failed to add matricule column: $e',
+        );
+      }
+    }
+  }
+
+  Future<void> _ensureStudentNameColumns(Database db) async {
+    final cols = await db.rawQuery('PRAGMA table_info(students)');
+    final hasFirstName = cols.any((c) => c['name'] == 'firstName');
+    final hasLastName = cols.any((c) => c['name'] == 'lastName');
+    
+    if (!hasFirstName) {
+      try {
+        await db.execute("ALTER TABLE students ADD COLUMN firstName TEXT");
+        debugPrint(
+          '[DatabaseService][MIGRATION] Added firstName column to students',
+        );
+      } catch (e) {
+        debugPrint(
+          '[DatabaseService][MIGRATION][ERROR] Failed to add firstName column: $e',
+        );
+      }
+    }
+    
+    if (!hasLastName) {
+      try {
+        await db.execute("ALTER TABLE students ADD COLUMN lastName TEXT");
+        debugPrint(
+          '[DatabaseService][MIGRATION] Added lastName column to students',
+        );
+      } catch (e) {
+        debugPrint(
+          '[DatabaseService][MIGRATION][ERROR] Failed to add lastName column: $e',
         );
       }
     }

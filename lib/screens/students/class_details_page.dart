@@ -643,7 +643,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
           ),
           const SizedBox(height: 16),
           Text(
-            "Voulez-vous vraiment supprimer l'élève ${student.name} ?\nCette action est irréversible.",
+            "Voulez-vous vraiment supprimer l'élève ${student.firstName} ${student.lastName} ?\nCette action est irréversible.",
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
@@ -1030,7 +1030,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
               radius: 25,
               backgroundColor: const Color(0xFF667EEA).withOpacity(0.1),
               child: Text(
-                student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                student.firstName.isNotEmpty ? student.firstName[0].toUpperCase() : '?',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -1042,7 +1042,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
               children: [
                 Expanded(
                   child: Text(
-                    student.name,
+                    '${student.firstName} ${student.lastName}'.trim(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -1216,7 +1216,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       final query = _studentSearchQuery.toLowerCase();
       final matchSearch =
           _studentSearchQuery.isEmpty ||
-          student.name.toLowerCase().contains(query) ||
+          '${student.firstName} ${student.lastName}'.toLowerCase().contains(query) ||
           student.id.toLowerCase().contains(query) ||
           (student.gender == 'M' && 'garçon'.contains(query)) ||
           (student.gender == 'F' && 'fille'.contains(query));
@@ -1316,7 +1316,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                     ),
                   ),
                 ),
-              _buildDetailRow('Nom complet', student.name),
+              _buildDetailRow('Nom complet', '${student.firstName} ${student.lastName}'.trim()),
               _buildDetailRow('ID', student.id),
               if (student.matricule != null && student.matricule!.isNotEmpty)
                 _buildDetailRow('Matricule', student.matricule!),
@@ -1613,7 +1613,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
     showDialog(
       context: context,
       builder: (context) => CustomDialog(
-        title: 'Paiement pour ${student.name}',
+        title: 'Paiement pour ${student.firstName} ${student.lastName}'.trim(),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1726,7 +1726,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
               ),
               pw.SizedBox(height: 16),
               pw.Text(
-                'Élève : ${student.name}',
+                'Élève : ${student.firstName} ${student.lastName}'.trim(),
                 style: pw.TextStyle(fontSize: 16),
               ),
               pw.Text(
@@ -3522,10 +3522,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       for (int i = 0; i < studentsList.length; i++) {
         final student = studentsList[i]['student'] as Student;
         final classe = studentsList[i]['classe'];
-        final names = student.name.split(' ');
-        // Dans le formulaire, le prénom est saisi en premier, donc c'est le premier élément
-        final prenom = names.isNotEmpty ? names[0] : '';
-        final nom = names.length > 1 ? names.sublist(1).join(' ') : '';
+        final prenom = student.firstName;
+        final nom = student.lastName;
 
         sheet.appendRow([
           IntCellValue(i + 1),
@@ -3674,7 +3672,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
 
         // Nom de fichier avec le nom de l'élève
         final fileName =
-            'fiche_profil_${student.name.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+            'fiche_profil_${'${student.firstName}_${student.lastName}'.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final file = File('$dirPath/$fileName');
 
         await file.writeAsBytes(pdfBytes);
@@ -3720,9 +3718,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       final rows = List<RowContent>.generate(studentsList.length, (i) {
         final student = studentsList[i]['student'] as Student;
         final classe = studentsList[i]['classe'] as Class;
-        final names = student.name.split(' ');
-        final prenom = names.length > 1 ? names.sublist(1).join(' ') : '';
-        final nom = names.isNotEmpty ? names[0] : '';
+        final prenom = student.firstName;
+        final nom = student.lastName;
         return RowContent()
           ..add(TextContent("numero", (i + 1).toString()))
           ..add(TextContent("nom", nom))

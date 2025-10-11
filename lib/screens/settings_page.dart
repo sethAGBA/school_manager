@@ -567,7 +567,7 @@ class _SettingsPageState extends State<SettingsPage>
             ...students.map(
               (s) => [
                 s.id,
-                s.name,
+                '${s.firstName} ${s.lastName}'.trim(),
                 s.dateOfBirth,
                 s.address,
                 s.gender,
@@ -2446,7 +2446,7 @@ class _SettingsPageState extends State<SettingsPage>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildAboutInfoRow(Icons.tag, 'Version', '1.0.0 (100)'),
+                    _buildAboutInfoRow(Icons.tag, 'Version', '1.9.1 (100)'),
                     _buildAboutInfoRow(
                       Icons.apartment,
                       'Éditeur',

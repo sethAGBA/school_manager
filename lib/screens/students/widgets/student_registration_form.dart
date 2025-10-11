@@ -82,12 +82,9 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
           _enrollmentDateController.text = formatDdMmYyyy(ed);
         }
       } catch (_) {}
-      // Sépare prénom/nom si possible
-      final nameParts = s.name.split(' ');
-      _studentNameController.text = nameParts.isNotEmpty ? nameParts.first : '';
-      _studentLastNameController.text = nameParts.length > 1
-          ? nameParts.sublist(1).join(' ')
-          : '';
+      // Charger les prénoms et noms séparément
+      _studentNameController.text = s.firstName;
+      _studentLastNameController.text = s.lastName;
       // dateOfBirth est stockée en ISO; afficher en jj/MM/aaaa
       DateTime? dob;
       try {
@@ -293,11 +290,8 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       }
       final student = Student(
         id: _studentIdController.text,
-        name:
-            _studentNameController.text +
-            (_studentLastNameController.text.isNotEmpty
-                ? ' ' + _studentLastNameController.text
-                : ''),
+        firstName: _studentNameController.text,
+        lastName: _studentLastNameController.text,
         dateOfBirth: parseDdMmYyyy(
           _dateOfBirthController.text,
         )!.toIso8601String(),
@@ -387,13 +381,13 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             ),
             CustomFormField(
               controller: _studentNameController,
-              labelText: 'Prénom',
+              labelText: 'Prénom(s)',
               hintText: 'Entrez le prénom de l’étudiant',
               validator: (value) => value!.isEmpty ? AppStrings.required : null,
             ),
             CustomFormField(
               controller: _studentLastNameController,
-              labelText: 'Nom',
+              labelText: 'Nom de famille',
               hintText: 'Entrez le nom de famille de l’étudiant',
               validator: (value) => value!.isEmpty ? AppStrings.required : null,
             ),

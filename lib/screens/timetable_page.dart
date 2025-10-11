@@ -76,6 +76,7 @@ class _TimetablePageState extends State<TimetablePage>
   final TextEditingController _teacherMaxPerDayCtrl = TextEditingController(text: '0');
   final TextEditingController _classMaxPerDayCtrl = TextEditingController(text: '0');
   final TextEditingController _subjectMaxPerDayCtrl = TextEditingController(text: '0');
+  final TextEditingController _optionalMaxMinutesCtrl = TextEditingController(text: '120');
   bool _clearBeforeGen = false;
   bool _isGenerating = false;
   bool _saturateAll = false;
@@ -163,6 +164,7 @@ class _TimetablePageState extends State<TimetablePage>
     _sessionMinutesCtrl.text = (await ttp.loadSessionMinutes()).toString();
     _blockDefaultCtrl.text = (await ttp.loadBlockDefaultSlots()).toString();
     _threeHourThresholdCtrl.text = (await ttp.loadThreeHourThreshold()).toString();
+    _optionalMaxMinutesCtrl.text = (await ttp.loadOptionalMaxMinutes()).toString();
 
     setState(() {
       // initialiser la sélection de classe/enseignant si nécessaire
@@ -239,6 +241,7 @@ class _TimetablePageState extends State<TimetablePage>
     _subjectMaxPerDayCtrl.dispose();
     _blockDefaultCtrl.dispose();
     _threeHourThresholdCtrl.dispose();
+    _optionalMaxMinutesCtrl.dispose();
     _tabController.dispose();
     _classListScrollCtrl.dispose();
     _tableVScrollCtrl.dispose();
@@ -751,6 +754,14 @@ class _TimetablePageState extends State<TimetablePage>
                   keyboardType: TextInputType.number,
                 ),
               ),
+              SizedBox(
+                width: 200,
+                child: TextField(
+                  controller: _optionalMaxMinutesCtrl,
+                  decoration: const InputDecoration(labelText: 'Max minutes optionnelles/sem.'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -814,6 +825,7 @@ class _TimetablePageState extends State<TimetablePage>
     await ttp.saveSessionMinutes(minutes);
     await ttp.saveBlockDefaultSlots(int.tryParse(_blockDefaultCtrl.text) ?? 2);
     await ttp.saveThreeHourThreshold(double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5);
+    await ttp.saveOptionalMaxMinutes(int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120);
     // Also persist generated slots for consistency
     final slots = _buildSlotsFromSegments();
     await ttp.saveSlots(slots);
@@ -839,6 +851,7 @@ class _TimetablePageState extends State<TimetablePage>
             timeSlots: slots,
             breakSlots: _breakSlots,
             clearExisting: _clearBeforeGen,
+            optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
           );
         } else {
           created = await _scheduling.autoGenerateForClass(
@@ -854,6 +867,7 @@ class _TimetablePageState extends State<TimetablePage>
             subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
             blockDefaultSlots: int.tryParse(_blockDefaultCtrl.text) ?? 2,
             threeHourThreshold: double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5,
+            optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
           );
         }
         total += created;
@@ -891,6 +905,7 @@ class _TimetablePageState extends State<TimetablePage>
             timeSlots: slots,
             breakSlots: _breakSlots,
             clearExisting: _clearBeforeGen,
+            optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
           );
         } else {
           created = await _scheduling.autoGenerateForTeacher(
@@ -904,6 +919,7 @@ class _TimetablePageState extends State<TimetablePage>
             teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
             classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
             subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+            optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
           );
         }
         total += created;
@@ -944,6 +960,7 @@ class _TimetablePageState extends State<TimetablePage>
               timeSlots: List<String>.from(_timeSlots),
               breakSlots: _breakSlots,
               clearExisting: _clearBeforeGen,
+              optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
             )
           : await _scheduling.autoGenerateForClass(
               targetClass: cls,
@@ -958,6 +975,7 @@ class _TimetablePageState extends State<TimetablePage>
               subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
               blockDefaultSlots: int.tryParse(_blockDefaultCtrl.text) ?? 2,
               threeHourThreshold: double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5,
+              optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
             );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1005,6 +1023,7 @@ class _TimetablePageState extends State<TimetablePage>
               timeSlots: List<String>.from(_timeSlots),
               breakSlots: _breakSlots,
               clearExisting: _clearBeforeGen,
+              optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
             )
           : await _scheduling.autoGenerateForTeacher(
               teacher: teacher,
@@ -1017,6 +1036,7 @@ class _TimetablePageState extends State<TimetablePage>
               teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
               classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
               subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+              optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
             );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1133,6 +1153,26 @@ class _TimetablePageState extends State<TimetablePage>
                       );
                       return;
                     }
+                    // Check teacher unavailability for the entry's teacher
+                    if (entry.teacher.isNotEmpty) {
+                      final yr = await getCurrentAcademicYear();
+                      final un = await _dbService.getTeacherUnavailability(entry.teacher, yr);
+                      final unKeys = un.map((e) => '${e['dayOfWeek']}|${e['startTime']}').toSet();
+                      if (unKeys.contains('$day|$slotStartTime')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Créneau indisponible pour l\'enseignant.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                    }
+                    // Helper overlap check
+                    bool overlaps(String aS, String aE, String bS, String bE) {
+                      final a1 = _toMin(aS), a2 = _toMin(aE), b1 = _toMin(bS), b2 = _toMin(bE);
+                      return a1 < b2 && b1 < a2;
+                    }
                     // Insert new (from palette) or move existing
                     if (entry.id == null) {
                       final cls = _selectedClass();
@@ -1157,6 +1197,25 @@ class _TimetablePageState extends State<TimetablePage>
                         endTime: slotEndTime,
                         room: entry.room,
                       );
+                      // Room conflict if provided
+                      if (toCreate.room.trim().isNotEmpty) {
+                        final hasRoomConflict = _timetableEntries.any((e) =>
+                          e.id != toCreate.id &&
+                          e.dayOfWeek == day &&
+                          e.room.trim().isNotEmpty &&
+                          e.room.trim() == toCreate.room.trim() &&
+                          overlaps(e.startTime, e.endTime, slotStartTime, slotEndTime)
+                        );
+                        if (hasRoomConflict) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Conflit de salle: déjà occupée.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                      }
                       await _dbService.insertTimetableEntry(toCreate);
                     } else {
                       // Preserve duration when moving
@@ -1201,6 +1260,25 @@ class _TimetablePageState extends State<TimetablePage>
                         endTime: newEnd,
                         room: entry.room,
                       );
+                      // Room conflict if provided
+                      if (moved.room.trim().isNotEmpty) {
+                        final hasRoomConflict = _timetableEntries.any((e) =>
+                          e.id != moved.id &&
+                          e.dayOfWeek == day &&
+                          e.room.trim().isNotEmpty &&
+                          e.room.trim() == moved.room.trim() &&
+                          overlaps(e.startTime, e.endTime, slotStartTime, newEnd)
+                        );
+                        if (hasRoomConflict) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Conflit de salle: déjà occupée.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                      }
                       await _dbService.updateTimetableEntry(moved);
                     }
                     await _loadData();
@@ -1626,6 +1704,44 @@ class _TimetablePageState extends State<TimetablePage>
                   onWillAccept: (data) => !isBreak && !isUnavailable,
                   onAccept: (entry) async {
                     if (isBreak || isUnavailable) return;
+                    // Additional teacher unavailability check for the entry's teacher
+                    if (entry.teacher.isNotEmpty) {
+                      final yr = await getCurrentAcademicYear();
+                      final un = await _dbService.getTeacherUnavailability(entry.teacher, yr);
+                      final unKeys = un.map((e) => '${e['dayOfWeek']}|${e['startTime']}').toSet();
+                      // For moved blocks, check all covered starts; for new, check slotStart only
+                      final startsToCheck = <String>[];
+                      startsToCheck.add(slotStart);
+                      if (entry.id != null) {
+                        // approximate by checking every boundary between slotStart and slotEnd
+                        int? s = toMin(slotStart);
+                        int? e = toMin(slotEnd);
+                        if (s != null && e != null && e > s) {
+                          for (int bi = 0; bi < boundaries.length - 1; bi++) {
+                            final b = boundaries[bi];
+                            final bm = toMin(b) ?? 0;
+                            if (bm >= s && bm < e) startsToCheck.add(b);
+                          }
+                        }
+                      }
+                      final day = _daysOfWeek[d];
+                      for (final st in startsToCheck) {
+                        if (unKeys.contains('$day|$st')) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Créneau indisponible pour l\'enseignant.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                      }
+                    }
+                    bool overlapsMM(String aS, String aE, String bS, String bE) {
+                      int? a1 = toMin(aS), a2 = toMin(aE), b1 = toMin(bS), b2 = toMin(bE);
+                      if (a1 == null || a2 == null || b1 == null || b2 == null) return false;
+                      return a1 < b2 && b1 < a2;
+                    }
                     final conflict = _timetableEntries.any(
                       (e) =>
                           e.dayOfWeek == _daysOfWeek[d] &&
@@ -1665,6 +1781,25 @@ class _TimetablePageState extends State<TimetablePage>
                         endTime: slotEnd,
                         room: entry.room,
                       );
+                      // Room conflict if provided
+                      if (toCreate.room.trim().isNotEmpty) {
+                        final hasRoomConflict = _timetableEntries.any((e) =>
+                          e.id != toCreate.id &&
+                          e.dayOfWeek == _daysOfWeek[d] &&
+                          e.room.trim().isNotEmpty &&
+                          e.room.trim() == toCreate.room.trim() &&
+                          overlapsMM(e.startTime, e.endTime, slotStart, slotEnd)
+                        );
+                        if (hasRoomConflict) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Conflit de salle: déjà occupée.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                      }
                       await _dbService.insertTimetableEntry(toCreate);
                     } else {
                       int? m(String s) => toMin(s);
@@ -1696,6 +1831,25 @@ class _TimetablePageState extends State<TimetablePage>
                         endTime: newEnd,
                         room: entry.room,
                       );
+                      // Room conflict if provided
+                      if (moved.room.trim().isNotEmpty) {
+                        final hasRoomConflict = _timetableEntries.any((e) =>
+                          e.id != moved.id &&
+                          e.dayOfWeek == _daysOfWeek[d] &&
+                          e.room.trim().isNotEmpty &&
+                          e.room.trim() == moved.room.trim() &&
+                          overlapsMM(e.startTime, e.endTime, slotStart, newEnd)
+                        );
+                        if (hasRoomConflict) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Conflit de salle: déjà occupée.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                      }
                       await _dbService.updateTimetableEntry(moved);
                     }
                     await _loadData();
@@ -1893,6 +2047,7 @@ class _TimetablePageState extends State<TimetablePage>
       teacherMaxPerDay: teacherMaxPerDay == 0 ? null : teacherMaxPerDay,
       classMaxPerDay: classMaxPerDay == 0 ? null : classMaxPerDay,
       subjectMaxPerDay: subjectMaxPerDay == 0 ? null : subjectMaxPerDay,
+      optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
     );
     await _loadData();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -2068,6 +2223,7 @@ class _TimetablePageState extends State<TimetablePage>
       teacherWeeklyHours: weeklyHours,
       subjectMaxPerDay: subjectMaxPerDay == 0 ? null : subjectMaxPerDay,
       classMaxPerDay: classMaxPerDay == 0 ? null : classMaxPerDay,
+      optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
     );
     await _loadData();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -2670,7 +2826,8 @@ class _TimetablePageState extends State<TimetablePage>
                       initialTime: TimeOfDay.now(),
                     );
                     if (picked != null) {
-                      startTimeController.text = picked.format(context);
+                      final m = picked.hour * 60 + picked.minute;
+                      startTimeController.text = _fmtHHmm(m);
                     }
                   },
                   validator: (v) =>
@@ -2691,7 +2848,8 @@ class _TimetablePageState extends State<TimetablePage>
                       initialTime: TimeOfDay.now(),
                     );
                     if (picked != null) {
-                      endTimeController.text = picked.format(context);
+                      final m = picked.hour * 60 + picked.minute;
+                      endTimeController.text = _fmtHHmm(m);
                     }
                   },
                   validator: (v) =>
@@ -2728,16 +2886,59 @@ class _TimetablePageState extends State<TimetablePage>
                   );
                   return;
                 }
+                // Normalize time input to HH:mm already done by pickers; ensure clean
+                String sDay = selectedDay!;
+                String sStart = startTimeController.text.trim();
+                String sEnd = endTimeController.text.trim();
+                String sRoom = (roomController.text).trim();
+                // Room conflict (overlap on same room)
+                bool overlaps(String aS, String aE, String bS, String bE) {
+                  final a1 = _toMin(aS), a2 = _toMin(aE), b1 = _toMin(bS), b2 = _toMin(bE);
+                  return a1 < b2 && b1 < a2;
+                }
+                if (sRoom.isNotEmpty) {
+                  final hasRoomConflict = _timetableEntries.any((e) =>
+                    (entry == null || e.id != entry!.id) &&
+                    e.dayOfWeek == sDay &&
+                    e.room.trim().isNotEmpty &&
+                    e.room.trim() == sRoom &&
+                    overlaps(e.startTime, e.endTime, sStart, sEnd)
+                  );
+                  if (hasRoomConflict) {
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Conflit de salle: déjà occupée.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                }
+                // Teacher unavailability at start time
+                if ((selectedTeacher ?? '').isNotEmpty) {
+                  final yr = await getCurrentAcademicYear();
+                  final un = await _dbService.getTeacherUnavailability(selectedTeacher!, yr);
+                  final unKeys = un.map((e) => '${e['dayOfWeek']}|${e['startTime']}').toSet();
+                  if (unKeys.contains('$sDay|$sStart')) {
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Créneau indisponible pour l\'enseignant.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                }
                 final newEntry = TimetableEntry(
                   id: entry?.id, // Pass existing ID if editing
                   subject: selectedSubject!,
                   teacher: selectedTeacher!,
                   className: classData.name,
                   academicYear: classData.academicYear,
-                  dayOfWeek: selectedDay!,
-                  startTime: startTimeController.text,
-                  endTime: endTimeController.text,
-                  room: roomController.text,
+                  dayOfWeek: sDay,
+                  startTime: sStart,
+                  endTime: sEnd,
+                  room: sRoom,
                 );
 
                 if (entry == null) {

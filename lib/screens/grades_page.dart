@@ -1136,11 +1136,8 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
               context,
             ).colorScheme.primary.withOpacity(0.1),
             child: Text(
-              student.name.isNotEmpty
-                  ? student.name
-                        .split(' ')
-                        .map((n) => n.isNotEmpty ? n[0] : '')
-                        .join()
+              student.firstName.isNotEmpty
+                  ? student.firstName[0]
                   : '?',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
@@ -1154,7 +1151,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  student.name,
+                  '${student.firstName} ${student.lastName}'.trim(),
                   style: Theme.of(
                     context,
                   ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -1215,7 +1212,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                         showRootSnackBar(
                           SnackBar(
                             content: Text(
-                              'Note enregistrée pour ${student.name}',
+                              'Note enregistrée pour ${student.firstName} ${student.lastName}'.trim(),
                             ),
                             backgroundColor: Colors.green,
                           ),
@@ -1250,7 +1247,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                       showRootSnackBar(
                         SnackBar(
                           content: Text(
-                            'Note enregistrée pour ${student.name}',
+                            'Note enregistrée pour ${student.firstName} ${student.lastName}'.trim(),
                           ),
                           backgroundColor: Colors.green,
                         ),
@@ -1739,12 +1736,8 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                 )
                 .length;
             // Bloc élève : nom, prénom, sexe
-            final String prenom = student.name.split(' ').length > 1
-                ? student.name.split(' ').first
-                : student.name;
-            final String nom = student.name.split(' ').length > 1
-                ? student.name.split(' ').sublist(1).join(' ')
-                : '';
+            final String prenom = student.firstName;
+            final String nom = student.lastName;
             final String sexe = student.gender;
 
             // Helpers pour l'en-tête administratif (aperçu)
@@ -4802,7 +4795,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                                 );
                             if (directoryPath != null) {
                               final fileName =
-                                  'Bulletin_${student.name.replaceAll(' ', '_')}_${selectedTerm ?? ''}_${selectedAcademicYear ?? ''}.pdf';
+                                  'Bulletin_${'${student.firstName}_${student.lastName}'.replaceAll(' ', '_')}_${selectedTerm ?? ''}_${selectedAcademicYear ?? ''}.pdf';
                               final file = File('$directoryPath/$fileName');
                               await file.writeAsBytes(pdfBytes);
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -4973,7 +4966,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
               final filteredStudents = students.where((student) {
                 final nameMatch =
                     _archiveSearchQuery.isEmpty ||
-                    student.name.toLowerCase().contains(
+                    '${student.firstName} ${student.lastName}'.toLowerCase().contains(
                       _archiveSearchQuery.toLowerCase(),
                     );
                 final inArchive = studentIdsFromArchive.contains(student.id);
@@ -5019,7 +5012,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             context,
                           ).colorScheme.primary.withOpacity(0.1),
                           child: Text(
-                            student.name.substring(0, 1).toUpperCase(),
+                            student.firstName.isNotEmpty ? student.firstName[0].toUpperCase() : '?',
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.primary,
                               fontWeight: FontWeight.bold,
@@ -5027,7 +5020,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                           ),
                         ),
                         title: Text(
-                          student.name,
+                          '${student.firstName} ${student.lastName}'.trim(),
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                         subtitle: Text(
@@ -6382,7 +6375,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: Text(
-                              student.name,
+                              '${student.firstName} ${student.lastName}'.trim(),
                               style: Theme.of(context).textTheme.bodyLarge,
                             ),
                           ),
@@ -7085,7 +7078,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
         moyenneAnnuelle: data['moyenneAnnuelle'],
       );
       // Use student ID to ensure unique filenames even if names collide
-      final safeName = student.name.replaceAll(' ', '_');
+      final safeName = '${student.firstName}_${student.lastName}'.replaceAll(' ', '_');
       final safeId = student.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '');
       final fileName =
           'Bulletin_${safeName}_${safeId}_${selectedTerm ?? ''}_${selectedAcademicYear ?? ''}.pdf';
@@ -7281,7 +7274,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                     const Icon(Icons.edit, color: AppColors.primaryBlue),
                     const SizedBox(width: 10),
                     Text(
-                      'Notes de ${student.name}',
+                      'Notes de ${student.firstName} ${student.lastName}'.trim(),
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                   ],

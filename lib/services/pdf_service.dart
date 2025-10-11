@@ -316,7 +316,7 @@ class PdfService {
                       pw.Expanded(
                         flex: 3,
                         child: pw.Text(
-                          student.name,
+                          '${student.firstName} ${student.lastName}'.trim(),
                           style: pw.TextStyle(font: times),
                         ),
                       ),
@@ -818,7 +818,7 @@ class PdfService {
                   statut = 'Impayé';
                 }
                 return [
-                  student.name,
+                  '${student.firstName} ${student.lastName}'.trim(),
                   student.className,
                   classe?.academicYear ?? '',
                   formatter.format(payment?.amount ?? 0),
@@ -877,12 +877,16 @@ class PdfService {
       fontWeight: pw.FontWeight.bold,
     );
 
-    // Trie par nom
+    // Trie par nom de famille puis prénom
     final sorted = List<Map<String, dynamic>>.from(students)
       ..sort(
-        (a, b) => (a['student'].name as String).compareTo(
-          b['student'].name as String,
-        ),
+        (a, b) {
+          final studentA = a['student'] as Student;
+          final studentB = b['student'] as Student;
+          final nameA = '${studentA.lastName} ${studentA.firstName}'.trim();
+          final nameB = '${studentB.lastName} ${studentB.firstName}'.trim();
+          return nameA.compareTo(nameB);
+        },
       );
 
     // Récupération des informations de l'école
@@ -1237,7 +1241,7 @@ class PdfService {
 
                       return [
                         (i + 1).toString(),
-                        student.name,
+                        '${student.firstName} ${student.lastName}'.trim(),
                         student.gender == 'M' ? 'M' : 'F',
                         statusLetter,
                         '', // Colonne vide pour cocher la présence
@@ -1538,7 +1542,7 @@ class PdfService {
                               ),
                               pw.SizedBox(height: 4),
                               pw.Text(
-                                student.name.toUpperCase(),
+                                '${student.firstName} ${student.lastName}'.trim().toUpperCase(),
                                 style: pw.TextStyle(
                                   font: timesBold,
                                   fontSize: 20,
@@ -1583,7 +1587,7 @@ class PdfService {
                                 children: [
                                   _buildInfoRow(
                                     'Nom complet',
-                                    student.name,
+                                    '${student.firstName} ${student.lastName}'.trim(),
                                     times,
                                     timesBold,
                                     primary,
@@ -2236,12 +2240,8 @@ class PdfService {
       }
     }
     final now = DateTime.now();
-    final prenom = student.name.split(' ').length > 1
-        ? student.name.split(' ').first
-        : student.name;
-    final nom = student.name.split(' ').length > 1
-        ? student.name.split(' ').sublist(1).join(' ')
-        : '';
+    final prenom = student.firstName;
+    final nom = student.lastName;
     final sexe = student.gender;
     // ---
     final PdfPageFormat _pageFormat = isLandscape

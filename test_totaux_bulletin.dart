@@ -14,11 +14,19 @@ void main() async {
   // Données de test
   final student = Student(
     id: 'test-001',
-    name: 'Jean Dupont',
+    firstName: 'Jean',
+    lastName: 'Dupont',
     className: '6ème A',
     academicYear: '2024-2025',
     dateOfBirth: '2010-05-15',
     gender: 'M',
+    address: '123 Rue de Test',
+    contactNumber: '0123456789',
+    email: 'jean.dupont@test.com',
+    emergencyContact: 'Marie Dupont - 0987654321',
+    guardianName: 'Marie Dupont',
+    guardianContact: '0987654321',
+    enrollmentDate: '2024-09-01',
     status: 'Actif',
   );
 
@@ -34,8 +42,9 @@ void main() async {
   // Notes de test avec différents coefficients
   final grades = [
     Grade(
-      id: '1',
+      id: 1,
       studentId: 'test-001',
+      subjectId: 'math',
       subject: 'Mathématiques',
       type: 'Devoir',
       value: 15.0,
@@ -46,8 +55,9 @@ void main() async {
       term: 'Trimestre 1',
     ),
     Grade(
-      id: '2',
+      id: 2,
       studentId: 'test-001',
+      subjectId: 'math',
       subject: 'Mathématiques',
       type: 'Composition',
       value: 18.0,
@@ -58,8 +68,9 @@ void main() async {
       term: 'Trimestre 1',
     ),
     Grade(
-      id: '3',
+      id: 3,
       studentId: 'test-001',
+      subjectId: 'francais',
       subject: 'Français',
       type: 'Devoir',
       value: 12.0,
@@ -70,8 +81,9 @@ void main() async {
       term: 'Trimestre 1',
     ),
     Grade(
-      id: '4',
+      id: 4,
       studentId: 'test-001',
+      subjectId: 'francais',
       subject: 'Français',
       type: 'Composition',
       value: 14.0,
@@ -82,7 +94,8 @@ void main() async {
       term: 'Trimestre 1',
     ),
     Grade(
-      id: '5',
+      id: 5,
+      subjectId: 'histgeo',
       studentId: 'test-001',
       subject: 'Histoire-Géographie',
       type: 'Devoir',
@@ -94,7 +107,8 @@ void main() async {
       term: 'Trimestre 1',
     ),
     Grade(
-      id: '6',
+      id: 6,
+      subjectId: 'histgeo',
       studentId: 'test-001',
       subject: 'Sciences',
       type: 'Devoir',
@@ -106,7 +120,8 @@ void main() async {
       term: 'Trimestre 1',
     ),
     Grade(
-      id: '7',
+      id: 7,
+      subjectId: 'sciences',
       studentId: 'test-001',
       subject: 'Anglais',
       type: 'Devoir',
@@ -118,7 +133,8 @@ void main() async {
       term: 'Trimestre 1',
     ),
     Grade(
-      id: '8',
+      id: 8,
+      subjectId: 'anglais',
       studentId: 'test-001',
       subject: 'EPS',
       type: 'Devoir',

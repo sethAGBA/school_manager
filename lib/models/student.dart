@@ -1,6 +1,7 @@
 class Student {
   final String id;
-  final String name;
+  final String firstName;
+  final String lastName;
   final String dateOfBirth;
   final String address;
   final String gender;
@@ -17,9 +18,13 @@ class Student {
   final String? photoPath;
   final String? matricule; // Numéro de matricule
 
+  // Getter pour le nom complet (compatibilité)
+  String get name => '$firstName $lastName'.trim();
+
   Student({
     required this.id,
-    required this.name,
+    required this.firstName,
+    required this.lastName,
     required this.dateOfBirth,
     required this.address,
     required this.gender,
@@ -40,7 +45,9 @@ class Student {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'name': name,
+      'firstName': firstName,
+      'lastName': lastName,
+      'name': name, // Pour compatibilité
       'dateOfBirth': dateOfBirth,
       'address': address,
       'gender': gender,
@@ -60,9 +67,30 @@ class Student {
   }
 
   factory Student.fromMap(Map<String, dynamic> map) {
+    // Gestion de la migration : si firstName/lastName n'existent pas, utiliser name
+    String firstName = map['firstName'] ?? '';
+    String lastName = map['lastName'] ?? '';
+    
+    // Si les nouveaux champs sont vides mais que name existe, essayer de les extraire
+    if (firstName.isEmpty && lastName.isEmpty && map['name'] != null) {
+      final nameParts = (map['name'] as String).split(' ');
+      if (nameParts.length == 1) {
+        firstName = nameParts.first;
+        lastName = '';
+      } else if (nameParts.length == 2) {
+        firstName = nameParts.first;
+        lastName = nameParts.last;
+      } else {
+        // Plus de 2 mots : tous sauf le dernier sont des prénoms
+        firstName = nameParts.sublist(0, nameParts.length - 1).join(' ');
+        lastName = nameParts.last;
+      }
+    }
+    
     return Student(
       id: map['id'],
-      name: map['name'],
+      firstName: firstName,
+      lastName: lastName,
       dateOfBirth: map['dateOfBirth'],
       address: map['address'],
       gender: map['gender'],
@@ -83,7 +111,8 @@ class Student {
 
   factory Student.empty() => Student(
     id: '',
-    name: '',
+    firstName: '',
+    lastName: '',
     dateOfBirth: '',
     address: '',
     gender: '',

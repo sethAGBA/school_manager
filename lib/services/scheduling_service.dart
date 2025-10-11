@@ -69,6 +69,7 @@ class SchedulingService {
     int? subjectMaxPerDay,
     int blockDefaultSlots = 2,
     double threeHourThreshold = 1.5,
+    int optionalMaxMinutes = 120,
   }) async {
     final computedYear = targetClass.academicYear.isNotEmpty
         ? targetClass.academicYear
@@ -182,7 +183,7 @@ class SchedulingService {
     }
     final Map<String, int> targetSessions = {};
     final Map<String, int> optionalMinutes = {}; // subject -> minutes placed
-    const int optionalMaxMinutes = 120; // 2h max/semaine
+    // optionalMaxMinutes limite par semaine pour matières optionnelles
     // Weight by coefficients: need = round((coeff/avgCoeff) * sessionsPerSubject)
     final coeffs = await db.getClassSubjectCoefficients(targetClass.name, computedYear);
     double sumCoeff = 0;
@@ -239,9 +240,15 @@ class SchedulingService {
         if (isEPS(subj)) desiredBlock = 1;
         else if (wSubj >= avgCoeff * threeHourThreshold) desiredBlock = 3;
 
-        // Traverse original timeSlots to ensure contiguity
-        for (int si = 0; si < timeSlots.length; si++) {
-          final slot = timeSlots[si];
+      // Traverse slots sorted by start time to ensure true contiguity
+        final List<String> sortedSlots = List<String>.from(timeSlots);
+        sortedSlots.sort((a, b) {
+          int sa = _parseHHmm(a.split(' - ').first);
+          int sb = _parseHHmm(b.split(' - ').first);
+          return sa.compareTo(sb);
+        });
+        for (int si = 0; si < sortedSlots.length; si++) {
+          final slot = sortedSlots[si];
           if (breakSlots.contains(slot)) continue;
           final parts = slot.split(' - ');
           final start = parts.first;
@@ -258,17 +265,32 @@ class SchedulingService {
           bool canPlace = true;
           for (int k = 0; k < blockSlots; k++) {
             final idx = si + k;
-            if (idx >= timeSlots.length) { canPlace = false; break; }
-            final s = timeSlots[idx];
+            if (idx >= sortedSlots.length) { canPlace = false; break; }
+            final s = sortedSlots[idx];
             if (breakSlots.contains(s)) { canPlace = false; break; }
             final p = s.split(' - ');
             final st = p.first;
             final en = p.length > 1 ? p[1] : p.first;
             final m = _slotMinutes(st, en);
-            totalBlockMin += m;
-            if (hasClassConflict(day, st)) { canPlace = false; break; }
-            if (teacher.isNotEmpty && ((teacherBusyAll[teacher]?.contains('$day|$st') ?? false) || hasTeacherConflict(teacher, day, st) || (teacherUnavail[teacher]?.contains('$day|$st') == true))) { canPlace = false; break; }
+          totalBlockMin += m;
+          if (hasClassConflict(day, st)) { canPlace = false; break; }
+          if (teacher.isNotEmpty && ((teacherBusyAll[teacher]?.contains('$day|$st') ?? false) || hasTeacherConflict(teacher, day, st) || (teacherUnavail[teacher]?.contains('$day|$st') == true))) { canPlace = false; break; }
+          // Per-day limits (anticipate full block)
+          if (classMaxPerDay != null && classMaxPerDay > 0) {
+            final cntClass = (classDailyCount[day] ?? 0);
+            if (cntClass + (k + 1) > classMaxPerDay) { canPlace = false; break; }
           }
+          if (subjectMaxPerDay != null && subjectMaxPerDay > 0) {
+            final bySubj = classSubjectDaily[day] ?? <String,int>{};
+            final cntSubj = (bySubj[subj] ?? 0);
+            if (cntSubj + (k + 1) > subjectMaxPerDay) { canPlace = false; break; }
+          }
+          if (teacherMaxPerDay != null && teacherMaxPerDay > 0 && teacher.isNotEmpty) {
+            final tDay = teacherDaily[teacher] ?? <String,int>{};
+            final cntT = tDay[day] ?? 0;
+            if (cntT + (k + 1) > teacherMaxPerDay) { canPlace = false; break; }
+          }
+        }
           // Optional cap
           if (isOptional(course) && (optionalMinutes[subj] ?? 0) + totalBlockMin > optionalMaxMinutes) {
             canPlace = false;
@@ -284,7 +306,7 @@ class SchedulingService {
           // Place the contiguous block
           for (int k = 0; k < blockSlots; k++) {
             final idx = si + k;
-            final s = timeSlots[idx];
+            final s = sortedSlots[idx];
             final p = s.split(' - ');
             final st = p.first;
             final en = p.length > 1 ? p[1] : p.first;
@@ -337,6 +359,7 @@ class SchedulingService {
     required List<String> timeSlots,
     Set<String> breakSlots = const {},
     bool clearExisting = false,
+    int optionalMaxMinutes = 120,
   }) async {
     final computedYear = targetClass.academicYear.isNotEmpty
         ? targetClass.academicYear
@@ -394,7 +417,7 @@ class SchedulingService {
     final subjOrder = _shuffled(subjects, Random(rng.nextInt(1 << 31)));
 
     // Optional cap tracking (per subject) by minutes (seeded from existing)
-    const int optionalMaxMinutes = 120;
+    // Limite minutes/semaine pour matières optionnelles
     final Map<String, int> optionalMinutes = {
       for (final c in subjects)
         if ((c.categoryId ?? '').toLowerCase() == 'optional') c.name: 0
@@ -477,6 +500,7 @@ class SchedulingService {
     required List<String> timeSlots,
     Set<String> breakSlots = const {},
     bool clearExisting = false,
+    int optionalMaxMinutes = 120,
   }) async {
     final computedYear = await getCurrentAcademicYear();
     if (clearExisting) {
@@ -523,7 +547,7 @@ class SchedulingService {
       }
     }
 
-    const int optionalMaxMinutes = 120;
+    // Limite minutes/semaine pour matières optionnelles
     final Map<String, int> optionalMinutesByClassSubj = {}; // key: class|subj
     final Map<String, int> rrIndex = {};
     int created = 0;
@@ -599,6 +623,7 @@ class SchedulingService {
     int? teacherWeeklyHours,
     int? classMaxPerDay,
     int? subjectMaxPerDay,
+    int optionalMaxMinutes = 120,
   }) async {
     final computedYear = await getCurrentAcademicYear();
     if (clearExisting) {
@@ -647,7 +672,6 @@ class SchedulingService {
         academicYear: cls.academicYear,
       );
       // Seed optional minutes per (class, subject) from existing entries
-      const int optionalMaxMinutes = 120;
       final Map<String, int> optionalMinutesByClassSubj = {};
       final optionalSet = classSubjects
           .where((c) => (c.categoryId ?? '').toLowerCase() == 'optional')

@@ -11,6 +11,7 @@ const _kAfternoonEndKey = 'timetable_afternoon_end';
 const _kSessionMinutesKey = 'timetable_session_minutes';
 const _kBlockDefaultSlotsKey = 'timetable_block_default_slots';
 const _kThreeHourThresholdKey = 'timetable_three_hour_threshold';
+const _kOptionalMaxMinutesKey = 'timetable_optional_max_minutes';
 
 const List<String> kDefaultDays = [
   'Lundi',
@@ -148,4 +149,14 @@ Future<double> loadThreeHourThreshold() async {
 Future<void> saveThreeHourThreshold(double v) async {
   final p = await SharedPreferences.getInstance();
   await p.setDouble(_kThreeHourThresholdKey, v);
+}
+
+Future<int> loadOptionalMaxMinutes() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getInt(_kOptionalMaxMinutesKey) ?? 120;
+}
+
+Future<void> saveOptionalMaxMinutes(int minutes) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setInt(_kOptionalMaxMinutesKey, minutes);
 }
