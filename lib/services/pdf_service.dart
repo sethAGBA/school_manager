@@ -1616,6 +1616,13 @@ class PdfService {
                                     primary,
                                   ),
                                   _buildInfoRow(
+                                    'Lieu de naissance',
+                                    student.placeOfBirth ?? 'Non renseigné',
+                                    times,
+                                    timesBold,
+                                    primary,
+                                  ),
+                                  _buildInfoRow(
                                     'Statut',
                                     student.status,
                                     times,

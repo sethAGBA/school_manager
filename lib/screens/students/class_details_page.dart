@@ -3488,69 +3488,81 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
         fontColorHex: ExcelColor.blue900,
       );
 
-      final headerRow = [
-        TextCellValue('N°'),
-        TextCellValue('ID'),
-        TextCellValue('Matricule'),
-        TextCellValue('Prénom'),
-        TextCellValue('Nom'),
-        TextCellValue('Sexe'),
-        TextCellValue('Statut'),
-        TextCellValue('Classe'),
-        TextCellValue('Année'),
-        TextCellValue('Date de naissance'),
-        TextCellValue('Adresse'),
-        TextCellValue('Contact'),
-        TextCellValue('Email'),
-        TextCellValue('Contact urgence'),
-        TextCellValue('Tuteur'),
-        TextCellValue('Contact tuteur'),
-        TextCellValue('Date d\'inscription'),
-        TextCellValue('Infos médicales'),
-        TextCellValue('Photo'),
-      ];
-      sheet.appendRow(headerRow);
+    final headers = [
+      'ID',
+      'Prénom',
+      'Nom',
+      'Date de Naissance',
+      'Lieu de Naissance',
+      'Genre',
+      'Adresse',
+      'Contact',
+      'Email',
+      'Contact d\'Urgence',
+      'Tuteur',
+      'Contact Tuteur',
+      'Statut',
+      'Infos Médicales',
+      'Matricule'
+    ];
+    for (var i = 0; i < headers.length; i++) {
+      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+      cell.value = TextCellValue(headers[i]);
+      cell.cellStyle = headerStyle;
+    }
 
-      // Appliquer le style aux en-têtes
-      for (int i = 0; i < headerRow.length; i++) {
-        sheet
-                .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
-                .cellStyle =
-            headerStyle;
-      }
-
-      // Données des élèves
-      for (int i = 0; i < studentsList.length; i++) {
-        final student = studentsList[i]['student'] as Student;
-        final classe = studentsList[i]['classe'];
-        final prenom = student.firstName;
-        final nom = student.lastName;
-
-        sheet.appendRow([
-          IntCellValue(i + 1),
-          TextCellValue(student.id),
-          TextCellValue(student.matricule ?? ''),
-          TextCellValue(prenom),
-          TextCellValue(nom),
-          TextCellValue(student.gender == 'M' ? 'Garçon' : 'Fille'),
-          TextCellValue(student.status),
-          TextCellValue(student.className),
-          TextCellValue(student.academicYear),
-          TextCellValue(student.dateOfBirth),
-          TextCellValue(student.address),
-          TextCellValue(student.contactNumber),
-          TextCellValue(student.email),
-          TextCellValue(student.emergencyContact),
-          TextCellValue(student.guardianName),
-          TextCellValue(student.guardianContact),
-          TextCellValue(student.enrollmentDate),
-          TextCellValue(student.medicalInfo ?? ''),
-          TextCellValue(student.photoPath ?? ''),
-        ]);
-      }
+    // Data
+    for (var i = 0; i < _students.length; i++) {
+      final student = _students[i];
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i + 1))
+          .value = TextCellValue(student.id);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: i + 1))
+          .value = TextCellValue(student.firstName);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: i + 1))
+          .value = TextCellValue(student.lastName);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: i + 1))
+          .value = TextCellValue(student.dateOfBirth);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: i + 1))
+          .value = TextCellValue(student.placeOfBirth ?? '');
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: i + 1))
+          .value = TextCellValue(student.gender);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: i + 1))
+          .value = TextCellValue(student.address);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: i + 1))
+          .value = TextCellValue(student.contactNumber);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: i + 1))
+          .value = TextCellValue(student.email);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: i + 1))
+          .value = TextCellValue(student.emergencyContact);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: i + 1))
+          .value = TextCellValue(student.guardianName);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: i + 1))
+          .value = TextCellValue(student.guardianContact);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: i + 1))
+          .value = TextCellValue(student.status);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 13, rowIndex: i + 1))
+          .value = TextCellValue(student.medicalInfo ?? '');
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 14, rowIndex: i + 1))
+          .value = TextCellValue(student.matricule ?? '');
+    }
 
       // Ajuster la largeur des colonnes
-      for (int i = 0; i < headerRow.length; i++) {
+      for (int i = 0; i < headers.length; i++) {
         sheet.setColumnWidth(i, 15);
       }
 
