@@ -515,7 +515,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
             setState(() {
               _students = refreshedStudents;
             });
-            Navigator.of(context).pop();
             await showDialog(
               context: context,
               builder: (ctx) => AlertDialog(

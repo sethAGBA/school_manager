@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -38,6 +39,14 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   final _formKey = GlobalKey<FormState>();
   final DatabaseService _dbService = DatabaseService();
 
+  String _generateMatricule() {
+    const length = 6;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
+    return String.fromCharCodes(Iterable.generate(
+        length, (_) => chars.codeUnitAt(random.nextInt(chars.length))));
+  }
+
   final TextEditingController _studentIdController = TextEditingController();
   final TextEditingController _studentNameController = TextEditingController();
   final TextEditingController _dateOfBirthController = TextEditingController();
@@ -73,7 +82,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     if (widget.student != null) {
       final s = widget.student!;
       _studentIdController.text = s.id;
-      _matriculeController.text = s.matricule ?? '';
+      _matriculeController.text = s.matricule ?? _generateMatricule();
       _academicYearController.text = s.academicYear;
       // enrollmentDate stored as ISO
       try {
@@ -111,8 +120,10 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     } else if (widget.className != null) {
       _selectedClass = widget.className;
       _studentIdController.text = const Uuid().v4();
+      _matriculeController.text = _generateMatricule();
     } else {
       _studentIdController.text = const Uuid().v4();
+      _matriculeController.text = _generateMatricule();
     }
     // Pré-remplir les champs année scolaire et date d'inscription pour une nouvelle fiche
     getCurrentAcademicYear().then((year) {
@@ -265,6 +276,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     // Generate new UUID for new student
     if (widget.student == null) {
       _studentIdController.text = const Uuid().v4();
+      _matriculeController.text = _generateMatricule();
       // default academic year and enrollment date for new record
       getCurrentAcademicYear().then((year) {
         setState(() {
