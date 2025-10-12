@@ -89,7 +89,7 @@ class DatabaseService {
     final db = await openDatabase(
       path,
       version:
-          11, // v11: school_info new columns (ministry, republicMotto, educationDirection, inspection)
+          12, // v12: student new columns (placeOfBirth)
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
         // Some platforms (macOS/iOS) may report a benign error here; ignore if unsupported
@@ -118,6 +118,7 @@ class DatabaseService {
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             dateOfBirth TEXT NOT NULL,
+            placeOfBirth TEXT,
             address TEXT NOT NULL,
             gender TEXT NOT NULL,
             contactNumber TEXT NOT NULL,
@@ -508,6 +509,7 @@ class DatabaseService {
     await _migrateStaffTable(db);
     await _ensureStudentMatriculeColumn(db);
     await _ensureStudentNameColumns(db);
+    await _ensureStudentPlaceOfBirthColumn(db);
     await _ensureSchoolInfoColumns(db);
     await _ensureArchiveExtraColumns(db);
     await _ensureSubjectAppreciationCoeffColumns(db);
@@ -826,6 +828,23 @@ class DatabaseService {
       } catch (e) {
         debugPrint(
           '[DatabaseService][MIGRATION][ERROR] Failed to add lastName column: $e',
+        );
+      }
+    }
+  }
+
+  Future<void> _ensureStudentPlaceOfBirthColumn(Database db) async {
+    final cols = await db.rawQuery('PRAGMA table_info(students)');
+    final hasPlaceOfBirth = cols.any((c) => c['name'] == 'placeOfBirth');
+    if (!hasPlaceOfBirth) {
+      try {
+        await db.execute("ALTER TABLE students ADD COLUMN placeOfBirth TEXT");
+        debugPrint(
+          '[DatabaseService][MIGRATION] Added placeOfBirth column to students',
+        );
+      } catch (e) {
+        debugPrint(
+          '[DatabaseService][MIGRATION][ERROR] Failed to add placeOfBirth column: $e',
         );
       }
     }

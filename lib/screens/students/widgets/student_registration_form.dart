@@ -51,9 +51,9 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
   final TextEditingController _guardianContactController =
       TextEditingController();
   final TextEditingController _medicalInfoController = TextEditingController();
-  final TextEditingController _studentLastNameController =
-      TextEditingController();
-  final TextEditingController _matriculeController = TextEditingController();
+    final TextEditingController _studentLastNameController =
+        TextEditingController();
+    final TextEditingController _placeOfBirthController = TextEditingController();  final TextEditingController _matriculeController = TextEditingController();
   final TextEditingController _academicYearController = TextEditingController();
   final TextEditingController _enrollmentDateController =
       TextEditingController();
@@ -85,6 +85,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
       // Charger les prénoms et noms séparément
       _studentNameController.text = s.firstName;
       _studentLastNameController.text = s.lastName;
+      _placeOfBirthController.text = s.placeOfBirth ?? '';
       // dateOfBirth est stockée en ISO; afficher en jj/MM/aaaa
       DateTime? dob;
       try {
@@ -165,6 +166,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     _medicalInfoController.dispose();
     _statusController.dispose();
     _studentLastNameController.dispose();
+    _placeOfBirthController.dispose();
     _matriculeController.dispose();
     _academicYearController.dispose();
     _enrollmentDateController.dispose();
@@ -240,6 +242,7 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
     _studentIdController.clear();
     _studentNameController.clear();
     _studentLastNameController.clear();
+    _placeOfBirthController.clear();
     _matriculeController.clear();
     _academicYearController.clear();
     _enrollmentDateController.clear();
@@ -292,6 +295,9 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
         id: _studentIdController.text,
         firstName: _studentNameController.text,
         lastName: _studentLastNameController.text,
+        placeOfBirth: _placeOfBirthController.text.isEmpty
+            ? null
+            : _placeOfBirthController.text,
         dateOfBirth: parseDdMmYyyy(
           _dateOfBirthController.text,
         )!.toIso8601String(),
@@ -399,6 +405,11 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
               onTap: _selectDate,
               suffixIcon: Icons.calendar_today,
               validator: (value) => value!.isEmpty ? AppStrings.required : null,
+            ),
+            CustomFormField(
+              controller: _placeOfBirthController,
+              labelText: 'Lieu de naissance',
+              hintText: 'Entrez le lieu de naissance',
             ),
             CustomFormField(
               controller: _addressController,

@@ -17,6 +17,7 @@ class Student {
   final String? medicalInfo;
   final String? photoPath;
   final String? matricule; // Numéro de matricule
+  final String? placeOfBirth; // Lieu de naissance
 
   // Getter pour le nom complet (compatibilité)
   String get name => '$firstName $lastName'.trim();
@@ -40,6 +41,7 @@ class Student {
     this.medicalInfo,
     this.photoPath,
     this.matricule,
+    this.placeOfBirth,
   });
 
   Map<String, dynamic> toMap() {
@@ -49,6 +51,7 @@ class Student {
       'lastName': lastName,
       'name': name, // Pour compatibilité
       'dateOfBirth': dateOfBirth,
+      'placeOfBirth': placeOfBirth,
       'address': address,
       'gender': gender,
       'contactNumber': contactNumber,
@@ -92,6 +95,7 @@ class Student {
       firstName: firstName,
       lastName: lastName,
       dateOfBirth: map['dateOfBirth'],
+      placeOfBirth: map['placeOfBirth'],
       address: map['address'],
       gender: map['gender'],
       contactNumber: map['contactNumber'],
@@ -114,6 +118,7 @@ class Student {
     firstName: '',
     lastName: '',
     dateOfBirth: '',
+    placeOfBirth: '',
     address: '',
     gender: '',
     contactNumber: '',

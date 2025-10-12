@@ -23,6 +23,7 @@ import 'services/license_service.dart';
 import 'screens/subjects_page.dart';
 import 'screens/finance_and_inventory_page.dart';
 import 'screens/audit_page.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 const List<String> kFontFallback = [
   // Common system fonts with broad glyph coverage
@@ -63,6 +64,7 @@ ValueNotifier<ThemeMode> themeModeNotifier = ValueNotifier(ThemeMode.dark);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('fr_FR', null);
   // Initialize sqflite for desktop (Windows/Linux/macOS) using FFI
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     sqfliteFfiInit();

@@ -420,6 +420,12 @@ class _StudentProfilePageState extends State<StudentProfilePage>
                 theme,
               ),
               _buildInfoCard(
+                'Lieu de Naissance',
+                widget.student.placeOfBirth ?? 'Non renseigné',
+                Icons.location_city,
+                theme,
+              ),
+              _buildInfoCard(
                 'Âge',
                 _calculateAge(widget.student.dateOfBirth),
                 Icons.calendar_today,

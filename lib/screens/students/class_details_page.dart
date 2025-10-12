@@ -1329,6 +1329,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                 'Date de naissance',
                 '${_formatIsoToDisplay(student.dateOfBirth)} • ${_calculateAgeFromIso(student.dateOfBirth)}',
               ),
+              _buildDetailRow('Lieu de naissance', student.placeOfBirth ?? 'Non renseigné'),
               _buildDetailRow('Statut', student.status),
               _buildDetailRow(
                 'Sexe',
