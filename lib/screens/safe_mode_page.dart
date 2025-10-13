@@ -191,7 +191,7 @@ class _SafeModePageState extends State<SafeModePage>
       valueListenable: SafeModeService.instance.isEnabledNotifier,
       builder: (context, isEnabled, child) {
         return Card(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           elevation: 4,
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -235,7 +235,7 @@ class _SafeModePageState extends State<SafeModePage>
         if (isEnabled) return const SizedBox.shrink();
 
         return Card(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           elevation: 2,
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -302,7 +302,7 @@ class _SafeModePageState extends State<SafeModePage>
         if (!isEnabled) return const SizedBox.shrink();
 
         return Card(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           elevation: 2,
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -369,7 +369,7 @@ class _SafeModePageState extends State<SafeModePage>
         if (!isEnabled) return const SizedBox.shrink();
 
         return Card(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           elevation: 2,
           child: Padding(
             padding: const EdgeInsets.all(20),

@@ -110,6 +110,13 @@ class DatabaseService {
             titulaire TEXT,
             fraisEcole REAL,
             fraisCotisationParallele REAL,
+            -- Seuils de passage personnalisés par classe
+            seuilFelicitations REAL DEFAULT 16.0,
+            seuilEncouragements REAL DEFAULT 14.0,
+            seuilAdmission REAL DEFAULT 12.0,
+            seuilAvertissement REAL DEFAULT 10.0,
+            seuilConditions REAL DEFAULT 8.0,
+            seuilRedoublement REAL DEFAULT 8.0,
             PRIMARY KEY (name, academicYear)
           )
         ''');
@@ -950,12 +957,19 @@ class DatabaseService {
           titulaire TEXT,
           fraisEcole REAL,
           fraisCotisationParallele REAL,
+          -- Seuils de passage personnalisés par classe
+          seuilFelicitations REAL DEFAULT 16.0,
+          seuilEncouragements REAL DEFAULT 14.0,
+          seuilAdmission REAL DEFAULT 12.0,
+          seuilAvertissement REAL DEFAULT 10.0,
+          seuilConditions REAL DEFAULT 8.0,
+          seuilRedoublement REAL DEFAULT 8.0,
           PRIMARY KEY (name, academicYear)
         )
       ''');
       await db.execute('''
-        INSERT INTO classes (name, academicYear, titulaire, fraisEcole, fraisCotisationParallele)
-        SELECT name, academicYear, titulaire, fraisEcole, fraisCotisationParallele FROM classes_backup
+        INSERT INTO classes (name, academicYear, titulaire, fraisEcole, fraisCotisationParallele, seuilFelicitations, seuilEncouragements, seuilAdmission, seuilAvertissement, seuilConditions, seuilRedoublement)
+        SELECT name, academicYear, titulaire, fraisEcole, fraisCotisationParallele, 16.0, 14.0, 12.0, 10.0, 8.0, 8.0 FROM classes_backup
       ''');
     } catch (e) {
       debugPrint(
@@ -1013,6 +1027,14 @@ class DatabaseService {
     await addColumnIfMissing('payments', 'classAcademicYear', 'TEXT');
     await addColumnIfMissing('class_courses', 'academicYear', 'TEXT');
     await addColumnIfMissing('timetable_entries', 'academicYear', 'TEXT');
+    
+    // Ajouter les colonnes de seuils de passage à la table classes
+    await addColumnIfMissing('classes', 'seuilFelicitations', 'REAL DEFAULT 16.0');
+    await addColumnIfMissing('classes', 'seuilEncouragements', 'REAL DEFAULT 14.0');
+    await addColumnIfMissing('classes', 'seuilAdmission', 'REAL DEFAULT 12.0');
+    await addColumnIfMissing('classes', 'seuilAvertissement', 'REAL DEFAULT 10.0');
+    await addColumnIfMissing('classes', 'seuilConditions', 'REAL DEFAULT 8.0');
+    await addColumnIfMissing('classes', 'seuilRedoublement', 'REAL DEFAULT 8.0');
 
     // Populate newly added columns when possible
     await db.execute('''
@@ -1060,6 +1082,18 @@ class DatabaseService {
     await db.execute('''
       DELETE FROM timetable_entries
       WHERE academicYear IS NULL OR TRIM(academicYear) = ''
+    ''');
+    
+    // Initialiser les valeurs par défaut des seuils pour les classes existantes
+    await db.execute('''
+      UPDATE classes 
+      SET seuilFelicitations = 16.0, 
+          seuilEncouragements = 14.0, 
+          seuilAdmission = 12.0, 
+          seuilAvertissement = 10.0, 
+          seuilConditions = 8.0, 
+          seuilRedoublement = 8.0
+      WHERE seuilFelicitations IS NULL
     ''');
   }
 
@@ -1962,6 +1996,49 @@ class DatabaseService {
       return Class.fromMap(maps.first);
     }
     return null;
+  }
+
+  /// Récupère les seuils de passage d'une classe spécifique
+  Future<Map<String, double>> getClassPassingThresholds(
+    String className,
+    String academicYear,
+  ) async {
+    final db = await database;
+    final result = await db.query(
+      'classes',
+      columns: [
+        'seuilFelicitations',
+        'seuilEncouragements', 
+        'seuilAdmission',
+        'seuilAvertissement',
+        'seuilConditions',
+        'seuilRedoublement'
+      ],
+      where: 'name = ? AND academicYear = ?',
+      whereArgs: [className, academicYear],
+    );
+    
+    if (result.isEmpty) {
+      // Retourner les seuils par défaut si la classe n'existe pas
+      return {
+        'felicitations': 16.0,
+        'encouragements': 14.0,
+        'admission': 12.0,
+        'avertissement': 10.0,
+        'conditions': 8.0,
+        'redoublement': 8.0,
+      };
+    }
+    
+    final row = result.first;
+    return {
+      'felicitations': (row['seuilFelicitations'] as num).toDouble(),
+      'encouragements': (row['seuilEncouragements'] as num).toDouble(),
+      'admission': (row['seuilAdmission'] as num).toDouble(),
+      'avertissement': (row['seuilAvertissement'] as num).toDouble(),
+      'conditions': (row['seuilConditions'] as num).toDouble(),
+      'redoublement': (row['seuilRedoublement'] as num).toDouble(),
+    };
   }
 
   Future<void> updateClass(

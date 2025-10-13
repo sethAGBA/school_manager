@@ -4,6 +4,13 @@ class Class {
   final String? titulaire;
   final double? fraisEcole;
   final double? fraisCotisationParallele;
+  // Seuils de passage personnalisés par classe
+  final double seuilFelicitations;
+  final double seuilEncouragements;
+  final double seuilAdmission;
+  final double seuilAvertissement;
+  final double seuilConditions;
+  final double seuilRedoublement;
 
   Class({
     required this.name,
@@ -11,6 +18,12 @@ class Class {
     this.titulaire,
     this.fraisEcole,
     this.fraisCotisationParallele,
+    this.seuilFelicitations = 16.0,
+    this.seuilEncouragements = 14.0,
+    this.seuilAdmission = 12.0,
+    this.seuilAvertissement = 10.0,
+    this.seuilConditions = 8.0,
+    this.seuilRedoublement = 8.0,
   });
 
   Map<String, dynamic> toMap() {
@@ -20,6 +33,12 @@ class Class {
       'titulaire': titulaire,
       'fraisEcole': fraisEcole,
       'fraisCotisationParallele': fraisCotisationParallele,
+      'seuilFelicitations': seuilFelicitations,
+      'seuilEncouragements': seuilEncouragements,
+      'seuilAdmission': seuilAdmission,
+      'seuilAvertissement': seuilAvertissement,
+      'seuilConditions': seuilConditions,
+      'seuilRedoublement': seuilRedoublement,
     };
   }
 
@@ -34,6 +53,12 @@ class Class {
       fraisCotisationParallele: map['fraisCotisationParallele'] != null
           ? (map['fraisCotisationParallele'] as num).toDouble()
           : null,
+      seuilFelicitations: (map['seuilFelicitations'] as num?)?.toDouble() ?? 16.0,
+      seuilEncouragements: (map['seuilEncouragements'] as num?)?.toDouble() ?? 14.0,
+      seuilAdmission: (map['seuilAdmission'] as num?)?.toDouble() ?? 12.0,
+      seuilAvertissement: (map['seuilAvertissement'] as num?)?.toDouble() ?? 10.0,
+      seuilConditions: (map['seuilConditions'] as num?)?.toDouble() ?? 8.0,
+      seuilRedoublement: (map['seuilRedoublement'] as num?)?.toDouble() ?? 8.0,
     );
   }
 
@@ -43,5 +68,11 @@ class Class {
     titulaire: '',
     fraisEcole: 0,
     fraisCotisationParallele: 0,
+    seuilFelicitations: 16.0,
+    seuilEncouragements: 14.0,
+    seuilAdmission: 12.0,
+    seuilAvertissement: 10.0,
+    seuilConditions: 8.0,
+    seuilRedoublement: 8.0,
   );
 }

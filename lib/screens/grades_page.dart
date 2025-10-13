@@ -78,6 +78,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
   String _reportSearchQuery = '';
   String _archiveSearchQuery = '';
   String _periodMode = 'Trimestre'; // ou 'Semestre'
+  String? _decisionAutomatique;
   int _archiveCurrentPage = 0;
   final int _archiveItemsPerPage = 10;
   bool _searchAllYears = false;
@@ -310,6 +311,36 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
     setState(() => isLoading = false);
   }
 
+  Future<String?> _loadDecisionAutomatique(
+    String className,
+    String academicYear,
+    double moyenne,
+  ) async {
+    try {
+      final seuils = await _dbService.getClassPassingThresholds(
+        className,
+        academicYear,
+      );
+      
+      if (moyenne >= seuils['felicitations']!) {
+        return 'Admis en classe supérieure avec félicitations';
+      } else if (moyenne >= seuils['encouragements']!) {
+        return 'Admis en classe supérieure avec encouragements';
+      } else if (moyenne >= seuils['admission']!) {
+        return 'Admis en classe supérieure';
+      } else if (moyenne >= seuils['avertissement']!) {
+        return 'Admis en classe supérieure avec avertissement';
+      } else if (moyenne >= seuils['conditions']!) {
+        return 'Admis en classe supérieure sous conditions';
+      } else {
+        return 'Redouble la classe';
+      }
+    } catch (e) {
+      print('Erreur lors du chargement des seuils: $e');
+      return null;
+    }
+  }
+
   Future<void> _loadAllGradesForPeriod() async {
     if (selectedClass != null && selectedTerm != null) {
       String? targetYear =
@@ -354,6 +385,12 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
     required double note,
     Grade? existing,
   }) async {
+    // Vérifier le mode coffre fort
+    if (!SafeModeService.instance.isActionAllowed()) {
+      showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true);
+      return;
+    }
+
     if (selectedClass == null ||
         selectedAcademicYear == null ||
         selectedSubject == null ||
@@ -581,7 +618,9 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
           Icons.upload_file,
           'Importer depuis Excel/CSV',
           theme.colorScheme.primary,
-          () => _showImportDialog(),
+          SafeModeService.instance.isActionAllowed()
+              ? () => _showImportDialog()
+              : () => showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true),
         ),
         const SizedBox(width: 8),
         _buildActionButton(
@@ -767,6 +806,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                     setState(() {
                       selectedTerm = value!;
                       _gradeDrafts.clear();
+                      _decisionAutomatique = null; // Reset decision when term changes
                     });
                     await _loadAllGradesForPeriod();
                   },
@@ -888,7 +928,10 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                       )
                       .map((c) => c.name)
                       .toList(),
-                  (value) => setState(() => selectedClass = value!),
+                  (value) => setState(() {
+                    selectedClass = value!;
+                    _decisionAutomatique = null; // Reset decision when class changes
+                  }),
                   Icons.class_,
                 ),
               ),
@@ -999,7 +1042,9 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                 ],
               ),
               ElevatedButton.icon(
-                onPressed: () => _showBulkGradeDialog(),
+                onPressed: SafeModeService.instance.isActionAllowed() 
+                    ? () => _showBulkGradeDialog()
+                    : () => showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true),
                 icon: const Icon(Icons.edit_note, size: 18),
                 label: const Text('Saisie Rapide'),
                 style: ElevatedButton.styleFrom(
@@ -1168,9 +1213,12 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
             width: 80,
             child: TextField(
               controller: controller,
+              enabled: SafeModeService.instance.isActionAllowed(),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               style: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
+                color: SafeModeService.instance.isActionAllowed()
+                    ? Theme.of(context).textTheme.bodyLarge?.color
+                    : Colors.grey,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -1287,7 +1335,9 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
           IconButton(
             icon: Icon(Icons.edit, color: Colors.orange),
             tooltip: 'Modifier toutes les notes',
-            onPressed: () => _showEditStudentGradesDialog(student),
+            onPressed: SafeModeService.instance.isActionAllowed()
+                ? () => _showEditStudentGradesDialog(student)
+                : () => showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true),
           ),
         ],
       ),
@@ -1617,7 +1667,9 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
               ElevatedButton.icon(
                 onPressed: (selectedClass == null || selectedClass!.isEmpty)
                     ? null
-                    : () => _exportClassReportCards(),
+                    : SafeModeService.instance.isActionAllowed()
+                        ? () => _exportClassReportCards()
+                        : () => showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true),
                 icon: const Icon(Icons.archive, size: 18),
                 label: const Text('Exporter les bulletins de la classe (ZIP)'),
                 style: Theme.of(context).elevatedButtonTheme.style?.copyWith(
@@ -2083,49 +2135,22 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
 
             // Décision automatique du conseil de classe basée sur la moyenne annuelle
             // Ne s'affiche qu'en fin d'année (Trimestre 3 ou Semestre 2)
-            String? decisionAutomatique;
             final bool isEndOfYear =
                 selectedTerm == 'Trimestre 3' || selectedTerm == 'Semestre 2';
 
-            if (isEndOfYear) {
-              if (moyenneAnnuelle != null) {
-                if (moyenneAnnuelle >= 16) {
-                  decisionAutomatique =
-                      'Admis en classe supérieure avec félicitations';
-                } else if (moyenneAnnuelle >= 14) {
-                  decisionAutomatique =
-                      'Admis en classe supérieure avec encouragements';
-                } else if (moyenneAnnuelle >= 12) {
-                  decisionAutomatique = 'Admis en classe supérieure';
-                } else if (moyenneAnnuelle >= 10) {
-                  decisionAutomatique =
-                      'Admis en classe supérieure avec avertissement';
-                } else if (moyenneAnnuelle >= 8) {
-                  decisionAutomatique =
-                      'Admis en classe supérieure sous conditions';
-                } else {
-                  decisionAutomatique = 'Redouble la classe';
+            if (isEndOfYear && _decisionAutomatique == null) {
+              // Récupérer les seuils spécifiques à la classe de manière asynchrone
+              _loadDecisionAutomatique(
+                selectedClass ?? '',
+                effectiveYear,
+                moyenneAnnuelle ?? moyenneGenerale,
+              ).then((decision) {
+                if (mounted) {
+                  setState(() {
+                    _decisionAutomatique = decision;
+                  });
                 }
-              } else {
-                // Fallback sur la moyenne générale si pas de moyenne annuelle
-                if (moyenneGenerale >= 16) {
-                  decisionAutomatique =
-                      'Admis en classe supérieure avec félicitations';
-                } else if (moyenneGenerale >= 14) {
-                  decisionAutomatique =
-                      'Admis en classe supérieure avec encouragements';
-                } else if (moyenneGenerale >= 12) {
-                  decisionAutomatique = 'Admis en classe supérieure';
-                } else if (moyenneGenerale >= 10) {
-                  decisionAutomatique =
-                      'Admis en classe supérieure avec avertissement';
-                } else if (moyenneGenerale >= 8) {
-                  decisionAutomatique =
-                      'Admis en classe supérieure sous conditions';
-                } else {
-                  decisionAutomatique = 'Redouble la classe';
-                }
-              }
+              });
             }
             // --- Chargement initial et sauvegarde automatique de la synthèse ---
             final String effectiveYearForKey =
@@ -2147,8 +2172,8 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                 final decisionExistante = row['decision'] ?? '';
                 if (decisionExistante.trim().isEmpty &&
                     isEndOfYear &&
-                    decisionAutomatique != null) {
-                  decisionController.text = decisionAutomatique;
+                    _decisionAutomatique != null) {
+                  decisionController.text = _decisionAutomatique!;
                 } else {
                   decisionController.text = decisionExistante;
                 }
@@ -2169,8 +2194,8 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                 leDateController.text = row['le_date'] ?? '';
               } else {
                 // Si aucune donnée existante, pré-remplir avec la décision automatique seulement en fin d'année
-                if (isEndOfYear && decisionAutomatique != null) {
-                  decisionController.text = decisionAutomatique;
+                if (isEndOfYear && _decisionAutomatique != null) {
+                  decisionController.text = _decisionAutomatique!;
                 }
               }
             }
@@ -3220,7 +3245,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                                         child: TextField(
                                           controller:
                                               appreciationControllers[subject],
-                                          enabled: true,
+                                          enabled: SafeModeService.instance.isActionAllowed(),
                                           decoration: InputDecoration(
                                             hintText: 'Appréciation',
                                             hintStyle: TextStyle(
@@ -3767,6 +3792,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             Expanded(
                               child: TextField(
                                 controller: presencePercentController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   labelText: 'Présence (%)',
                                   labelStyle: TextStyle(color: secondaryColor),
@@ -3790,6 +3816,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             Expanded(
                               child: TextField(
                                 controller: retardsController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   labelText: 'Retards',
                                   labelStyle: TextStyle(color: secondaryColor),
@@ -3814,6 +3841,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             Expanded(
                               child: TextField(
                                 controller: absJustifieesController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   labelText: 'Absences justifiées',
                                   labelStyle: TextStyle(color: secondaryColor),
@@ -3834,6 +3862,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             Expanded(
                               child: TextField(
                                 controller: absInjustifieesController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   labelText: 'Absences injustifiées',
                                   labelStyle: TextStyle(color: secondaryColor),
@@ -3855,6 +3884,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                         const SizedBox(height: 8),
                         TextField(
                           controller: conduiteController,
+                          enabled: SafeModeService.instance.isActionAllowed(),
                           decoration: InputDecoration(
                             labelText: 'Conduite/Comportement',
                             labelStyle: TextStyle(color: secondaryColor),
@@ -3881,6 +3911,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                         const SizedBox(height: 8),
                         TextField(
                           controller: sanctionsController,
+                          enabled: SafeModeService.instance.isActionAllowed(),
                           decoration: InputDecoration(
                             hintText: 'Saisir les sanctions',
                             border: const OutlineInputBorder(),
@@ -4137,6 +4168,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                               const SizedBox(height: 8),
                               TextField(
                                 controller: appreciationGeneraleController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   hintText: 'Saisir une appréciation générale',
                                   border: const OutlineInputBorder(),
@@ -4167,11 +4199,11 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                                   ),
                                   // Bouton de réinitialisation seulement en fin d'année
                                   if (isEndOfYear &&
-                                      decisionAutomatique != null)
+                                      _decisionAutomatique != null)
                                     IconButton(
                                       onPressed: () {
                                         decisionController.text =
-                                            decisionAutomatique!;
+                                            _decisionAutomatique!;
                                         saveSynthese();
                                       },
                                       icon: Icon(
@@ -4192,9 +4224,9 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                               const SizedBox(height: 8),
                               // Indicateur de décision automatique seulement en fin d'année
                               if (isEndOfYear &&
-                                  decisionAutomatique != null &&
+                                  _decisionAutomatique != null &&
                                   decisionController.text ==
-                                      decisionAutomatique)
+                                      _decisionAutomatique)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -4231,6 +4263,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                                 ),
                               TextField(
                                 controller: decisionController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   hintText: 'Saisir la décision',
                                   border: const OutlineInputBorder(),
@@ -4257,6 +4290,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                               const SizedBox(height: 8),
                               TextField(
                                 controller: recommandationsController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   hintText: 'Conseils et recommandations',
                                   border: const OutlineInputBorder(),
@@ -4284,6 +4318,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                               const SizedBox(height: 8),
                               TextField(
                                 controller: forcesController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   hintText: 'Points forts',
                                   border: const OutlineInputBorder(),
@@ -4311,6 +4346,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                               const SizedBox(height: 8),
                               TextField(
                                 controller: pointsDevelopperController,
+                                enabled: SafeModeService.instance.isActionAllowed(),
                                 decoration: InputDecoration(
                                   hintText: "Axes d'amélioration",
                                   border: const OutlineInputBorder(),
@@ -4473,6 +4509,12 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                       children: [
                         ElevatedButton.icon(
                           onPressed: () async {
+                            // Vérifier le mode coffre fort
+                            if (!SafeModeService.instance.isActionAllowed()) {
+                              showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true);
+                              return;
+                            }
+
                             // Demande l'orientation
                             final orientation =
                                 await showDialog<String>(
@@ -4640,6 +4682,12 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
                           onPressed: () async {
+                            // Vérifier le mode coffre fort
+                            if (!SafeModeService.instance.isActionAllowed()) {
+                              showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true);
+                              return;
+                            }
+
                             // Demande l'orientation
                             final orientation =
                                 await showDialog<String>(
@@ -4910,6 +4958,40 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
   }
 
   Widget _buildArchiveTab() {
+    // Vérifier le mode coffre fort
+    if (!SafeModeService.instance.isActionAllowed()) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.security,
+              size: 64,
+              color: Colors.red.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Mode coffre fort activé',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.red.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              SafeModeService.instance.getBlockedActionMessage(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -5309,6 +5391,12 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
   }
 
   void _showImportDialog() {
+    // Vérifier le mode coffre fort
+    if (!SafeModeService.instance.isActionAllowed()) {
+      showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true);
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -6173,6 +6261,12 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
   }
 
   Future<void> _showBulkGradeDialog() async {
+    // Vérifier le mode coffre fort
+    if (!SafeModeService.instance.isActionAllowed()) {
+      showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true);
+      return;
+    }
+
     if (selectedClass == null || selectedSubject == null) {
       showRootSnackBar(
         const SnackBar(
@@ -6384,6 +6478,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             padding: const EdgeInsets.all(8.0),
                             child: TextFormField(
                               controller: devoirControllers[student.id],
+                              enabled: SafeModeService.instance.isActionAllowed(),
                               keyboardType: TextInputType.numberWithOptions(
                                 decimal: true,
                               ),
@@ -6396,6 +6491,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             padding: const EdgeInsets.all(8.0),
                             child: TextFormField(
                               controller: compositionControllers[student.id],
+                              enabled: SafeModeService.instance.isActionAllowed(),
                               keyboardType: TextInputType.numberWithOptions(
                                 decimal: true,
                               ),
@@ -6408,6 +6504,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                             padding: const EdgeInsets.all(8.0),
                             child: TextFormField(
                               controller: maxControllers[student.id],
+                              enabled: SafeModeService.instance.isActionAllowed(),
                               keyboardType: TextInputType.numberWithOptions(
                                 decimal: true,
                               ),
@@ -6785,37 +6882,26 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
         selectedTerm == 'Trimestre 3' || selectedTerm == 'Semestre 2';
 
     if (isEndOfYear) {
-      if (moyenneAnnuelle != null) {
-        if (moyenneAnnuelle >= 16) {
-          decisionAutomatique = 'Admis en classe supérieure avec félicitations';
-        } else if (moyenneAnnuelle >= 14) {
-          decisionAutomatique =
-              'Admis en classe supérieure avec encouragements';
-        } else if (moyenneAnnuelle >= 12) {
-          decisionAutomatique = 'Admis en classe supérieure';
-        } else if (moyenneAnnuelle >= 10) {
-          decisionAutomatique = 'Admis en classe supérieure avec avertissement';
-        } else if (moyenneAnnuelle >= 8) {
-          decisionAutomatique = 'Admis en classe supérieure sous conditions';
-        } else {
-          decisionAutomatique = 'Redouble la classe';
-        }
+      // Récupérer les seuils spécifiques à la classe
+      final seuils = await _dbService.getClassPassingThresholds(
+        selectedClass ?? '',
+        effectiveYear,
+      );
+      
+      final double moyenne = moyenneAnnuelle ?? moyenneGenerale;
+      
+      if (moyenne >= seuils['felicitations']!) {
+        decisionAutomatique = 'Admis en classe supérieure avec félicitations';
+      } else if (moyenne >= seuils['encouragements']!) {
+        decisionAutomatique = 'Admis en classe supérieure avec encouragements';
+      } else if (moyenne >= seuils['admission']!) {
+        decisionAutomatique = 'Admis en classe supérieure';
+      } else if (moyenne >= seuils['avertissement']!) {
+        decisionAutomatique = 'Admis en classe supérieure avec avertissement';
+      } else if (moyenne >= seuils['conditions']!) {
+        decisionAutomatique = 'Admis en classe supérieure sous conditions';
       } else {
-        // Fallback sur la moyenne générale si pas de moyenne annuelle
-        if (moyenneGenerale >= 16) {
-          decisionAutomatique = 'Admis en classe supérieure avec félicitations';
-        } else if (moyenneGenerale >= 14) {
-          decisionAutomatique =
-              'Admis en classe supérieure avec encouragements';
-        } else if (moyenneGenerale >= 12) {
-          decisionAutomatique = 'Admis en classe supérieure';
-        } else if (moyenneGenerale >= 10) {
-          decisionAutomatique = 'Admis en classe supérieure avec avertissement';
-        } else if (moyenneGenerale >= 8) {
-          decisionAutomatique = 'Admis en classe supérieure sous conditions';
-        } else {
-          decisionAutomatique = 'Redouble la classe';
-        }
+        decisionAutomatique = 'Redouble la classe';
       }
     }
 
@@ -6846,6 +6932,12 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
   }
 
   Future<void> _exportClassReportCards() async {
+    // Vérifier le mode coffre fort
+    if (!SafeModeService.instance.isActionAllowed()) {
+      showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true);
+      return;
+    }
+
     if (selectedClass == null || selectedClass!.isEmpty) {
       showRootSnackBar(
         SnackBar(content: Text('Veuillez sélectionner une classe.')),
@@ -7176,6 +7268,12 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
   }
 
   void _showEditStudentGradesDialog(Student student) async {
+    // Vérifier le mode coffre fort
+    if (!SafeModeService.instance.isActionAllowed()) {
+      showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true);
+      return;
+    }
+
     final List<String> subjectNames = subjects.map((c) => c.name).toList();
     // Charger les coefficients de matières définis dans les détails de la classe pour l'année en cours
     String effYear;
@@ -7343,6 +7441,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                                         flex: 2,
                                         child: TextFormField(
                                           controller: labelControllers[key],
+                                          enabled: SafeModeService.instance.isActionAllowed(),
                                           decoration: const InputDecoration(
                                             labelText: 'Nom de la note',
                                             border: OutlineInputBorder(),
@@ -7353,6 +7452,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                                       Expanded(
                                         child: TextFormField(
                                           controller: valueControllers[key],
+                                          enabled: SafeModeService.instance.isActionAllowed(),
                                           keyboardType:
                                               TextInputType.numberWithOptions(
                                                 decimal: true,
@@ -7367,6 +7467,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
                                       Expanded(
                                         child: TextFormField(
                                           controller: maxValueControllers[key],
+                                          enabled: SafeModeService.instance.isActionAllowed(),
                                           keyboardType:
                                               TextInputType.numberWithOptions(
                                                 decimal: true,

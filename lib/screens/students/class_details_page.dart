@@ -52,6 +52,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
   late TextEditingController _fraisEcoleController;
   late TextEditingController _fraisCotisationParalleleController;
   late TextEditingController _searchController;
+  // Contrôleurs pour les seuils de passage
+  late TextEditingController _seuilFelicitationsController;
+  late TextEditingController _seuilEncouragementsController;
+  late TextEditingController _seuilAdmissionController;
+  late TextEditingController _seuilAvertissementController;
+  late TextEditingController _seuilConditionsController;
+  late TextEditingController _seuilRedoublementController;
   late List<Student> _students;
   final DatabaseService _dbService = DatabaseService();
   final _formKey = GlobalKey<FormState>();
@@ -66,6 +73,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
   late FocusNode _fraisEcoleFocusNode;
   late FocusNode _fraisCotisationFocusNode;
   late FocusNode _searchFocusNode;
+  // Focus nodes pour les seuils de passage
+  late FocusNode _seuilFelicitationsFocusNode;
+  late FocusNode _seuilEncouragementsFocusNode;
+  late FocusNode _seuilAdmissionFocusNode;
+  late FocusNode _seuilAvertissementFocusNode;
+  late FocusNode _seuilConditionsFocusNode;
+  late FocusNode _seuilRedoublementFocusNode;
   String _sortBy = 'name'; // Sort by name or ID
   bool _sortAscending = true;
   String _studentStatusFilter = 'Tous'; // 'Tous', 'Payé', 'En attente'
@@ -86,6 +100,25 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       text: widget.classe.fraisCotisationParallele?.toString() ?? '',
     );
     _searchController = TextEditingController();
+    // Initialisation des contrôleurs pour les seuils de passage
+    _seuilFelicitationsController = TextEditingController(
+      text: widget.classe.seuilFelicitations.toString(),
+    );
+    _seuilEncouragementsController = TextEditingController(
+      text: widget.classe.seuilEncouragements.toString(),
+    );
+    _seuilAdmissionController = TextEditingController(
+      text: widget.classe.seuilAdmission.toString(),
+    );
+    _seuilAvertissementController = TextEditingController(
+      text: widget.classe.seuilAvertissement.toString(),
+    );
+    _seuilConditionsController = TextEditingController(
+      text: widget.classe.seuilConditions.toString(),
+    );
+    _seuilRedoublementController = TextEditingController(
+      text: widget.classe.seuilRedoublement.toString(),
+    );
     _students = List<Student>.from(widget.students);
 
     _nameFocusNode = FocusNode();
@@ -94,6 +127,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
     _fraisEcoleFocusNode = FocusNode();
     _fraisCotisationFocusNode = FocusNode();
     _searchFocusNode = FocusNode();
+    // Initialisation des focus nodes pour les seuils de passage
+    _seuilFelicitationsFocusNode = FocusNode();
+    _seuilEncouragementsFocusNode = FocusNode();
+    _seuilAdmissionFocusNode = FocusNode();
+    _seuilAvertissementFocusNode = FocusNode();
+    _seuilConditionsFocusNode = FocusNode();
+    _seuilRedoublementFocusNode = FocusNode();
 
     _animationController = AnimationController(
       duration: const Duration(
@@ -133,6 +173,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
     _fraisEcoleController.dispose();
     _fraisCotisationParalleleController.dispose();
     _searchController.dispose();
+    // Disposal des contrôleurs pour les seuils de passage
+    _seuilFelicitationsController.dispose();
+    _seuilEncouragementsController.dispose();
+    _seuilAdmissionController.dispose();
+    _seuilAvertissementController.dispose();
+    _seuilConditionsController.dispose();
+    _seuilRedoublementController.dispose();
     _animationController.dispose();
     _nameFocusNode.dispose();
     _yearFocusNode.dispose();
@@ -140,6 +187,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
     _fraisEcoleFocusNode.dispose();
     _fraisCotisationFocusNode.dispose();
     _searchFocusNode.dispose();
+    // Disposal des focus nodes pour les seuils de passage
+    _seuilFelicitationsFocusNode.dispose();
+    _seuilEncouragementsFocusNode.dispose();
+    _seuilAdmissionFocusNode.dispose();
+    _seuilAvertissementFocusNode.dispose();
+    _seuilConditionsFocusNode.dispose();
+    _seuilRedoublementFocusNode.dispose();
     _fraisEcoleController.removeListener(_updateTotalClasse);
     _fraisCotisationParalleleController.removeListener(_updateTotalClasse);
     super.dispose();
@@ -228,6 +282,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
             _fraisCotisationParalleleController.text.isNotEmpty
             ? double.tryParse(_fraisCotisationParalleleController.text)
             : null,
+        // Seuils de passage personnalisés
+        seuilFelicitations: double.tryParse(_seuilFelicitationsController.text) ?? 16.0,
+        seuilEncouragements: double.tryParse(_seuilEncouragementsController.text) ?? 14.0,
+        seuilAdmission: double.tryParse(_seuilAdmissionController.text) ?? 12.0,
+        seuilAvertissement: double.tryParse(_seuilAvertissementController.text) ?? 10.0,
+        seuilConditions: double.tryParse(_seuilConditionsController.text) ?? 8.0,
+        seuilRedoublement: double.tryParse(_seuilRedoublementController.text) ?? 8.0,
       );
       await _dbService.updateClass(
         widget.classe.name,
@@ -253,6 +314,13 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
         _fraisEcoleController.text = cls.fraisEcole?.toString() ?? '';
         _fraisCotisationParalleleController.text =
             cls.fraisCotisationParallele?.toString() ?? '';
+        // Mise à jour des seuils de passage
+        _seuilFelicitationsController.text = cls.seuilFelicitations.toString();
+        _seuilEncouragementsController.text = cls.seuilEncouragements.toString();
+        _seuilAdmissionController.text = cls.seuilAdmission.toString();
+        _seuilAvertissementController.text = cls.seuilAvertissement.toString();
+        _seuilConditionsController.text = cls.seuilConditions.toString();
+        _seuilRedoublementController.text = cls.seuilRedoublement.toString();
         _students = refreshedStudents;
         _isLoading = false;
       });
@@ -749,8 +817,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 600;
         return Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          padding: const EdgeInsets.all(32),
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface.withOpacity(0.98),
             borderRadius: BorderRadius.circular(20),
@@ -854,6 +922,176 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                               hintText: '',
                               readOnly: true,
                               suffixIcon: Icons.summarize,
+                            ),
+                          ),
+                          // Section des seuils de passage
+                          Container(
+                            margin: const EdgeInsets.only(top: 24),
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.school,
+                                      color: Colors.blue.shade700,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Seuils de passage en classe supérieure',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Configurez les moyennes minimales pour chaque type de décision du conseil de classe :',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: CustomFormField(
+                                        controller: _seuilFelicitationsController,
+                                        labelText: 'Félicitations (≥)',
+                                        hintText: '16.0',
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value != null && value.isNotEmpty) {
+                                            final val = double.tryParse(value);
+                                            if (val == null || val < 0 || val > 20) {
+                                              return 'Valeur entre 0 et 20';
+                                            }
+                                          }
+                                          return null;
+                                        },
+                                        suffixIcon: Icons.star,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: CustomFormField(
+                                        controller: _seuilEncouragementsController,
+                                        labelText: 'Encouragements (≥)',
+                                        hintText: '14.0',
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value != null && value.isNotEmpty) {
+                                            final val = double.tryParse(value);
+                                            if (val == null || val < 0 || val > 20) {
+                                              return 'Valeur entre 0 et 20';
+                                            }
+                                          }
+                                          return null;
+                                        },
+                                        suffixIcon: Icons.thumb_up,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: CustomFormField(
+                                        controller: _seuilAdmissionController,
+                                        labelText: 'Admission (≥)',
+                                        hintText: '12.0',
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value != null && value.isNotEmpty) {
+                                            final val = double.tryParse(value);
+                                            if (val == null || val < 0 || val > 20) {
+                                              return 'Valeur entre 0 et 20';
+                                            }
+                                          }
+                                          return null;
+                                        },
+                                        suffixIcon: Icons.check_circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: CustomFormField(
+                                        controller: _seuilAvertissementController,
+                                        labelText: 'Avertissement (≥)',
+                                        hintText: '10.0',
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value != null && value.isNotEmpty) {
+                                            final val = double.tryParse(value);
+                                            if (val == null || val < 0 || val > 20) {
+                                              return 'Valeur entre 0 et 20';
+                                            }
+                                          }
+                                          return null;
+                                        },
+                                        suffixIcon: Icons.warning,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: CustomFormField(
+                                        controller: _seuilConditionsController,
+                                        labelText: 'Sous conditions (≥)',
+                                        hintText: '8.0',
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value != null && value.isNotEmpty) {
+                                            final val = double.tryParse(value);
+                                            if (val == null || val < 0 || val > 20) {
+                                              return 'Valeur entre 0 et 20';
+                                            }
+                                          }
+                                          return null;
+                                        },
+                                        suffixIcon: Icons.help_outline,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: CustomFormField(
+                                        controller: _seuilRedoublementController,
+                                        labelText: 'Redoublement (<)',
+                                        hintText: '8.0',
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value != null && value.isNotEmpty) {
+                                            final val = double.tryParse(value);
+                                            if (val == null || val < 0 || val > 20) {
+                                              return 'Valeur entre 0 et 20';
+                                            }
+                                          }
+                                          return null;
+                                        },
+                                        suffixIcon: Icons.repeat,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -1802,7 +2040,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
     return CustomDialog(
       title: AppStrings.classDetailsTitle,
       content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.9,
+        width: MediaQuery.of(context).size.width * 0.95,
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(

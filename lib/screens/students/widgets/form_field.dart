@@ -15,6 +15,7 @@ class CustomFormField extends StatelessWidget {
   final VoidCallback? onTap;
   final bool readOnly;
   final IconData? suffixIcon;
+  final TextInputType? keyboardType;
 
   const CustomFormField({
     this.controller,
@@ -29,6 +30,7 @@ class CustomFormField extends StatelessWidget {
     this.onTap,
     this.readOnly = false,
     this.suffixIcon,
+    this.keyboardType,
   });
 
   @override
@@ -115,6 +117,7 @@ class CustomFormField extends StatelessWidget {
                   maxLines: isTextArea ? 4 : 1,
                   onTap: onTap,
                   readOnly: readOnly,
+                  keyboardType: keyboardType,
                   decoration: InputDecoration(
                     hintText: hintText,
                     hintStyle: TextStyle(
