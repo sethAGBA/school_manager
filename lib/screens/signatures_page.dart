@@ -19,7 +19,6 @@ class _SignaturesPageState extends State<SignaturesPage>
   List<Signature> _signatures = [];
   List<Signature> _cachets = [];
   bool _isLoading = true;
-  bool _isDarkMode = true;
 
   @override
   void initState() {
@@ -154,45 +153,76 @@ class _SignaturesPageState extends State<SignaturesPage>
 
   @override
   Widget build(BuildContext context) {
-    final theme = _isDarkMode ? _buildDarkTheme() : _buildLightTheme();
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
     final isDesktop = MediaQuery.of(context).size.width > 900;
 
-    return Theme(
-      data: theme,
-      child: Scaffold(
-        backgroundColor: _isDarkMode ? Colors.black : Colors.grey[100],
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
         body: Column(
           children: [
-            _buildHeader(context, _isDarkMode, isDesktop),
+            _buildHeader(context, isDarkMode, isDesktop),
             Expanded(
               child: Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 decoration: BoxDecoration(
-                  color: _isDarkMode ? Colors.grey[900] : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
                     Container(
+                      margin: const EdgeInsets.only(
+                        top: 16,
+                        left: 16,
+                        right: 16,
+                        bottom: 0,
+                      ),
                       decoration: BoxDecoration(
-                        color: _isDarkMode ? Colors.grey[800] : Colors.grey[50],
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
-                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        color: theme.cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: TabBar(
                         controller: _tabController,
-                        labelColor: AppColors.primaryBlue,
-                        unselectedLabelColor: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        indicatorColor: AppColors.primaryBlue,
+                        indicator: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF59E0B).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        dividerColor: Colors.transparent,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: theme.textTheme.bodyMedium?.color,
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        unselectedLabelStyle: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
                         tabs: const [
                           Tab(
                             icon: Icon(Icons.draw_outlined),
@@ -209,8 +239,8 @@ class _SignaturesPageState extends State<SignaturesPage>
                       child: TabBarView(
                         controller: _tabController,
                         children: [
-                          _buildSignaturesList(),
-                          _buildCachetsList(),
+                          _buildSignaturesList(theme),
+                          _buildCachetsList(theme),
                         ],
                       ),
                     ),
@@ -220,11 +250,10 @@ class _SignaturesPageState extends State<SignaturesPage>
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
-  Widget _buildSignaturesList() {
+  Widget _buildSignaturesList(ThemeData theme) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -241,7 +270,7 @@ class _SignaturesPageState extends State<SignaturesPage>
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: _isDarkMode ? Colors.white : Colors.black,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
               ),
               ElevatedButton.icon(
@@ -291,7 +320,7 @@ class _SignaturesPageState extends State<SignaturesPage>
     );
   }
 
-  Widget _buildCachetsList() {
+  Widget _buildCachetsList(ThemeData theme) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -308,7 +337,7 @@ class _SignaturesPageState extends State<SignaturesPage>
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: _isDarkMode ? Colors.white : Colors.black,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
               ),
               ElevatedButton.icon(
@@ -570,23 +599,6 @@ class _SignaturesPageState extends State<SignaturesPage>
     );
   }
 
-  ThemeData _buildDarkTheme() {
-    return ThemeData.dark().copyWith(
-      primaryColor: AppColors.primaryBlue,
-      scaffoldBackgroundColor: Colors.black,
-      cardColor: Colors.grey[900],
-      dividerColor: Colors.grey[700],
-    );
-  }
-
-  ThemeData _buildLightTheme() {
-    return ThemeData.light().copyWith(
-      primaryColor: AppColors.primaryBlue,
-      scaffoldBackgroundColor: Colors.grey[100],
-      cardColor: Colors.white,
-      dividerColor: Colors.grey[300],
-    );
-  }
 }
 
 class _SignatureDialog extends StatefulWidget {
