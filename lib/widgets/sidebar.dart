@@ -124,8 +124,8 @@ class Sidebar extends StatelessWidget {
                     'Emplois du Temps',
                   ),
                   _buildMenuItem(context, 9, Icons.book, 'Matières'),
-                  _buildMenuItem(context, 13, Icons.edit, 'Signatures & Cachets'),
-                  _buildMenuItem(context, 10, Icons.inventory_2, 'Finance & Matériel'),
+                  _buildMenuItem(context, 13, Icons.draw_outlined, 'Signatures & Cachets'),
+                  _buildMenuItem(context, 10, Icons.storefront, 'Finance & Matériel'),
                   _buildMenuItem(context, 11, Icons.receipt_long, 'Audits'),
                   if ((currentRole ?? '') == 'admin' ||
                       (currentPermissions?.contains('manage_safe_mode') ?? false))

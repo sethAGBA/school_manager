@@ -195,7 +195,7 @@ class _SignaturesPageState extends State<SignaturesPage>
                         indicatorColor: AppColors.primaryBlue,
                         tabs: const [
                           Tab(
-                            icon: Icon(Icons.edit),
+                            icon: Icon(Icons.draw_outlined),
                             text: 'Signatures',
                           ),
                           Tab(
@@ -263,7 +263,7 @@ class _SignaturesPageState extends State<SignaturesPage>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.edit,
+                        Icons.draw_outlined,
                         size: 64,
                         color: Colors.grey[400],
                       ),
@@ -366,7 +366,7 @@ class _SignaturesPageState extends State<SignaturesPage>
         leading: CircleAvatar(
           backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
           child: Icon(
-            signature.type == 'signature' ? Icons.edit : Icons.verified,
+            signature.type == 'signature' ? Icons.draw_outlined : Icons.verified,
             color: AppColors.primaryBlue,
           ),
         ),
@@ -392,14 +392,20 @@ class _SignaturesPageState extends State<SignaturesPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
+              tooltip: 'Modifier',
+              icon: const Icon(
+                Icons.edit_outlined,
+                color: Color(0xFF6366F1),
+              ),
               onPressed: () => _editSignature(signature),
-              icon: const Icon(Icons.edit),
-              color: AppColors.primaryBlue,
             ),
             IconButton(
+              tooltip: 'Supprimer',
+              icon: const Icon(
+                Icons.delete_outline,
+                color: Colors.red,
+              ),
               onPressed: () => _deleteSignature(signature),
-              icon: const Icon(Icons.delete),
-              color: Colors.red,
             ),
           ],
         ),
@@ -440,18 +446,20 @@ class _SignaturesPageState extends State<SignaturesPage>
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.draw_outlined,
+                        color: Colors.white,
+                        size: isDesktop ? 32 : 24,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.edit,
-                      size: 28,
-                      color: AppColors.primaryBlue,
-                    ),
-                  ),
                   const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,17 +542,24 @@ class _SignaturesPageState extends State<SignaturesPage>
                     ),
                   ),
                   const SizedBox(width: 16),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _isDarkMode = !_isDarkMode;
-                      });
-                    },
-                    icon: Icon(
-                      _isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                      color: theme.textTheme.bodyLarge?.color,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    tooltip: _isDarkMode ? 'Mode clair' : 'Mode sombre',
+                    child: Icon(
+                      Icons.notifications_outlined,
+                      color: theme.iconTheme.color,
+                      size: 20,
+                    ),
                   ),
                 ],
               ),

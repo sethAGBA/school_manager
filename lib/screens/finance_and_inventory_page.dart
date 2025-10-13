@@ -1234,7 +1234,7 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                   ),
                   tabs: const [
                     Tab(icon: Icon(Icons.payments), text: 'Finances'),
-                    Tab(icon: Icon(Icons.inventory_2), text: 'Matériel'),
+                    Tab(icon: Icon(Icons.inventory), text: 'Matériel'),
                   ],
                 ),
               ),
@@ -1279,7 +1279,7 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                     gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.payment_rounded, color: Colors.white, size: isDesktop ? 32 : 24),
+                  child: Icon(Icons.storefront, color: Colors.white, size: isDesktop ? 32 : 24),
                 ),
                 const SizedBox(width: 16),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2387,12 +2387,12 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
                     children: [
                       IconButton(
                         tooltip: 'Modifier',
-                        icon: const Icon(Icons.edit, color: Color(0xFF2563EB)),
+                        icon: const Icon( Icons.edit_outlined, color: Color(0xFF2563EB)),
                         onPressed: () => _showAddExpenseDialog(existing: e),
                       ),
                       IconButton(
                         tooltip: 'Supprimer',
-                        icon: const Icon(Icons.delete, color: Color(0xFFE11D48)),
+                        icon: const Icon( Icons.delete_outline, color: Color(0xFFE11D48)),
                         onPressed: () async {
                           final ok = await _confirmDeletion(
                             context,
@@ -2833,12 +2833,12 @@ class _FinanceAndInventoryPageState extends State<FinanceAndInventoryPage>
               children: [
                 IconButton(
                   tooltip: 'Modifier',
-                  icon: const Icon(Icons.edit, color: Color(0xFF2563EB)),
+                  icon: const Icon( Icons.edit_outlined, color: Color(0xFF2563EB)),
                   onPressed: () => _showEditInventoryItemDialog(it),
                 ),
                 IconButton(
                   tooltip: 'Supprimer',
-                  icon: const Icon(Icons.delete, color: Color(0xFFE11D48)),
+                  icon: const Icon( Icons.delete_outline, color: Color(0xFFE11D48)),
                   onPressed: () async {
                     final ok = await _confirmDeletion(
                       context,

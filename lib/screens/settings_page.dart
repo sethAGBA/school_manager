@@ -2727,7 +2727,7 @@ class _SettingsPageState extends State<SettingsPage>
                                     }
                                   },
                                   icon: const Icon(
-                                    Icons.delete,
+                                    Icons.delete_outline,
                                     color: Colors.red,
                                   ),
                                   label: const Text(
