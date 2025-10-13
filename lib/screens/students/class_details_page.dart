@@ -815,7 +815,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 600;
+        final isWide = constraints.maxWidth > 800;
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           padding: const EdgeInsets.all(24),
@@ -2040,7 +2040,9 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
     return CustomDialog(
       title: AppStrings.classDetailsTitle,
       content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.95,
+        width: MediaQuery.of(context).size.width > 1000 
+            ? 1000 
+            : MediaQuery.of(context).size.width * 0.95,
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
