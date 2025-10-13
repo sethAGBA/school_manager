@@ -24,6 +24,7 @@ import 'screens/subjects_page.dart';
 import 'screens/finance_and_inventory_page.dart';
 import 'screens/audit_page.dart';
 import 'screens/safe_mode_page.dart';
+import 'screens/signatures_page.dart';
 import 'services/safe_mode_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -272,6 +273,7 @@ class _SchoolDashboardState extends State<SchoolDashboard>
       const FinanceAndInventoryPage(),
       const AuditPage(),
       const SafeModePage(),
+      const SignaturesPage(),
     ];
     _pagePermissions = [
       'view_dashboard',
@@ -287,6 +289,7 @@ class _SchoolDashboardState extends State<SchoolDashboard>
       'view_finance_inventory',
       'view_audits',
       'manage_safe_mode',
+      'view_signatures',
     ];
     _loadCurrentRole();
     _initLicenseListener();

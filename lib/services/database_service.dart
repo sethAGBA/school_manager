@@ -14,6 +14,7 @@ import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/models/timetable_entry.dart';
 import 'package:school_manager/models/expense.dart';
 import 'package:school_manager/models/inventory_item.dart';
+import 'package:school_manager/models/signature.dart';
 // Removed UI and prefs from data layer
 
 class DatabaseService {
@@ -527,6 +528,7 @@ class DatabaseService {
     await _ensurePaymentCancelReason(db);
     await _ensureAuditTable(db);
     await _ensureExpensesTable(db);
+    await _ensureSignaturesTable(db);
     debugPrint(
       '[DatabaseService][MIGRATION] All post-open migrations completed',
     );
@@ -549,6 +551,27 @@ class DatabaseService {
     );
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_audit_cat ON audit_logs(category)'
+    );
+  }
+
+  Future<void> _ensureSignaturesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS signatures(
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        imagePath TEXT,
+        description TEXT,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_signatures_type ON signatures(type)'
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_signatures_active ON signatures(isActive)'
     );
   }
 
@@ -4602,6 +4625,74 @@ class DatabaseService {
       where: 'studentId = ?',
       whereArgs: [studentId],
       orderBy: 'academicYear DESC, term DESC',
+    );
+  }
+
+  // Signature and Cachet operations
+  Future<void> insertSignature(Signature signature) async {
+    final db = await database;
+    await db.insert('signatures', signature.toMap());
+  }
+
+  Future<List<Signature>> getAllSignatures() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'signatures',
+      orderBy: 'createdAt DESC',
+    );
+    return List.generate(maps.length, (i) => Signature.fromMap(maps[i]));
+  }
+
+  Future<List<Signature>> getSignaturesByType(String type) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'signatures',
+      where: 'type = ? AND isActive = 1',
+      whereArgs: [type],
+      orderBy: 'createdAt DESC',
+    );
+    return List.generate(maps.length, (i) => Signature.fromMap(maps[i]));
+  }
+
+  Future<Signature?> getSignatureById(String id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'signatures',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isNotEmpty) {
+      return Signature.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<void> updateSignature(Signature signature) async {
+    final db = await database;
+    await db.update(
+      'signatures',
+      signature.toMap(),
+      where: 'id = ?',
+      whereArgs: [signature.id],
+    );
+  }
+
+  Future<void> deleteSignature(String id) async {
+    final db = await database;
+    await db.delete(
+      'signatures',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> toggleSignatureStatus(String id, bool isActive) async {
+    final db = await database;
+    await db.update(
+      'signatures',
+      {'isActive': isActive ? 1 : 0, 'updatedAt': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 }
