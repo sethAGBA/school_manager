@@ -3,6 +3,7 @@ import 'package:school_manager/main.dart';
 import 'package:school_manager/screens/students/widgets/custom_dialog.dart';
 import 'package:school_manager/utils/snackbar.dart';
 import 'package:school_manager/services/auth_service.dart';
+import 'package:school_manager/widgets/safe_mode_indicator.dart';
 import 'dart:math';
 
 class Sidebar extends StatelessWidget {
@@ -71,6 +72,8 @@ class Sidebar extends StatelessWidget {
                     letterSpacing: 1.2,
                   ),
                 ),
+                const SizedBox(height: 8),
+                const SafeModeIndicator(),
               ],
             ),
           ),
@@ -123,6 +126,14 @@ class Sidebar extends StatelessWidget {
                   _buildMenuItem(context, 9, Icons.book, 'Matières'),
                   _buildMenuItem(context, 10, Icons.inventory_2, 'Finance & Matériel'),
                   _buildMenuItem(context, 11, Icons.receipt_long, 'Audits'),
+                  if ((currentRole ?? '') == 'admin' ||
+                      (currentPermissions?.contains('manage_safe_mode') ?? false))
+                    _buildMenuItem(
+                      context,
+                      12,
+                      Icons.security,
+                      'Mode coffre fort',
+                    ),
                   // Place Paramètres as the penultimate item (just above logout)
                   _buildMenuItem(context, 5, Icons.settings, 'Paramètres'),
                   const SizedBox(height: 12),

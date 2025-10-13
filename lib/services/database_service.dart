@@ -4275,6 +4275,12 @@ class DatabaseService {
     }
   }
 
+  // Clear all timetable entries (restore to blank)
+  Future<void> clearAllTimetableEntries() async {
+    final db = await database;
+    await db.delete('timetable_entries');
+  }
+
   Future<List<Map<String, String>>> getTeacherUnavailability(
     String teacherName,
     String academicYear,

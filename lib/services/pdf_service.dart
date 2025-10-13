@@ -15,8 +15,21 @@ import 'package:school_manager/models/course.dart';
 import 'package:school_manager/models/category.dart';
 import 'package:school_manager/utils/academic_year.dart';
 import 'package:school_manager/services/database_service.dart';
+import 'package:school_manager/services/safe_mode_service.dart';
 
 class PdfService {
+  /// Vérifie si l'action est autorisée (non bloquée par le mode coffre fort)
+  static bool _isActionAllowed() {
+    return SafeModeService.instance.isActionAllowed();
+  }
+
+  /// Lance une exception si l'action est bloquée par le mode coffre fort
+  static void _checkSafeMode() {
+    if (!_isActionAllowed()) {
+      throw Exception(SafeModeService.instance.getBlockedActionMessage());
+    }
+  }
+
   /// Helper method pour formater les dates
   static String _formatDate(String dateString) {
     if (dateString.isEmpty) return 'Non renseigné';
@@ -62,6 +75,7 @@ class PdfService {
     required double totalPaid,
     required double totalDue,
   }) async {
+    _checkSafeMode(); // Vérifier le mode coffre fort
     final pdf = pw.Document();
     final formatter = NumberFormat('#,##0 FCFA', 'fr_FR');
     final times = await pw.Font.times();
@@ -2107,6 +2121,7 @@ class PdfService {
     double? moyenneAnnuelle,
     bool duplicata = false,
   }) async {
+    _checkSafeMode(); // Vérifier le mode coffre fort
     final pdf = pw.Document();
     final times = await pw.Font.times();
     final timesBold = await pw.Font.timesBold();

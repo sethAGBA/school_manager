@@ -15,6 +15,7 @@ class PermissionService {
     'view_license',
     'view_subjects',
     'view_finance_inventory',
+    'manage_safe_mode',
   };
 
   static const defaultStaffPermissions = <String>{

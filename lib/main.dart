@@ -23,6 +23,8 @@ import 'services/license_service.dart';
 import 'screens/subjects_page.dart';
 import 'screens/finance_and_inventory_page.dart';
 import 'screens/audit_page.dart';
+import 'screens/safe_mode_page.dart';
+import 'services/safe_mode_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 const List<String> kFontFallback = [
@@ -70,6 +72,8 @@ void main() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
+  // Initialize SafeModeService
+  await SafeModeService.instance.initialize();
   runApp(MyApp(key: myAppKey));
 }
 
@@ -267,6 +271,7 @@ class _SchoolDashboardState extends State<SchoolDashboard>
       const SubjectsPage(),
       const FinanceAndInventoryPage(),
       const AuditPage(),
+      const SafeModePage(),
     ];
     _pagePermissions = [
       'view_dashboard',
@@ -281,6 +286,7 @@ class _SchoolDashboardState extends State<SchoolDashboard>
       'view_subjects',
       'view_finance_inventory',
       'view_audits',
+      'manage_safe_mode',
     ];
     _loadCurrentRole();
     _initLicenseListener();

@@ -8,3 +8,13 @@ final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
 void showRootSnackBar(SnackBar snackBar) {
   rootScaffoldMessengerKey.currentState?.showSnackBar(snackBar);
 }
+
+void showSnackBar(BuildContext context, String message, {bool isError = false}) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: isError ? Colors.red : Colors.green,
+      duration: const Duration(seconds: 3),
+    ),
+  );
+}

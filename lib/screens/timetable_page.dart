@@ -809,6 +809,13 @@ class _TimetablePageState extends State<TimetablePage>
                   label: const Text('Générer pour l\'enseignant sélectionné', style: TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
                 ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _isGenerating ? null : _onClearTimetable,
+                icon: const Icon(Icons.clear_all, color: Colors.white),
+                label: const Text('Restaurer à vierge', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              ),
             ],
           ),
         ],
@@ -1048,6 +1055,104 @@ class _TimetablePageState extends State<TimetablePage>
           category: 'timetable',
           action: 'auto_generate_teacher',
           details: 'teacher=$teacherName saturate=${_saturateAll ? 1 : 0}',
+        );
+      } catch (_) {}
+    } finally {
+      setState(() => _isGenerating = false);
+      await _loadData();
+    }
+  }
+
+  Future<void> _onClearTimetable() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red[600]),
+            const SizedBox(width: 12),
+            const Text('Confirmer la restauration'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Êtes-vous sûr de vouloir restaurer le tableau à vierge ?',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.red[600], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Cette action supprimera TOUS les cours de l\'emploi du temps et ne peut pas être annulée.',
+                      style: TextStyle(
+                        color: Colors.red[700],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Restaurer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isGenerating = true);
+    try {
+      // Clear all timetable entries
+      await _dbService.clearAllTimetableEntries();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tableau restauré à vierge avec succès'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Log the action
+      try {
+        await _dbService.logAudit(
+          category: 'timetable',
+          action: 'clear_all',
+          details: 'All timetable entries cleared',
         );
       } catch (_) {}
     } finally {

@@ -238,7 +238,15 @@ class SchedulingService {
         int desiredBlock = blockDefaultSlots.clamp(1, 3);
         final wSubj = coeffs[subj] ?? 1.0;
         if (isEPS(subj)) desiredBlock = 1;
-        else if (wSubj >= avgCoeff * threeHourThreshold) desiredBlock = 3;
+        else if (wSubj >= avgCoeff * threeHourThreshold) {
+          // For subjects with more than 3 hours, use 2-hour blocks
+          final totalHours = need;
+          if (totalHours > 3) {
+            desiredBlock = 2; // Force 2-hour blocks for subjects > 3h
+          } else {
+            desiredBlock = 3;
+          }
+        }
 
       // Traverse slots sorted by start time to ensure true contiguity
         final List<String> sortedSlots = List<String>.from(timeSlots);
@@ -342,6 +350,74 @@ class SchedulingService {
           }
           placed++;
           if (isEPS(subj)) epsDaysUsed.add(day);
+          
+          // For subjects with more than 3 hours, if we've placed 2-hour blocks and have remaining hours,
+          // we need to place them on a different day
+          final totalHours = need;
+          if (totalHours > 3 && placed >= (totalHours ~/ 2) * 2 && placed < need) {
+            // We have remaining hours, try to place them on a different day
+            final remainingHours = need - placed;
+            if (remainingHours > 0) {
+              // Try to find a different day for remaining hours
+              for (final otherDay in daysOrder) {
+                if (otherDay == day) continue; // Skip the same day
+                if (isEPS(subj) && epsDaysUsed.contains(otherDay)) continue;
+                
+                // Try to place remaining hours on this other day
+                for (int si2 = 0; si2 < sortedSlots.length; si2++) {
+                  final slot2 = sortedSlots[si2];
+                  if (breakSlots.contains(slot2)) continue;
+                  final parts2 = slot2.split(' - ');
+                  final start2 = parts2.first;
+                  final end2 = parts2.length > 1 ? parts2[1] : parts2.first;
+                  
+                  if (hasClassConflict(otherDay, start2)) continue;
+                  if (teacher.isNotEmpty && hasTeacherConflict(teacher, otherDay, start2)) continue;
+                  if (teacher.isNotEmpty && (teacherUnavail[teacher]?.contains('$otherDay|$start2') == true)) continue;
+                  
+                  // Place the remaining hour
+                  final entry2 = TimetableEntry(
+                    subject: subj,
+                    teacher: teacher,
+                    className: targetClass.name,
+                    academicYear: computedYear,
+                    dayOfWeek: otherDay,
+                    startTime: start2,
+                    endTime: end2,
+                    room: '',
+                  );
+                  await db.insertTimetableEntry(entry2);
+                  
+                  // Update the current entries list to avoid future conflicts
+                  current = await db.getTimetableEntries(
+                    className: targetClass.name,
+                    academicYear: computedYear,
+                  );
+                  
+                  // Update all counters like in the main logic
+                  final m2 = _slotMinutes(start2, end2);
+                  if (teacher.isNotEmpty) {
+                    teacherLoad[teacher] = (teacherLoad[teacher] ?? 0) + m2;
+                    teacherDaily[teacher]![otherDay] = (teacherDaily[teacher]![otherDay] ?? 0) + 1;
+                    teacherBusyAll.putIfAbsent(teacher, () => <String>{}).add('$otherDay|$start2');
+                  }
+                  classDailyCount[otherDay] = (classDailyCount[otherDay] ?? 0) + 1;
+                  final byS2 = classSubjectDaily[otherDay] ?? <String,int>{};
+                  byS2[subj] = (byS2[subj] ?? 0) + 1;
+                  classSubjectDaily[otherDay] = byS2;
+                  
+                  created++;
+                  placed++;
+                  if (isOptional(course)) {
+                    optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + m2;
+                  }
+                  break; // Only place one remaining hour per day
+                }
+                if (placed >= need) break;
+              }
+            }
+          }
+          
           if (placed >= need) break outer;
         }
       }

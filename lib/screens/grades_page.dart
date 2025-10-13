@@ -27,6 +27,7 @@ import 'package:archive/archive_io.dart';
 import 'package:intl/intl.dart';
 import 'package:school_manager/utils/snackbar.dart';
 import 'package:school_manager/screens/statistics_modal.dart';
+import 'package:school_manager/services/safe_mode_service.dart';
 import 'dart:ui' as ui;
 
 // Import/Export helpers (top-level)
