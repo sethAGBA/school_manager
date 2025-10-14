@@ -7,6 +7,12 @@ class Signature {
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
+  
+  // Nouveaux champs pour l'association aux classes et rôles
+  final String? associatedClass; // Nom de la classe associée
+  final String? associatedRole; // 'titulaire', 'directeur', 'vice_directeur', etc.
+  final String? staffId; // ID du membre du personnel associé
+  final bool isDefault; // Signature par défaut pour ce rôle/classe
 
   Signature({
     required this.id,
@@ -17,6 +23,10 @@ class Signature {
     this.isActive = true,
     required this.createdAt,
     required this.updatedAt,
+    this.associatedClass,
+    this.associatedRole,
+    this.staffId,
+    this.isDefault = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +39,10 @@ class Signature {
       'isActive': isActive ? 1 : 0,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'associatedClass': associatedClass,
+      'associatedRole': associatedRole,
+      'staffId': staffId,
+      'isDefault': isDefault ? 1 : 0,
     };
   }
 
@@ -42,6 +56,10 @@ class Signature {
       isActive: (map['isActive'] as int) == 1,
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
+      associatedClass: map['associatedClass'],
+      associatedRole: map['associatedRole'],
+      staffId: map['staffId'],
+      isDefault: (map['isDefault'] as int?) == 1,
     );
   }
 
@@ -54,6 +72,10 @@ class Signature {
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? associatedClass,
+    String? associatedRole,
+    String? staffId,
+    bool? isDefault,
   }) {
     return Signature(
       id: id ?? this.id,
@@ -64,6 +86,10 @@ class Signature {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      associatedClass: associatedClass ?? this.associatedClass,
+      associatedRole: associatedRole ?? this.associatedRole,
+      staffId: staffId ?? this.staffId,
+      isDefault: isDefault ?? this.isDefault,
     );
   }
 

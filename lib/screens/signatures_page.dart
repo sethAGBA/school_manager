@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:school_manager/constants/colors.dart';
 import 'package:school_manager/models/signature.dart';
+import 'package:school_manager/models/class.dart';
+import 'package:school_manager/models/staff.dart';
 import 'package:school_manager/services/database_service.dart';
 
 class SignaturesPage extends StatefulWidget {
@@ -18,6 +20,8 @@ class _SignaturesPageState extends State<SignaturesPage>
   final DatabaseService _dbService = DatabaseService();
   List<Signature> _signatures = [];
   List<Signature> _cachets = [];
+  List<Class> _classes = [];
+  List<Staff> _staff = [];
   bool _isLoading = true;
 
   @override
@@ -36,10 +40,18 @@ class _SignaturesPageState extends State<SignaturesPage>
   Future<void> _loadSignatures() async {
     setState(() => _isLoading = true);
     try {
-      final allSignatures = await _dbService.getAllSignatures();
+      final futures = await Future.wait([
+        _dbService.getAllSignatures(),
+        _dbService.getClasses(),
+        _dbService.getStaff(),
+      ]);
+      
       setState(() {
+        final allSignatures = futures[0] as List<Signature>;
         _signatures = allSignatures.where((s) => s.type == 'signature').toList();
         _cachets = allSignatures.where((s) => s.type == 'cachet').toList();
+        _classes = futures[1] as List<Class>;
+        _staff = futures[2] as List<Staff>;
         _isLoading = false;
       });
     } catch (e) {
@@ -66,6 +78,43 @@ class _SignaturesPageState extends State<SignaturesPage>
     );
   }
 
+  Future<void> _showAssignmentModal(BuildContext context) async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => _AssignmentModal(
+        signatures: _signatures,
+        cachets: _cachets,
+        classes: _classes,
+        staff: _staff,
+      ),
+    );
+
+    if (result != null) {
+      try {
+        await _dbService.updateSignature(
+          Signature(
+            id: result['signatureId']!,
+            name: result['signatureName']!,
+            type: result['type']!,
+            imagePath: result['imagePath'],
+            description: result['description'],
+            isActive: true,
+            createdAt: result['createdAt']!,
+            updatedAt: DateTime.now(),
+            associatedClass: result['associatedClass'],
+            associatedRole: result['associatedRole'],
+            staffId: result['staffId'],
+            isDefault: result['isDefault'] ?? false,
+          ),
+        );
+        _showSuccessSnackBar('Assignation effectuée avec succès');
+        _loadSignatures();
+      } catch (e) {
+        _showErrorSnackBar('Erreur lors de l\'assignation: $e');
+      }
+    }
+  }
+
   Future<void> _addSignature(String type) async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -82,6 +131,10 @@ class _SignaturesPageState extends State<SignaturesPage>
           description: result['description'],
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
+          associatedClass: result['associatedClass'],
+          associatedRole: result['associatedRole'],
+          staffId: result['staffId'],
+          isDefault: result['isDefault'] ?? false,
         );
 
         await _dbService.insertSignature(signature);
@@ -109,6 +162,10 @@ class _SignaturesPageState extends State<SignaturesPage>
           imagePath: result['imagePath'],
           description: result['description'],
           updatedAt: DateTime.now(),
+          associatedClass: result['associatedClass'],
+          associatedRole: result['associatedRole'],
+          staffId: result['staffId'],
+          isDefault: result['isDefault'] ?? false,
         );
 
         await _dbService.updateSignature(updatedSignature);
@@ -570,6 +627,17 @@ class _SignaturesPageState extends State<SignaturesPage>
                       ],
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => _showAssignmentModal(context),
+                    icon: const Icon(Icons.assignment_ind, size: 16),
+                    label: const Text('Assigner'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
                   const SizedBox(width: 16),
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -620,6 +688,14 @@ class _SignatureDialogState extends State<_SignatureDialog> {
   final _descriptionController = TextEditingController();
   String? _imagePath;
   final ImagePicker _picker = ImagePicker();
+  
+  // Nouveaux champs
+  String? _selectedClass;
+  String? _selectedRole;
+  String? _selectedStaffId;
+  bool _isDefault = false;
+  List<Class> _classes = [];
+  List<Staff> _staff = [];
 
   @override
   void initState() {
@@ -628,6 +704,37 @@ class _SignatureDialogState extends State<_SignatureDialog> {
       _nameController.text = widget.initialSignature!.name;
       _descriptionController.text = widget.initialSignature!.description ?? '';
       _imagePath = widget.initialSignature!.imagePath;
+      _selectedRole = widget.initialSignature!.associatedRole;
+      _selectedStaffId = widget.initialSignature!.staffId;
+      _isDefault = widget.initialSignature!.isDefault;
+    }
+    _loadClassesAndStaff();
+  }
+
+  Future<void> _loadClassesAndStaff() async {
+    try {
+      final dbService = DatabaseService();
+      final futures = await Future.wait([
+        dbService.getClasses(),
+        dbService.getStaff(),
+      ]);
+      setState(() {
+        _classes = futures[0] as List<Class>;
+        _staff = futures[1] as List<Staff>;
+        
+        // Définir la classe sélectionnée après le chargement des données
+        if (widget.initialSignature != null && widget.initialSignature!.associatedClass != null) {
+          final matchingClass = _classes.firstWhere(
+            (c) => c.name == widget.initialSignature!.associatedClass,
+            orElse: () => Class.empty(),
+          );
+          if (matchingClass.name.isNotEmpty) {
+            _selectedClass = '${matchingClass.name}_${matchingClass.academicYear}';
+          }
+        }
+      });
+    } catch (e) {
+      // Gérer l'erreur silencieusement
     }
   }
 
@@ -705,6 +812,64 @@ class _SignatureDialogState extends State<_SignatureDialog> {
                 icon: const Icon(Icons.image),
                 label: Text(_imagePath == null ? 'Sélectionner une image' : 'Changer l\'image'),
               ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedClass,
+                decoration: const InputDecoration(
+                  labelText: 'Classe associée (optionnel)',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Aucune classe')),
+                  ..._classes.map((classItem) {
+                    final uniqueValue = '${classItem.name}_${classItem.academicYear}';
+                    return DropdownMenuItem(
+                      value: uniqueValue,
+                      child: Text('${classItem.name} (${classItem.academicYear})'),
+                    );
+                  }).toList(),
+                ],
+                onChanged: (value) => setState(() => _selectedClass = value),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedRole,
+                decoration: const InputDecoration(
+                  labelText: 'Rôle associé (optionnel)',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Aucun rôle')),
+                  DropdownMenuItem(value: 'titulaire', child: Text('Titulaire')),
+                  DropdownMenuItem(value: 'directeur', child: Text('Directeur')),
+                  DropdownMenuItem(value: 'vice_directeur', child: Text('Vice-Directeur')),
+                ],
+                onChanged: (value) => setState(() => _selectedRole = value),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedStaffId,
+                decoration: const InputDecoration(
+                  labelText: 'Membre du personnel (optionnel)',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Aucun')),
+                  ..._staff.map((staff) {
+                    return DropdownMenuItem(
+                      value: staff.id,
+                      child: Text(staff.name),
+                    );
+                  }).toList(),
+                ],
+                onChanged: (value) => setState(() => _selectedStaffId = value),
+              ),
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                title: const Text('Définir comme signature par défaut'),
+                value: _isDefault,
+                onChanged: (value) => setState(() => _isDefault = value ?? false),
+              ),
             ],
           ),
         ),
@@ -717,10 +882,22 @@ class _SignatureDialogState extends State<_SignatureDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
+              // Extraire le nom de la classe depuis la valeur unique
+              String? associatedClass;
+              if (_selectedClass != null && _selectedClass!.contains('_')) {
+                associatedClass = _selectedClass!.split('_')[0];
+              } else if (_selectedClass != null) {
+                associatedClass = _selectedClass;
+              }
+              
               Navigator.of(context).pop({
                 'name': _nameController.text,
                 'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
                 'imagePath': _imagePath,
+                'associatedClass': associatedClass,
+                'associatedRole': _selectedRole,
+                'staffId': _selectedStaffId,
+                'isDefault': _isDefault,
               });
             }
           },
@@ -728,5 +905,404 @@ class _SignatureDialogState extends State<_SignatureDialog> {
         ),
       ],
     );
+  }
+}
+
+class _AssignmentModal extends StatefulWidget {
+  final List<Signature> signatures;
+  final List<Signature> cachets;
+  final List<Class> classes;
+  final List<Staff> staff;
+
+  const _AssignmentModal({
+    required this.signatures,
+    required this.cachets,
+    required this.classes,
+    required this.staff,
+  });
+
+  @override
+  _AssignmentModalState createState() => _AssignmentModalState();
+}
+
+class _AssignmentModalState extends State<_AssignmentModal>
+    with TickerProviderStateMixin {
+  late TabController _tabController;
+  String? _selectedSignatureId;
+  String? _selectedCachetId;
+  String? _selectedClass;
+  String? _selectedRole;
+  String? _selectedStaffId;
+  bool _setAsDefault = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.8,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+          minHeight: 400,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: theme.cardColor,
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.assignment_ind,
+                    color: AppColors.primaryBlue,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Assignation des Signatures',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: theme.textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    color: theme.textTheme.bodyLarge?.color,
+                  ),
+                ],
+              ),
+            ),
+            // Tabs
+            Container(
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: theme.cardColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TabBar(
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+                  ),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: Colors.white,
+                unselectedLabelColor: theme.textTheme.bodyMedium?.color,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+                tabs: const [
+                  Tab(
+                    icon: Icon(Icons.draw_outlined),
+                    text: 'Signatures',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.verified),
+                    text: 'Cachets',
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  SingleChildScrollView(
+                    child: _buildSignaturesTab(),
+                  ),
+                  SingleChildScrollView(
+                    child: _buildCachetsTab(),
+                  ),
+                ],
+              ),
+            ),
+            // Actions
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Annuler'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _canAssign() ? _assign : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Assigner'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignaturesTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Assigner une signature',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedClass,
+            decoration: const InputDecoration(
+              labelText: 'Classe',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Sélectionner une classe')),
+              ...widget.classes.map((classItem) {
+                final uniqueValue = '${classItem.name}_${classItem.academicYear}';
+                return DropdownMenuItem(
+                  value: uniqueValue,
+                  child: Text('${classItem.name} (${classItem.academicYear})'),
+                );
+              }).toList(),
+            ],
+            onChanged: (value) => setState(() => _selectedClass = value),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedRole,
+            decoration: const InputDecoration(
+              labelText: 'Rôle',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'titulaire', child: Text('Titulaire')),
+              DropdownMenuItem(value: 'directeur', child: Text('Directeur')),
+              DropdownMenuItem(value: 'vice_directeur', child: Text('Vice-Directeur')),
+            ],
+            onChanged: (value) => setState(() => _selectedRole = value),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedSignatureId,
+            decoration: const InputDecoration(
+              labelText: 'Signature',
+              border: OutlineInputBorder(),
+            ),
+            items: widget.signatures.map((signature) {
+              return DropdownMenuItem(
+                value: signature.id,
+                child: Text(signature.name),
+              );
+            }).toList(),
+            onChanged: (value) => setState(() => _selectedSignatureId = value),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedStaffId,
+            decoration: const InputDecoration(
+              labelText: 'Membre du personnel (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Aucun')),
+              ...widget.staff.map((staff) {
+                return DropdownMenuItem(
+                  value: staff.id,
+                  child: Text(staff.name),
+                );
+              }).toList(),
+            ],
+            onChanged: (value) => setState(() => _selectedStaffId = value),
+          ),
+          const SizedBox(height: 12),
+          CheckboxListTile(
+            title: const Text('Définir comme signature par défaut'),
+            value: _setAsDefault,
+            onChanged: (value) => setState(() => _setAsDefault = value ?? false),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCachetsTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Assigner un cachet',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedClass,
+            decoration: const InputDecoration(
+              labelText: 'Classe',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Sélectionner une classe')),
+              ...widget.classes.map((classItem) {
+                final uniqueValue = '${classItem.name}_${classItem.academicYear}';
+                return DropdownMenuItem(
+                  value: uniqueValue,
+                  child: Text('${classItem.name} (${classItem.academicYear})'),
+                );
+              }).toList(),
+            ],
+            onChanged: (value) => setState(() => _selectedClass = value),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedCachetId,
+            decoration: const InputDecoration(
+              labelText: 'Cachet',
+              border: OutlineInputBorder(),
+            ),
+            items: widget.cachets.map((cachet) {
+              return DropdownMenuItem(
+                value: cachet.id,
+                child: Text(cachet.name),
+              );
+            }).toList(),
+            onChanged: (value) => setState(() => _selectedCachetId = value),
+          ),
+          const SizedBox(height: 12),
+          CheckboxListTile(
+            title: const Text('Définir comme cachet par défaut'),
+            value: _setAsDefault,
+            onChanged: (value) => setState(() => _setAsDefault = value ?? false),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _canAssign() {
+    if (_tabController.index == 0) {
+      // Signatures tab
+      return _selectedClass != null && 
+             _selectedRole != null && 
+             _selectedSignatureId != null;
+    } else {
+      // Cachets tab
+      return _selectedClass != null && _selectedCachetId != null;
+    }
+  }
+
+  void _assign() {
+    if (_tabController.index == 0) {
+      // Assigner signature
+      final signature = widget.signatures.firstWhere(
+        (s) => s.id == _selectedSignatureId,
+      );
+      
+      String? associatedClass;
+      if (_selectedClass != null && _selectedClass!.contains('_')) {
+        associatedClass = _selectedClass!.split('_')[0];
+      } else if (_selectedClass != null) {
+        associatedClass = _selectedClass;
+      }
+
+      Navigator.of(context).pop({
+        'signatureId': signature.id,
+        'signatureName': signature.name,
+        'type': signature.type,
+        'imagePath': signature.imagePath,
+        'description': signature.description,
+        'createdAt': signature.createdAt,
+        'associatedClass': associatedClass,
+        'associatedRole': _selectedRole,
+        'staffId': _selectedStaffId,
+        'isDefault': _setAsDefault,
+      });
+    } else {
+      // Assigner cachet
+      final cachet = widget.cachets.firstWhere(
+        (c) => c.id == _selectedCachetId,
+      );
+      
+      String? associatedClass;
+      if (_selectedClass != null && _selectedClass!.contains('_')) {
+        associatedClass = _selectedClass!.split('_')[0];
+      } else if (_selectedClass != null) {
+        associatedClass = _selectedClass;
+      }
+
+      Navigator.of(context).pop({
+        'signatureId': cachet.id,
+        'signatureName': cachet.name,
+        'type': cachet.type,
+        'imagePath': cachet.imagePath,
+        'description': cachet.description,
+        'createdAt': cachet.createdAt,
+        'associatedClass': associatedClass,
+        'associatedRole': 'directeur',
+        'staffId': null,
+        'isDefault': _setAsDefault,
+      });
+    }
   }
 }

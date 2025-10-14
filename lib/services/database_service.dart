@@ -520,6 +520,7 @@ class DatabaseService {
     await _ensureStudentPlaceOfBirthColumn(db);
     await _ensureSchoolInfoColumns(db);
     await _ensureArchiveExtraColumns(db);
+    await _migrateSignaturesTable(db);
     await _ensureSubjectAppreciationCoeffColumns(db);
     await _ensureClassCoursesCoeffColumn(db);
     await _ensureTeacherUnavailabilityTable(db);
@@ -564,7 +565,11 @@ class DatabaseService {
         description TEXT,
         isActive INTEGER NOT NULL DEFAULT 1,
         createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
+        updatedAt TEXT NOT NULL,
+        associatedClass TEXT,
+        associatedRole TEXT,
+        staffId TEXT,
+        isDefault INTEGER NOT NULL DEFAULT 0
       )
     ''');
     await db.execute(
@@ -573,6 +578,54 @@ class DatabaseService {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_signatures_active ON signatures(isActive)'
     );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_signatures_class ON signatures(associatedClass)'
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_signatures_role ON signatures(associatedRole)'
+    );
+  }
+
+  Future<void> _migrateSignaturesTable(Database db) async {
+    // Vérifier si les nouvelles colonnes existent déjà
+    final columns = await db.rawQuery("PRAGMA table_info(signatures)");
+    final columnNames = columns.map((col) => col['name'] as String).toList();
+
+    // Liste des nouvelles colonnes à ajouter
+    final newColumns = [
+      'associatedClass TEXT',
+      'associatedRole TEXT', 
+      'staffId TEXT',
+      'isDefault INTEGER NOT NULL DEFAULT 0',
+    ];
+
+    for (final column in newColumns) {
+      final columnName = column.split(' ')[0];
+      if (!columnNames.contains(columnName)) {
+        try {
+          await db.execute('ALTER TABLE signatures ADD COLUMN $column');
+        } catch (e) {
+          // Ignorer les erreurs si la colonne existe déjà
+        }
+      }
+    }
+
+    // Créer les nouveaux index
+    try {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_signatures_class ON signatures(associatedClass)'
+      );
+    } catch (e) {
+      // Ignorer les erreurs si l'index existe déjà
+    }
+
+    try {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_signatures_role ON signatures(associatedRole)'
+      );
+    } catch (e) {
+      // Ignorer les erreurs si l'index existe déjà
+    }
   }
 
   Future<void> logAudit({
