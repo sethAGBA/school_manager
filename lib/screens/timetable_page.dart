@@ -90,6 +90,7 @@ class _TimetablePageState extends State<TimetablePage>
   bool _fullscreen = false;    // plein écran désactivé par défaut
   double _gridZoom = 1.0;      // zoom de la grille (1.0 = 100%)
   double _leftPanelWidth = 200.0; // largeur panneau classes
+  bool _tourSeen = false;      // tour guidé déjà vu ?
   // Block sizing settings
   final TextEditingController _blockDefaultCtrl = TextEditingController(text: '2');
   final TextEditingController _threeHourThresholdCtrl = TextEditingController(text: '1.5');
@@ -103,6 +104,12 @@ class _TimetablePageState extends State<TimetablePage>
   final ScrollController _tableHScrollCtrl = ScrollController();
   late TabController _tabController;
   late FocusNode _kbFocus;
+  // Spotlight targets for tour
+  final GlobalKey _filtersBarKey = GlobalKey();
+  final GlobalKey _viewControlsKey = GlobalKey();
+  final GlobalKey _gridAreaKey = GlobalKey();
+  final GlobalKey _paletteKey = GlobalKey();
+  final GlobalKey _tabBarKey = GlobalKey();
 
 
   @override
@@ -195,6 +202,7 @@ class _TimetablePageState extends State<TimetablePage>
     _showClassList = await ttp.loadShowClassList();
     _gridZoom = await ttp.loadGridZoom();
     _leftPanelWidth = await ttp.loadLeftPanelWidth();
+    _tourSeen = await ttp.loadTimetableTourSeen();
 
     setState(() {
       // initialiser la sélection de classe/enseignant si nécessaire
@@ -223,6 +231,11 @@ class _TimetablePageState extends State<TimetablePage>
         _selectedTeacherFilter!,
         currentAcademicYear,
       );
+    }
+
+    // Démarrer le tour guidé si première fois
+    if (!_tourSeen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startTimetableTour());
     }
   }
 
@@ -313,6 +326,7 @@ class _TimetablePageState extends State<TimetablePage>
                 border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
               ),
               child: TabBar(
+                key: _tabBarKey,
                 controller: _tabController,
                 indicator: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -381,72 +395,83 @@ class _TimetablePageState extends State<TimetablePage>
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
                         children: [
-                          Row(
+                          Container(
+                            key: _filtersBarKey,
+                            child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              ToggleButtons(
-                                isSelected: [_isClassView, !_isClassView],
-                                onPressed: (index) {
-                                  setState(() {
-                                    _isClassView = index == 0;
-                                  });
-                                },
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                    child: Text('Classe', style: theme.textTheme.bodyMedium),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                    child: Text('Enseignant', style: theme.textTheme.bodyMedium),
-                                  ),
-                                ],
+                              Tooltip(
+                                message: 'Basculer entre la vue Classe et la vue Enseignant',
+                                child: ToggleButtons(
+                                  isSelected: [_isClassView, !_isClassView],
+                                  onPressed: (index) {
+                                    setState(() {
+                                      _isClassView = index == 0;
+                                    });
+                                  },
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                      child: Text('Classe', style: theme.textTheme.bodyMedium),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                      child: Text('Enseignant', style: theme.textTheme.bodyMedium),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(width: 16),
                               if (_isClassView)
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    value: _selectedClassKey,
-                                    decoration: InputDecoration(
-                                      labelText: 'Filtrer par Classe',
-                                      labelStyle: theme.textTheme.bodyMedium,
-                                      border: const OutlineInputBorder(),
+                                  child: Tooltip(
+                                    message: 'Filtrer la grille par classe',
+                                    child: DropdownButtonFormField<String>(
+                                      value: _selectedClassKey,
+                                      decoration: InputDecoration(
+                                        labelText: 'Filtrer par Classe',
+                                        labelStyle: theme.textTheme.bodyMedium,
+                                        border: const OutlineInputBorder(),
+                                      ),
+                                      isDense: true,
+                                      isExpanded: true,
+                                      items: _classes
+                                          .map((cls) => DropdownMenuItem<String>(
+                                                value: _classKey(cls),
+                                                child: Text(_classLabel(cls), style: theme.textTheme.bodyMedium),
+                                              ))
+                                          .toList(),
+                                      onChanged: (v) => setState(() => _selectedClassKey = v),
                                     ),
-                                    isDense: true,
-                                    isExpanded: true,
-                                    items: _classes
-                                        .map((cls) => DropdownMenuItem<String>(
-                                              value: _classKey(cls),
-                                              child: Text(_classLabel(cls), style: theme.textTheme.bodyMedium),
-                                            ))
-                                        .toList(),
-                                    onChanged: (v) => setState(() => _selectedClassKey = v),
                                   ),
                                 )
                               else
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    value: _selectedTeacherFilter,
-                                    decoration: InputDecoration(
-                                      labelText: 'Filtrer par Enseignant',
-                                      labelStyle: theme.textTheme.bodyMedium,
-                                      border: const OutlineInputBorder(),
+                                  child: Tooltip(
+                                    message: 'Filtrer la grille par enseignant',
+                                    child: DropdownButtonFormField<String>(
+                                      value: _selectedTeacherFilter,
+                                      decoration: InputDecoration(
+                                        labelText: 'Filtrer par Enseignant',
+                                        labelStyle: theme.textTheme.bodyMedium,
+                                        border: const OutlineInputBorder(),
+                                      ),
+                                      isDense: true,
+                                      isExpanded: true,
+                                      items: _teachers
+                                          .map((t) => DropdownMenuItem<String>(
+                                                value: t.name,
+                                                child: Text(t.name, style: theme.textTheme.bodyMedium),
+                                              ))
+                                          .toList(),
+                                      onChanged: (v) async {
+                                        setState(() => _selectedTeacherFilter = v);
+                                        if (v != null && v.isNotEmpty) {
+                                          final year = await getCurrentAcademicYear();
+                                          await _loadTeacherUnavailability(v, year);
+                                        }
+                                      },
                                     ),
-                                    isDense: true,
-                                    isExpanded: true,
-                                    items: _teachers
-                                        .map((t) => DropdownMenuItem<String>(
-                                              value: t.name,
-                                              child: Text(t.name, style: theme.textTheme.bodyMedium),
-                                            ))
-                                        .toList(),
-                                    onChanged: (v) async {
-                                      setState(() => _selectedTeacherFilter = v);
-                                      if (v != null && v.isNotEmpty) {
-                                        final year = await getCurrentAcademicYear();
-                                        await _loadTeacherUnavailability(v, year);
-                                      }
-                                    },
                                   ),
                                 ),
                               const SizedBox(width: 16),
@@ -482,6 +507,7 @@ class _TimetablePageState extends State<TimetablePage>
                                 ),
                             ],
                           ),
+                          ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.start,
@@ -516,7 +542,30 @@ class _TimetablePageState extends State<TimetablePage>
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              _buildViewControls(context),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(key: _viewControlsKey, child: _buildViewControls(context)),
+                                  if (!_tourSeen) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.secondary.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+                                      ),
+                                      child: Row(
+                                        children: const [
+                                          Icon(Icons.fiber_new, size: 14),
+                                          SizedBox(width: 4),
+                                          Text('Nouveau', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -537,56 +586,59 @@ class _TimetablePageState extends State<TimetablePage>
                               if (_showClassList && !_fullscreen)
                                 SizedBox(
                                   width: _leftPanelWidth,
-                              child: Scrollbar(
-                                controller: _classListScrollCtrl,
-                                thumbVisibility: true,
-                                child: ListView.builder(
-                                  controller: _classListScrollCtrl,
-                                  itemCount: _classes.length,
-                                  itemBuilder: (context, index) {
-                                    final aClass = _classes[index];
-                                    return ListTile(
-                                      title: Text(_classLabel(aClass), style: theme.textTheme.bodyMedium),
-                                      selected: _classKey(aClass) == _selectedClassKey,
-                                      onTap: () => setState(() => _selectedClassKey = _classKey(aClass)),
-                                    );
-                                  },
+                                  child: Scrollbar(
+                                    controller: _classListScrollCtrl,
+                                    thumbVisibility: true,
+                                    child: ListView.builder(
+                                      controller: _classListScrollCtrl,
+                                      itemCount: _classes.length,
+                                      itemBuilder: (context, index) {
+                                        final aClass = _classes[index];
+                                        return ListTile(
+                                          title: Text(_classLabel(aClass), style: theme.textTheme.bodyMedium),
+                                          selected: _classKey(aClass) == _selectedClassKey,
+                                          onTap: () => setState(() => _selectedClassKey = _classKey(aClass)),
+                                        );
+                                      },
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          if (_showClassList && !_fullscreen)
-                            MouseRegion(
-                              cursor: SystemMouseCursors.resizeColumn,
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.translucent,
-                                onHorizontalDragUpdate: (details) {
-                                  setState(() {
-                                    _leftPanelWidth = (_leftPanelWidth + details.delta.dx).clamp(120.0, 420.0);
-                                  });
-                                  ttp.saveLeftPanelWidth(_leftPanelWidth);
-                                },
-                                child: Container(
-                                  width: 6,
-                                  height: double.infinity,
-                                  color: theme.dividerColor.withOpacity(0.3),
+                              if (_showClassList && !_fullscreen)
+                                MouseRegion(
+                                  cursor: SystemMouseCursors.resizeColumn,
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    onHorizontalDragUpdate: (details) {
+                                      setState(() {
+                                        _leftPanelWidth = (_leftPanelWidth + details.delta.dx).clamp(120.0, 420.0);
+                                      });
+                                      ttp.saveLeftPanelWidth(_leftPanelWidth);
+                                    },
+                                    child: Container(
+                                      width: 6,
+                                      height: double.infinity,
+                                      color: theme.dividerColor.withOpacity(0.3),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
                               Expanded(
-                                child: Scrollbar(
-                                  controller: _tableVScrollCtrl,
-                                  thumbVisibility: true,
-                                  child: SingleChildScrollView(
+                                child: Container(
+                                  key: _gridAreaKey,
+                                  child: Scrollbar(
                                     controller: _tableVScrollCtrl,
-                                    scrollDirection: Axis.vertical,
-                                    child: Scrollbar(
-                                      controller: _tableHScrollCtrl,
-                                      thumbVisibility: true,
-                                      notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
-                                      child: SingleChildScrollView(
+                                    thumbVisibility: true,
+                                    child: SingleChildScrollView(
+                                      controller: _tableVScrollCtrl,
+                                      scrollDirection: Axis.vertical,
+                                      child: Scrollbar(
                                         controller: _tableHScrollCtrl,
-                                        scrollDirection: Axis.horizontal,
-                                        child: _buildTimetableGrid(context),
+                                        thumbVisibility: true,
+                                        notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+                                        child: SingleChildScrollView(
+                                          controller: _tableHScrollCtrl,
+                                          scrollDirection: Axis.horizontal,
+                                          child: _buildTimetableGrid(context),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1453,9 +1505,12 @@ class _TimetablePageState extends State<TimetablePage>
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Switch(
-                    value: _clearBeforeGen,
-                    onChanged: (v) => setState(() => _clearBeforeGen = v),
+                  Tooltip(
+                    message: 'Supprimer l\'emploi du temps existant avant de générer de nouveaux cours',
+                    child: Switch(
+                      value: _clearBeforeGen,
+                      onChanged: (v) => setState(() => _clearBeforeGen = v),
+                    ),
                   ),
                   const Text('Effacer avant génération'),
                 ],
@@ -1463,46 +1518,64 @@ class _TimetablePageState extends State<TimetablePage>
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Switch(
-                    value: _saturateAll,
-                    onChanged: (v) => setState(() => _saturateAll = v),
+                  Tooltip(
+                    message: 'Essayer de remplir tous les créneaux disponibles (ignorer certaines limites)',
+                    child: Switch(
+                      value: _saturateAll,
+                      onChanged: (v) => setState(() => _saturateAll = v),
+                    ),
                   ),
                   const Text('Saturer toutes les heures'),
                 ],
               ),
-              ElevatedButton.icon(
-                onPressed: _isGenerating ? null : _onGenerateForAllClasses,
-                icon: const Icon(Icons.apartment, color: Colors.white),
-                label: const Text('Générer pour toutes les classes', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+              Tooltip(
+                message: 'Générer pour l\'ensemble des classes (selon vos paramètres)',
+                child: ElevatedButton.icon(
+                  onPressed: _isGenerating ? null : _onGenerateForAllClasses,
+                  icon: const Icon(Icons.apartment, color: Colors.white),
+                  label: const Text('Générer pour toutes les classes', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+                ),
               ),
-              ElevatedButton.icon(
-                onPressed: _isGenerating ? null : _onGenerateForAllTeachers,
-                icon: const Icon(Icons.person, color: Colors.white),
-                label: const Text('Générer pour tous les enseignants', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.successGreen),
+              Tooltip(
+                message: 'Générer pour l\'ensemble des enseignants (selon vos paramètres)',
+                child: ElevatedButton.icon(
+                  onPressed: _isGenerating ? null : _onGenerateForAllTeachers,
+                  icon: const Icon(Icons.person, color: Colors.white),
+                  label: const Text('Générer pour tous les enseignants', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.successGreen),
+                ),
               ),
               // Génération ciblée selon la vue
               if (_isClassView)
-                ElevatedButton.icon(
-                  onPressed: _isGenerating ? null : _onGenerateForSelectedClass,
-                  icon: const Icon(Icons.class_, color: Colors.white),
-                  label: const Text('Générer pour la classe sélectionnée', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6)),
+                Tooltip(
+                  message: 'Générer uniquement pour la classe affichée',
+                  child: ElevatedButton.icon(
+                    onPressed: _isGenerating ? null : _onGenerateForSelectedClass,
+                    icon: const Icon(Icons.class_, color: Colors.white),
+                    label: const Text('Générer pour la classe sélectionnée', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6)),
+                  ),
                 )
               else
-                ElevatedButton.icon(
-                  onPressed: _isGenerating ? null : _onGenerateForSelectedTeacher,
-                  icon: const Icon(Icons.person_outline, color: Colors.white),
-                  label: const Text('Générer pour l\'enseignant sélectionné', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                Tooltip(
+                  message: 'Générer uniquement pour l\'enseignant affiché',
+                  child: ElevatedButton.icon(
+                    onPressed: _isGenerating ? null : _onGenerateForSelectedTeacher,
+                    icon: const Icon(Icons.person_outline, color: Colors.white),
+                    label: const Text('Générer pour l\'enseignant sélectionné', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF59E0B)),
+                  ),
                 ),
               const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _isGenerating ? null : _onClearTimetable,
-                icon: const Icon(Icons.clear_all, color: Colors.white),
-                label: const Text('Restaurer à vierge', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              Tooltip(
+                message: 'Supprimer tous les cours de l\'emploi du temps',
+                child: ElevatedButton.icon(
+                  onPressed: _isGenerating ? null : _onClearTimetable,
+                  icon: const Icon(Icons.clear_all, color: Colors.white),
+                  label: const Text('Restaurer à vierge', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                ),
               ),
             ],
           ),
@@ -2220,6 +2293,7 @@ class _TimetablePageState extends State<TimetablePage>
     }
 
     return Container(
+      key: _paletteKey,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       decoration: BoxDecoration(
@@ -4016,6 +4090,227 @@ class _TimetablePageState extends State<TimetablePage>
     );
   }
 
+  Future<void> _startTimetableTour() async {
+    int step = 0;
+    final steps = [
+      {
+        'title': 'Vue et filtres',
+        'body': 'Basculez Classe/Enseignant et choisissez la classe ou l\'enseignant à afficher. Vous pouvez aussi rechercher par nom, matière ou salle.',
+      },
+      {
+        'title': 'Barre d\'outils d\'affichage',
+        'body': 'Ajustez le zoom, affichez/masquez les résumés et la liste des classes, ou passez en plein écran pour maximiser la grille.',
+      },
+      {
+        'title': 'Grille d\'emploi du temps',
+        'body': 'Glissez‑déposez un cours pour le déplacer. Les conflits (salle occupée, indisponibilité enseignant) sont signalés.',
+      },
+      {
+        'title': 'Palette des matières',
+        'body': 'Glissez une matière de la palette vers la grille pour créer un cours dans le créneau visé.',
+      },
+      {
+        'title': 'Paramètres & Auto‑génération',
+        'body': 'Dans l\'onglet Paramètres, configurez jours/créneaux/pauses et générez automatiquement pour classes ou enseignants.',
+      },
+    ];
+
+    Rect _rectForKey(GlobalKey key) {
+      try {
+        final ctx = key.currentContext;
+        if (ctx == null) return Rect.zero;
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box == null || !box.attached) return Rect.zero;
+        final off = box.localToGlobal(Offset.zero);
+        return off & box.size;
+      } catch (_) {
+        return Rect.zero;
+      }
+    }
+
+    GlobalKey? _keyForStep(int s) {
+      switch (s) {
+        case 0: return _filtersBarKey;
+        case 1: return _viewControlsKey;
+        case 2: return _gridAreaKey;
+        case 3: return _paletteKey;
+        case 4: return _tabBarKey;
+      }
+      return null;
+    }
+
+    Future<void> showStep() async {
+      final highlightKey = _keyForStep(step);
+      final rect = highlightKey != null ? _rectForKey(highlightKey) : Rect.zero;
+      await showGeneralDialog(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'Tour',
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 160),
+        pageBuilder: (context, a1, a2) {
+          final theme = Theme.of(context);
+          return Stack(
+            children: [
+              // Spotlight scrim
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _SpotlightPainter(
+                    target: rect.inflate(8),
+                    color: Colors.black.withOpacity(0.55),
+                    radius: 12,
+                  ),
+                ),
+              ),
+              SafeArea(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                    boxShadow: [
+                      BoxShadow(color: theme.shadowColor.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header with colored gradient
+                      Builder(builder: (context) {
+                        final accents = [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                          Colors.teal,
+                          Colors.orange,
+                          Colors.purple,
+                        ];
+                        final Color a = accents[step % accents.length];
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [a, a.withOpacity(0.7)]),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              topRight: Radius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.tour, color: Colors.white),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Tour guidé — ${steps[step]['title']}',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Ignorer le tour',
+                                icon: const Icon(Icons.close, color: Colors.white),
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  ttp.saveTimetableTourSeen(true);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Text(
+                          steps[step]['body'] as String,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: List.generate(steps.length, (i) {
+                            final active = i == step;
+                            return Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              width: active ? 12 : 8,
+                              height: active ? 12 : 8,
+                              decoration: BoxDecoration(
+                                color: active ? theme.colorScheme.primary : theme.dividerColor.withOpacity(0.6),
+                                shape: BoxShape.circle,
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Étape ${step + 1}/${steps.length}', style: theme.textTheme.bodySmall),
+                            Row(
+                              children: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    ttp.saveTimetableTourSeen(true);
+                                  },
+                                  child: const Text('Ignorer'),
+                                ),
+                                const SizedBox(width: 8),
+                                if (step > 0)
+                                  OutlinedButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      step -= 1;
+                                      Future.microtask(showStep);
+                                    },
+                                    child: const Text('Précédent'),
+                                  ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    step += 1;
+                                    if (step < steps.length) {
+                                      Future.microtask(showStep);
+                                    } else {
+                                      ttp.saveTimetableTourSeen(true);
+                                    }
+                                  },
+                                  child: Text(step < steps.length - 1 ? 'Suivant' : 'Terminer'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+            ],
+          );
+        },
+      );
+    }
+
+    await showStep();
+  }
+
   void _showTimetableHelp() {
     final theme = Theme.of(context);
     showGeneralDialog(
@@ -4037,6 +4332,23 @@ class _TimetablePageState extends State<TimetablePage>
               label,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          );
+        }
+        Widget tag(String text, Color color) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: color.withOpacity(0.4)),
+            ),
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
               ),
             ),
           );
@@ -4276,16 +4588,16 @@ class _TimetablePageState extends State<TimetablePage>
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceVariant.withOpacity(0.4),
+                          color: theme.colorScheme.primary.withOpacity(0.06),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.rocket_launch, size: 18),
+                                Icon(Icons.rocket_launch, size: 18, color: theme.colorScheme.primary),
                                 const SizedBox(width: 6),
                                 Text('Guide rapide', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                               ],
@@ -4312,7 +4624,7 @@ class _TimetablePageState extends State<TimetablePage>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text('Créer rapidement un nouveau cours', style: theme.textTheme.bodySmall),
+                                    tag('Créer rapidement un nouveau cours', AppColors.primaryBlue),
                                   ],
                                 ),
                                 // Export PDF (même style que l'en-tête)
@@ -4331,7 +4643,7 @@ class _TimetablePageState extends State<TimetablePage>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text('Exporter la vue en PDF', style: theme.textTheme.bodySmall),
+                                    tag('Exporter la vue en PDF', Colors.red),
                                   ],
                                 ),
                                 // Export Excel (même style que l'en-tête)
@@ -4350,7 +4662,7 @@ class _TimetablePageState extends State<TimetablePage>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text('Exporter la vue en Excel', style: theme.textTheme.bodySmall),
+                                    tag('Exporter la vue en Excel', Colors.green),
                                   ],
                                 ),
                               ],
@@ -4383,7 +4695,7 @@ class _TimetablePageState extends State<TimetablePage>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text('Remplir automatiquement sans conflit', style: theme.textTheme.bodySmall),
+                                    tag('Remplir automatiquement sans conflit', Colors.teal),
                                   ],
                                 ),
                                 Column(
@@ -4401,7 +4713,7 @@ class _TimetablePageState extends State<TimetablePage>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text('Configurer jours, créneaux, pauses', style: theme.textTheme.bodySmall),
+                                    tag('Configurer jours, créneaux, pauses', Colors.orange),
                                   ],
                                 ),
                                 if (!_isClassView)
@@ -4420,7 +4732,7 @@ class _TimetablePageState extends State<TimetablePage>
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      Text('Marquer les créneaux non disponibles', style: theme.textTheme.bodySmall),
+                                      tag('Marquer les créneaux non disponibles', Colors.deepPurple),
                                     ],
                                   ),
                               ],
@@ -4446,7 +4758,7 @@ class _TimetablePageState extends State<TimetablePage>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text('Génération pour l’ensemble des classes', style: theme.textTheme.bodySmall),
+                                    tag('Génération pour l’ensemble des classes', AppColors.primaryBlue),
                                   ],
                                 ),
                                 Column(
@@ -4464,7 +4776,7 @@ class _TimetablePageState extends State<TimetablePage>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text('Génération pour tous les professeurs', style: theme.textTheme.bodySmall),
+                                    tag('Génération pour tous les professeurs', AppColors.successGreen),
                                   ],
                                 ),
                                 Column(
@@ -4482,10 +4794,20 @@ class _TimetablePageState extends State<TimetablePage>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text('Supprimer tous les cours du tableau', style: theme.textTheme.bodySmall),
+                                    tag('Supprimer tous les cours du tableau', Colors.red),
                                   ],
                                 ),
                               ],
+                            ),
+                            const SizedBox(height: 10),
+                            // Bouton pour démarrer le tour guidé
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: OutlinedButton.icon(
+                                onPressed: () { Navigator.of(context).pop(); _startTimetableTour(); },
+                                icon: const Icon(Icons.tour),
+                                label: const Text('Démarrer le tour guidé'),
+                              ),
                             ),
                             const SizedBox(height: 10),
                             // Aperçu des contrôles d'affichage réels
@@ -4728,5 +5050,28 @@ class _TimetablePageState extends State<TimetablePage>
       await file.writeAsBytes(bytes);
       OpenFile.open(file.path);
     }
+  }
+}
+
+class _SpotlightPainter extends CustomPainter {
+  final Rect target;
+  final Color color;
+  final double radius;
+  _SpotlightPainter({required this.target, required this.color, this.radius = 12});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color..blendMode = BlendMode.srcOver;
+    final background = Path()..addRect(Offset.zero & size);
+    final rect = target.isEmpty ? Rect.fromLTWH(size.width / 2 - 40, size.height / 3, 80, 80) : target;
+    final hole = Path()
+      ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+    final diff = Path.combine(PathOperation.difference, background, hole);
+    canvas.drawPath(diff, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpotlightPainter oldDelegate) {
+    return oldDelegate.target != target || oldDelegate.color != color || oldDelegate.radius != radius;
   }
 }

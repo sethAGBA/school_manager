@@ -18,6 +18,7 @@ const _kGridZoomKey = 'timetable_grid_zoom';
 const _kLeftPanelWidthKey = 'timetable_left_panel_width';
 const _kShowSummariesKey = 'timetable_show_summaries';
 const _kShowClassListKey = 'timetable_show_class_list';
+const _kTimetableTourSeenKey = 'timetable_tour_seen';
 
 const List<String> kDefaultDays = [
   'Lundi',
@@ -236,4 +237,14 @@ Future<bool> loadShowClassList() async {
 Future<void> saveShowClassList(bool value) async {
   final p = await SharedPreferences.getInstance();
   await p.setBool(_kShowClassListKey, value);
+}
+
+Future<bool> loadTimetableTourSeen() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getBool(_kTimetableTourSeenKey) ?? false;
+}
+
+Future<void> saveTimetableTourSeen(bool value) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setBool(_kTimetableTourSeenKey, value);
 }
