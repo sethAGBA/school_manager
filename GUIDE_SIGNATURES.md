@@ -25,7 +25,11 @@ Le système de signatures et cachets permet d'associer des signatures numérique
 ### Étape 1 : Créer des signatures et cachets
 
 1. Accédez à l'écran "Signatures et Cachets"
-2. Cliquez sur "Ajouter une signature" ou "Ajouter un cachet"
+2. Onglets disponibles:
+   - Signatures: signatures liées aux classes/rôles (ex: Titulaire)
+   - Cachets: cachets de l'établissement
+   - Administration: signatures de l'administration (Directeur, Proviseur, Vice‑Directeur)
+3. Cliquez sur "Ajouter" dans l'onglet concerné
 3. Remplissez les informations :
    - **Nom** : Nom de la personne ou du cachet
    - **Description** : Description optionnelle
@@ -43,6 +47,17 @@ Le système de signatures et cachets permet d'associer des signatures numérique
 4. Sélectionnez la signature à assigner
 5. Optionnellement, liez à un membre du personnel
 6. Définissez comme signature par défaut si nécessaire
+7. Pour un usage global (toutes classes), choisissez « Aucune classe (global) »
+
+### Astuces pour l'apparition dans les documents
+
+- Reçus de paiement: onglet Administration → ajoutez une signature « Directeur » par défaut (global). Onglet Cachets → ajoutez un cachet « Directeur » par défaut (global).
+- Bulletins: 
+  - Titulaire: onglet Signatures → assignez une signature « Titulaire » par défaut pour chaque classe.
+  - Directeur/Proviseur: onglet Administration → ajoutez la signature « Directeur » (collèges/primaires) ou « Proviseur » (lycées) par défaut (global). L'app choisit automatiquement selon le niveau.
+  - Cachet: onglet Cachets → ajoutez un cachet « Directeur » par défaut (global).
+
+Si aucune image n'est disponible pour une signature ou un cachet, le PDF affichera un indicateur "non disponible" et, pour le bulletin, les lignes de signature restent visibles.
 
 ### Étape 3 : Vérifier les assignations
 

@@ -35,9 +35,11 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     'view_license': 'Voir la licence',
     'view_subjects': 'Voir les matières',
     'view_finance_inventory': 'Voir les finances et inventaires',
-    'manage_safe_mode': 'Gérer le mode sécurisé',
-    'view_audit_log': 'Voir le journal des audits',
-    
+    'manage_safe_mode': 'Gérer le mode coffre fort',
+    'view_audit_log': 'Voir les audits', // rétrocompatibilité libellé
+    'view_audits': 'Voir les audits',
+    'view_signatures': 'Voir Signatures & Cachets',
+  
   };
 
   List<AppUser> get _filteredUsers {

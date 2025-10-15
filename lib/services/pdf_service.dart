@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:school_manager/models/payment.dart';
 import 'package:school_manager/models/student.dart';
 import 'package:school_manager/models/class.dart';
@@ -13,9 +14,11 @@ import 'package:school_manager/models/staff.dart';
 import 'package:school_manager/models/timetable_entry.dart';
 import 'package:school_manager/models/course.dart';
 import 'package:school_manager/models/category.dart';
+import 'package:school_manager/models/signature.dart';
 import 'package:school_manager/utils/academic_year.dart';
 import 'package:school_manager/services/database_service.dart';
 import 'package:school_manager/services/safe_mode_service.dart';
+import 'package:school_manager/services/signature_pdf_service.dart';
 
 class PdfService {
   /// Vérifie si l'action est autorisée (non bloquée par le mode coffre fort)
@@ -83,6 +86,45 @@ class PdfService {
     final primaryColor = PdfColor.fromHex('#4F46E5');
     final secondaryColor = PdfColor.fromHex('#6B7280');
     final lightBgColor = PdfColor.fromHex('#F3F4F6');
+
+    // Préparer le bloc signatures/cachet pour le reçu
+    final signaturePdfService = SignaturePdfService();
+    // Choix du rôle administratif pour le reçu
+    String adminRole = (schoolInfo.paymentsAdminRole ?? '').trim().toLowerCase();
+    if (adminRole.isEmpty) {
+      // 1) Lire le niveau depuis les paramètres (SharedPreferences)
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final schoolLevel = (prefs.getString('school_level') ?? '').toLowerCase();
+        if (schoolLevel.contains('lyc')) {
+          adminRole = 'proviseur';
+        }
+      } catch (_) {}
+
+      // 2) Heuristique sur le nom de la classe si toujours vide
+      if (adminRole.isEmpty) {
+        bool _isLycee(String n) {
+          final s = n.toLowerCase();
+          return s.contains('lyc') || s.contains('lycée') || s.contains('lycee') || s.contains('seconde') || s.contains('2nde') || s.contains('première') || s.contains('1ère') || s.contains('1ere') || s.contains('term') || s.contains('terminal');
+        }
+        adminRole = _isLycee(studentClass.name) ? 'proviseur' : 'directeur';
+      }
+    }
+    // Afficher toujours le nom (comme dans le bulletin). Pour l'instant, on utilise
+    // le champ 'director' de SchoolInfo comme nom du signataire administratif.
+    final String directeurName = schoolInfo.director;
+
+    final pw.Widget receiptSignatureBlock = await signaturePdfService
+        .createReceiptSignatureBlock(
+      adminRole: adminRole,
+      directeur: directeurName,
+      times: times,
+      timesBold: timesBold,
+      mainColor: primaryColor,
+      secondaryColor: secondaryColor,
+      baseFont: 10,
+      spacing: 8,
+    );
 
     pdf.addPage(
       pw.Page(
@@ -526,7 +568,10 @@ class PdfService {
 
                   // --- Pied de page ---
                   pw.Divider(color: lightBgColor, thickness: 1),
-                  // (Aucune photo ici pour le reçu)
+                  // Bloc signatures & cachet (automatique)
+                  receiptSignatureBlock,
+                  pw.SizedBox(height: 8),
+                  // Message de remerciement tout en bas
                   pw.Text(
                     'Merci pour votre paiement.',
                     style: pw.TextStyle(
@@ -536,13 +581,6 @@ class PdfService {
                     ),
                     textAlign: pw.TextAlign.center,
                   ),
-                  pw.SizedBox(height: 16),
-                  pw.Text(
-                    'Signature et Cachet de l\'établissement',
-                    style: pw.TextStyle(font: times, color: secondaryColor),
-                    textAlign: pw.TextAlign.right,
-                  ),
-                  pw.SizedBox(height: 40),
                 ],
               ),
             ],
@@ -2265,6 +2303,15 @@ class PdfService {
     final prenom = student.firstName;
     final nom = student.lastName;
     final sexe = student.gender;
+    // Pré-charger les signatures/images pour ce bulletin
+    final signaturePdfService = SignaturePdfService();
+    final bool isLycee = (niveau.toLowerCase().contains('lycée'));
+    final Map<String, Signature?> _bulletinSignatures =
+        await signaturePdfService.getSignaturesForBulletin(
+      className: student.className,
+      titulaire: titulaire,
+      adminRole: isLycee ? 'proviseur' : 'directeur',
+    );
     // ---
     final PdfPageFormat _pageFormat = isLandscape
         ? PdfPageFormat(842, 595)
@@ -2306,6 +2353,16 @@ class PdfService {
           final double spacing = denseMode
               ? (isLandscape ? 2 : 3)
               : (isLandscape ? 4 : 6);
+          // Dimensions compactes pour les signatures/cachets afin d'éviter un saut de page
+          final double sigImgHeight = isLandscape
+              ? (denseMode ? 18 : 22)
+              : (denseMode ? 16 : 20);
+          final double sigImgWidth = 90;
+          final double cachetHeight = isLandscape
+              ? (denseMode ? 24 : 26)
+              : (denseMode ? 22 : 24);
+          final double cachetWidth = 90;
+          final double lineFont = math.max(4.0, baseFont - (denseMode ? 1.5 : 1.0));
           String _toOrdinalWord(int n) {
             switch (n) {
               case 1:
@@ -4107,6 +4164,31 @@ class PdfService {
                           ),
                         ),
                         pw.SizedBox(height: 2),
+                        // Nom sous la signature (déplacé plus bas)
+                        // Signature du directeur: image au-dessus de la ligne
+                        if (_bulletinSignatures['directeur'] != null &&
+                            _bulletinSignatures['directeur']!.imagePath != null)
+                          pw.Container(
+                            width: sigImgWidth,
+                            height: sigImgHeight,
+                            child: pw.Image(
+                              pw.MemoryImage(
+                                File(_bulletinSignatures['directeur']!.imagePath!)
+                                    .readAsBytesSync(),
+                              ),
+                              fit: pw.BoxFit.contain,
+                            ),
+                          ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          '__________________________',
+                          style: pw.TextStyle(
+                            font: times,
+                            color: secondaryColor,
+                            fontSize: lineFont,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
                         if (schoolInfo.director.isNotEmpty)
                           pw.Text(
                             schoolInfo.director,
@@ -4116,15 +4198,6 @@ class PdfService {
                               fontSize: baseFont,
                             ),
                           ),
-                        pw.SizedBox(height: 2),
-                        pw.Text(
-                          '__________________________',
-                          style: pw.TextStyle(
-                            font: times,
-                            color: secondaryColor,
-                            fontSize: baseFont,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -4171,6 +4244,31 @@ class PdfService {
                               ),
                             ),
                             pw.SizedBox(height: 2),
+                            // Nom sous la signature (déplacé plus bas)
+                            // Signature du titulaire: image au-dessus de la ligne
+                            if (_bulletinSignatures['titulaire'] != null &&
+                                _bulletinSignatures['titulaire']!.imagePath != null)
+                              pw.Container(
+                                width: sigImgWidth,
+                                height: sigImgHeight,
+                                child: pw.Image(
+                                  pw.MemoryImage(
+                                    File(_bulletinSignatures['titulaire']!.imagePath!)
+                                        .readAsBytesSync(),
+                                  ),
+                                  fit: pw.BoxFit.contain,
+                                ),
+                              ),
+                            pw.SizedBox(height: 2),
+                            pw.Text(
+                              '__________________________',
+                              style: pw.TextStyle(
+                                font: times,
+                                color: secondaryColor,
+                                fontSize: lineFont,
+                              ),
+                            ),
+                            pw.SizedBox(height: 2),
                             if (titulaire.isNotEmpty)
                               pw.Text(
                                 titulaire,
@@ -4180,15 +4278,6 @@ class PdfService {
                                   fontSize: baseFont,
                                 ),
                               ),
-                            pw.SizedBox(height: 2),
-                            pw.Text(
-                              '__________________________',
-                              style: pw.TextStyle(
-                                font: times,
-                                color: secondaryColor,
-                                fontSize: baseFont,
-                              ),
-                            ),
                           ],
                         ),
                       ],

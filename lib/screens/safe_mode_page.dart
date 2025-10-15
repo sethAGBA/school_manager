@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:school_manager/services/safe_mode_service.dart';
+import 'package:school_manager/services/database_service.dart';
+import 'package:school_manager/services/auth_service.dart';
 import 'package:school_manager/utils/snackbar.dart';
 
 class SafeModePage extends StatefulWidget {
@@ -82,8 +84,25 @@ class _SafeModePageState extends State<SafeModePage>
         showSnackBar(context, 'Mode coffre fort activé avec succès');
         _passwordController.clear();
         setState(() {});
+        try {
+          final u = await AuthService.instance.getCurrentUser();
+          await DatabaseService().logAudit(
+            category: 'safe_mode',
+            action: 'enable',
+            username: u?.username,
+          );
+        } catch (_) {}
       } else {
         showSnackBar(context, 'Erreur lors de l\'activation du mode coffre fort', isError: true);
+        try {
+          final u = await AuthService.instance.getCurrentUser();
+          await DatabaseService().logAudit(
+            category: 'safe_mode',
+            action: 'enable',
+            username: u?.username,
+            success: false,
+          );
+        } catch (_) {}
       }
     } catch (e) {
       showSnackBar(context, 'Erreur: ${e.toString()}', isError: true);
@@ -109,8 +128,25 @@ class _SafeModePageState extends State<SafeModePage>
         showSnackBar(context, 'Mode coffre fort désactivé avec succès');
         _currentPasswordController.clear();
         setState(() {});
+        try {
+          final u = await AuthService.instance.getCurrentUser();
+          await DatabaseService().logAudit(
+            category: 'safe_mode',
+            action: 'disable',
+            username: u?.username,
+          );
+        } catch (_) {}
       } else {
         showSnackBar(context, 'Mot de passe incorrect', isError: true);
+        try {
+          final u = await AuthService.instance.getCurrentUser();
+          await DatabaseService().logAudit(
+            category: 'safe_mode',
+            action: 'disable',
+            username: u?.username,
+            success: false,
+          );
+        } catch (_) {}
       }
     } catch (e) {
       showSnackBar(context, 'Erreur: ${e.toString()}', isError: true);
@@ -146,8 +182,25 @@ class _SafeModePageState extends State<SafeModePage>
         _newPasswordController.clear();
         _confirmPasswordController.clear();
         setState(() {});
+        try {
+          final u = await AuthService.instance.getCurrentUser();
+          await DatabaseService().logAudit(
+            category: 'safe_mode',
+            action: 'change_password',
+            username: u?.username,
+          );
+        } catch (_) {}
       } else {
         showSnackBar(context, 'Mot de passe actuel incorrect', isError: true);
+        try {
+          final u = await AuthService.instance.getCurrentUser();
+          await DatabaseService().logAudit(
+            category: 'safe_mode',
+            action: 'change_password',
+            username: u?.username,
+            success: false,
+          );
+        } catch (_) {}
       }
     } catch (e) {
       showSnackBar(context, 'Erreur: ${e.toString()}', isError: true);
@@ -469,10 +522,19 @@ class _SafeModePageState extends State<SafeModePage>
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.security,
-            size: isDesktop ? 40 : 32,
-            color: theme.colorScheme.primary,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.security,
+              size: isDesktop ? 32 : 24,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(

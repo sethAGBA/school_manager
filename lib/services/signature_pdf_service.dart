@@ -11,16 +11,20 @@ class SignaturePdfService {
   Future<Map<String, Signature?>> getSignaturesForBulletin({
     required String className,
     required String titulaire,
+    String adminRole = 'directeur',
   }) async {
     try {
       final futures = await Future.wait([
         _assignmentService.getTitulaireSignature(className),
-        _assignmentService.getDirecteurSignature(),
+        adminRole == 'proviseur'
+            ? _assignmentService.getProviseurSignature()
+            : _assignmentService.getDirecteurSignature(),
         _assignmentService.getDirecteurCachet(),
       ]);
 
       return {
         'titulaire': futures[0],
+        // Conserver la clé 'directeur' pour compatibilité: peut contenir 'proviseur'
         'directeur': futures[1],
         'cachet': futures[2],
       };
@@ -34,10 +38,12 @@ class SignaturePdfService {
   }
 
   /// Récupère les signatures pour un reçu de paiement
-  Future<Map<String, Signature?>> getSignaturesForReceipt() async {
+  Future<Map<String, Signature?>> getSignaturesForReceipt({String adminRole = 'directeur'}) async {
     try {
       final futures = await Future.wait([
-        _assignmentService.getDirecteurSignature(),
+        adminRole == 'proviseur'
+            ? _assignmentService.getProviseurSignature()
+            : _assignmentService.getDirecteurSignature(),
         _assignmentService.getDirecteurCachet(),
       ]);
 
@@ -56,7 +62,6 @@ class SignaturePdfService {
   /// Crée un widget de signature pour le PDF
   pw.Widget createSignatureWidget({
     required Signature? signature,
-    required String label,
     required double width,
     required double height,
     required pw.Font times,
@@ -69,19 +74,10 @@ class SignaturePdfService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              font: times,
-              color: mainColor,
-              fontSize: 10,
-            ),
-          ),
-          pw.SizedBox(height: 4),
           if (signature != null && signature.imagePath != null)
             pw.Container(
               width: width,
-              height: height - 20,
+              height: height,
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(color: PdfColors.grey300),
                 borderRadius: pw.BorderRadius.circular(4),
@@ -94,32 +90,14 @@ class SignaturePdfService {
           else
             pw.Container(
               width: width,
-              height: height - 20,
+              height: height,
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(color: PdfColors.grey300),
                 borderRadius: pw.BorderRadius.circular(4),
               ),
-              child: pw.Center(
-                child: pw.Text(
-                  'Signature non disponible',
-                  style: pw.TextStyle(
-                    font: times,
-                    color: PdfColors.grey400,
-                    fontSize: 8,
-                  ),
-                ),
-              ),
+              // Pas de mention "non disponible" demandée
+              child: pw.SizedBox(),
             ),
-          pw.SizedBox(height: 2),
-          pw.Text(
-            signature?.name ?? '_________________',
-            style: pw.TextStyle(
-              font: times,
-              color: textColor,
-              fontSize: 8,
-            ),
-            textAlign: pw.TextAlign.center,
-          ),
         ],
       ),
     );
@@ -128,7 +106,6 @@ class SignaturePdfService {
   /// Crée un widget de cachet pour le PDF
   pw.Widget createCachetWidget({
     required Signature? cachet,
-    required String label,
     required double width,
     required double height,
     required pw.Font times,
@@ -141,15 +118,6 @@ class SignaturePdfService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              font: times,
-              color: mainColor,
-              fontSize: 10,
-            ),
-          ),
-          pw.SizedBox(height: 4),
           if (cachet != null && cachet.imagePath != null)
             pw.Container(
               width: width,
@@ -171,20 +139,11 @@ class SignaturePdfService {
                 border: pw.Border.all(color: PdfColors.grey300),
                 borderRadius: pw.BorderRadius.circular(4),
               ),
-              child: pw.Center(
-                child: pw.Text(
-                  'Cachet non disponible',
-                  style: pw.TextStyle(
-                    font: times,
-                    color: PdfColors.grey400,
-                    fontSize: 8,
-                  ),
-                ),
-              ),
+              child: pw.SizedBox(),
             ),
           pw.SizedBox(height: 2),
           pw.Text(
-            cachet?.name ?? '_________________',
+            "Cachet de l'établissement",
             style: pw.TextStyle(
               font: times,
               color: textColor,
@@ -251,7 +210,6 @@ class SignaturePdfService {
                 pw.SizedBox(height: 8),
                 createSignatureWidget(
                   signature: signatures['directeur'],
-                  label: 'Signature',
                   width: 120,
                   height: 60,
                   times: times,
@@ -261,7 +219,6 @@ class SignaturePdfService {
                 pw.SizedBox(height: 8),
                 createCachetWidget(
                   cachet: signatures['cachet'],
-                  label: 'Cachet',
                   width: 120,
                   height: 40,
                   times: times,
@@ -298,7 +255,6 @@ class SignaturePdfService {
                 pw.SizedBox(height: 8),
                 createSignatureWidget(
                   signature: signatures['titulaire'],
-                  label: 'Signature',
                   width: 120,
                   height: 60,
                   times: times,
@@ -315,6 +271,7 @@ class SignaturePdfService {
 
   /// Crée le bloc de signatures pour un reçu de paiement
   Future<pw.Widget> createReceiptSignatureBlock({
+    required String adminRole, // 'directeur' ou 'proviseur'
     required String directeur,
     required pw.Font times,
     required pw.Font timesBold,
@@ -323,7 +280,7 @@ class SignaturePdfService {
     required double baseFont,
     required double spacing,
   }) async {
-    final signatures = await getSignaturesForReceipt();
+    final signatures = await getSignaturesForReceipt(adminRole: adminRole);
 
     return pw.Container(
       padding: pw.EdgeInsets.all(8),
@@ -341,7 +298,7 @@ class SignaturePdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  'Directeur(ice) :',
+                  adminRole == 'proviseur' ? 'Proviseur(e) :' : 'Directeur(ice) :',
                   style: pw.TextStyle(
                     font: timesBold,
                     color: mainColor,
@@ -349,7 +306,17 @@ class SignaturePdfService {
                   ),
                 ),
                 pw.SizedBox(height: 4),
-                if (directeur.isNotEmpty)
+                pw.SizedBox(height: 8),
+                createSignatureWidget(
+                  signature: signatures['directeur'],
+                  width: 150,
+                  height: 60,
+                  times: times,
+                  textColor: secondaryColor,
+                  mainColor: mainColor,
+                ),
+                if (directeur.isNotEmpty) ...[
+                  pw.SizedBox(height: 2),
                   pw.Text(
                     directeur,
                     style: pw.TextStyle(
@@ -358,16 +325,7 @@ class SignaturePdfService {
                       fontSize: baseFont,
                     ),
                   ),
-                pw.SizedBox(height: 8),
-                createSignatureWidget(
-                  signature: signatures['directeur'],
-                  label: 'Signature',
-                  width: 150,
-                  height: 60,
-                  times: times,
-                  textColor: secondaryColor,
-                  mainColor: mainColor,
-                ),
+                ],
               ],
             ),
           ),
@@ -378,17 +336,16 @@ class SignaturePdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  'Cachet de l\'établissement',
+                  'Cachet',
                   style: pw.TextStyle(
                     font: timesBold,
                     color: mainColor,
                     fontSize: baseFont,
                   ),
                 ),
-                pw.SizedBox(height: 8),
+                pw.SizedBox(height: 4),
                 createCachetWidget(
                   cachet: signatures['cachet'],
-                  label: 'Cachet',
                   width: 150,
                   height: 60,
                   times: times,

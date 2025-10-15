@@ -6,6 +6,8 @@ import 'package:school_manager/models/signature.dart';
 import 'package:school_manager/models/class.dart';
 import 'package:school_manager/models/staff.dart';
 import 'package:school_manager/services/database_service.dart';
+import 'package:school_manager/services/auth_service.dart';
+import 'package:school_manager/services/signature_assignment_service.dart';
 
 class SignaturesPage extends StatefulWidget {
   const SignaturesPage({Key? key}) : super(key: key);
@@ -18,16 +20,30 @@ class _SignaturesPageState extends State<SignaturesPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final DatabaseService _dbService = DatabaseService();
+  final SignatureAssignmentService _assignmentService = SignatureAssignmentService();
   List<Signature> _signatures = [];
   List<Signature> _cachets = [];
+  List<Signature> _adminSignatures = [];
   List<Class> _classes = [];
   List<Staff> _staff = [];
   bool _isLoading = true;
 
+  Future<void> _audit(String action, String details) async {
+    try {
+      final u = await AuthService.instance.getCurrentUser();
+      await _dbService.logAudit(
+        category: 'signatures',
+        action: action,
+        username: u?.username,
+        details: details,
+      );
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadSignatures();
   }
 
@@ -48,7 +64,9 @@ class _SignaturesPageState extends State<SignaturesPage>
       
       setState(() {
         final allSignatures = futures[0] as List<Signature>;
-        _signatures = allSignatures.where((s) => s.type == 'signature').toList();
+        final adminRoles = {'directeur', 'proviseur', 'vice_directeur'};
+        _adminSignatures = allSignatures.where((s) => s.type == 'signature' && adminRoles.contains(s.associatedRole)).toList();
+        _signatures = allSignatures.where((s) => s.type == 'signature' && !adminRoles.contains(s.associatedRole)).toList();
         _cachets = allSignatures.where((s) => s.type == 'cachet').toList();
         _classes = futures[1] as List<Class>;
         _staff = futures[2] as List<Staff>;
@@ -91,23 +109,19 @@ class _SignaturesPageState extends State<SignaturesPage>
 
     if (result != null) {
       try {
-        await _dbService.updateSignature(
-          Signature(
-            id: result['signatureId']!,
-            name: result['signatureName']!,
-            type: result['type']!,
-            imagePath: result['imagePath'],
-            description: result['description'],
-            isActive: true,
-            createdAt: result['createdAt']!,
-            updatedAt: DateTime.now(),
-            associatedClass: result['associatedClass'],
-            associatedRole: result['associatedRole'],
-            staffId: result['staffId'],
-            isDefault: result['isDefault'] ?? false,
-          ),
+        // Utiliser le service d'assignation pour garantir l'unicité du "par défaut"
+        await _assignmentService.assignSignatureToClass(
+          signatureId: result['signatureId']!,
+          className: (result['associatedClass'] ?? '').toString(),
+          role: (result['associatedRole'] ?? '').toString(),
+          staffId: result['staffId'],
+          setAsDefault: result['isDefault'] ?? false,
         );
         _showSuccessSnackBar('Assignation effectuée avec succès');
+        await _audit(
+          'assign_signature',
+          'signatureId=${result['signatureId']} name=${result['signatureName']} type=${result['type']} class=${result['associatedClass'] ?? ''} role=${result['associatedRole'] ?? ''} default=${result['isDefault'] ?? false}',
+        );
         _loadSignatures();
       } catch (e) {
         _showErrorSnackBar('Erreur lors de l\'assignation: $e');
@@ -138,6 +152,24 @@ class _SignaturesPageState extends State<SignaturesPage>
         );
 
         await _dbService.insertSignature(signature);
+        await _audit(
+          'create_signature',
+          'id=${signature.id} name=${signature.name} type=${signature.type} role=${signature.associatedRole ?? ''} class=${signature.associatedClass ?? ''} default=${signature.isDefault}',
+        );
+        // Si défini par défaut avec rôle/Classe, propager via le service pour nettoyer les autres défauts
+        if ((signature.isDefault) && (result['associatedRole'] != null)) {
+          await _assignmentService.assignSignatureToClass(
+            signatureId: signature.id,
+            className: (result['associatedClass'] ?? '').toString(),
+            role: (result['associatedRole'] ?? '').toString(),
+            staffId: result['staffId'],
+            setAsDefault: true,
+          );
+          await _audit(
+            'assign_signature',
+            'signatureId=${signature.id} name=${signature.name} type=${signature.type} class=${result['associatedClass'] ?? ''} role=${result['associatedRole'] ?? ''} default=true',
+          );
+        }
         _showSuccessSnackBar('${type == 'signature' ? 'Signature' : 'Cachet'} ajouté avec succès');
         _loadSignatures();
       } catch (e) {
@@ -169,6 +201,23 @@ class _SignaturesPageState extends State<SignaturesPage>
         );
 
         await _dbService.updateSignature(updatedSignature);
+        await _audit(
+          'update_signature',
+          'id=${updatedSignature.id} name=${updatedSignature.name} type=${updatedSignature.type} role=${updatedSignature.associatedRole ?? ''} class=${updatedSignature.associatedClass ?? ''} default=${updatedSignature.isDefault}',
+        );
+        if ((result['isDefault'] ?? false) && (result['associatedRole'] != null)) {
+          await _assignmentService.assignSignatureToClass(
+            signatureId: updatedSignature.id,
+            className: (result['associatedClass'] ?? '').toString(),
+            role: (result['associatedRole'] ?? '').toString(),
+            staffId: result['staffId'],
+            setAsDefault: true,
+          );
+          await _audit(
+            'assign_signature',
+            'signatureId=${updatedSignature.id} name=${updatedSignature.name} type=${updatedSignature.type} class=${result['associatedClass'] ?? ''} role=${result['associatedRole'] ?? ''} default=true',
+          );
+        }
         _showSuccessSnackBar('${signature.type == 'signature' ? 'Signature' : 'Cachet'} modifié avec succès');
         _loadSignatures();
       } catch (e) {
@@ -200,6 +249,10 @@ class _SignaturesPageState extends State<SignaturesPage>
     if (confirmed == true) {
       try {
         await _dbService.deleteSignature(signature.id);
+        await _audit(
+          'delete_signature',
+          'id=${signature.id} name=${signature.name} type=${signature.type}',
+        );
         _showSuccessSnackBar('${signature.type == 'signature' ? 'Signature' : 'Cachet'} supprimé avec succès');
         _loadSignatures();
       } catch (e) {
@@ -289,6 +342,10 @@ class _SignaturesPageState extends State<SignaturesPage>
                             icon: Icon(Icons.verified),
                             text: 'Cachets',
                           ),
+                          Tab(
+                            icon: Icon(Icons.admin_panel_settings),
+                            text: 'Administration',
+                          ),
                         ],
                       ),
                     ),
@@ -298,6 +355,7 @@ class _SignaturesPageState extends State<SignaturesPage>
                         children: [
                           _buildSignaturesList(theme),
                           _buildCachetsList(theme),
+                          _buildAdminList(theme),
                         ],
                       ),
                     ),
@@ -442,6 +500,214 @@ class _SignaturesPageState extends State<SignaturesPage>
         ),
       ],
     );
+  }
+
+  Widget _buildAdminList(ThemeData theme) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final adminSignatures = _adminSignatures;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Administration (${adminSignatures.length})',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.textTheme.bodyLarge?.color,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _addAdminSignature,
+                icon: const Icon(Icons.add),
+                label: const Text('Ajouter une signature admin'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: adminSignatures.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.admin_panel_settings,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Aucune signature administration',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: adminSignatures.length,
+                  itemBuilder: (context, index) {
+                    final signature = adminSignatures[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 2,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+                          child: const Icon(
+                            Icons.admin_panel_settings,
+                            color: Color(0xFF6366F1),
+                          ),
+                        ),
+                        title: Text(
+                          signature.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Rôle: ${signature.associatedRole ?? '-'}'),
+                            Text(
+                              'Créé le ${_formatDate(signature.createdAt)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Modifier',
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                color: Color(0xFF6366F1),
+                              ),
+                              onPressed: () => _editAdminSignature(signature),
+                            ),
+                            IconButton(
+                              tooltip: 'Supprimer',
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                              ),
+                              onPressed: () => _deleteSignature(signature),
+                            ),
+                          ],
+                        ),
+                        onTap: () => _editAdminSignature(signature),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addAdminSignature() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => const _AdminSignatureDialog(),
+    );
+
+    if (result != null) {
+      try {
+        final signature = Signature(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: result['name'] as String,
+          type: 'signature',
+          imagePath: result['imagePath'] as String?,
+          description: result['description'] as String?,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          associatedClass: null,
+          associatedRole: result['role'] as String?,
+          staffId: null,
+          isDefault: (result['isDefault'] as bool?) ?? false,
+        );
+        await _dbService.insertSignature(signature);
+        await _audit(
+          'create_signature',
+          'id=${signature.id} name=${signature.name} type=${signature.type} role=${signature.associatedRole ?? ''} class= default=${signature.isDefault}',
+        );
+        if (signature.isDefault && signature.associatedRole != null) {
+          await _assignmentService.assignSignatureToClass(
+            signatureId: signature.id,
+            className: '',
+            role: signature.associatedRole!,
+            setAsDefault: true,
+          );
+          await _audit(
+            'assign_signature',
+            'signatureId=${signature.id} name=${signature.name} type=${signature.type} class= role=${signature.associatedRole ?? ''} default=true',
+          );
+        }
+        _showSuccessSnackBar('Signature administration ajoutée');
+        _loadSignatures();
+      } catch (e) {
+        _showErrorSnackBar('Erreur lors de l\'ajout: $e');
+      }
+    }
+  }
+
+  Future<void> _editAdminSignature(Signature signature) async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => _AdminSignatureDialog(initialSignature: signature),
+    );
+
+    if (result != null) {
+      try {
+        final updated = signature.copyWith(
+          name: result['name'] as String?,
+          imagePath: result['imagePath'] as String?,
+          description: result['description'] as String?,
+          associatedRole: result['role'] as String?,
+          associatedClass: null,
+          isDefault: (result['isDefault'] as bool?) ?? false,
+          updatedAt: DateTime.now(),
+        );
+        await _dbService.updateSignature(updated);
+        await _audit(
+          'update_signature',
+          'id=${updated.id} name=${updated.name} type=${updated.type} role=${updated.associatedRole ?? ''} class= default=${updated.isDefault}',
+        );
+        if (updated.isDefault && updated.associatedRole != null) {
+          await _assignmentService.assignSignatureToClass(
+            signatureId: updated.id,
+            className: '',
+            role: updated.associatedRole!,
+            setAsDefault: true,
+          );
+          await _audit(
+            'assign_signature',
+            'signatureId=${updated.id} name=${updated.name} type=${updated.type} class= role=${updated.associatedRole ?? ''} default=true',
+          );
+        }
+        _showSuccessSnackBar('Signature administration modifiée');
+        _loadSignatures();
+      } catch (e) {
+        _showErrorSnackBar('Erreur lors de la modification: $e');
+      }
+    }
   }
 
   Widget _buildSignatureCard(Signature signature) {
@@ -682,6 +948,142 @@ class _SignatureDialog extends StatefulWidget {
   _SignatureDialogState createState() => _SignatureDialogState();
 }
 
+class _AdminSignatureDialog extends StatefulWidget {
+  final Signature? initialSignature;
+
+  const _AdminSignatureDialog({this.initialSignature});
+
+  @override
+  State<_AdminSignatureDialog> createState() => _AdminSignatureDialogState();
+}
+
+class _AdminSignatureDialogState extends State<_AdminSignatureDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  String? _imagePath;
+  String? _role = 'directeur';
+  bool _isDefault = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialSignature != null) {
+      final s = widget.initialSignature!;
+      _nameController.text = s.name;
+      _descriptionController.text = s.description ?? '';
+      _imagePath = s.imagePath;
+      _role = s.associatedRole ?? 'directeur';
+      _isDefault = s.isDefault;
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 600,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      setState(() => _imagePath = image.path);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Signature Administration'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => (v == null || v.isEmpty) ? 'Le nom est requis' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description (optionnel)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              if (_imagePath != null)
+                Container(
+                  height: 100,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.file(File(_imagePath!), fit: BoxFit.contain),
+                ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.image),
+                label: Text(_imagePath == null ? 'Sélectionner une image' : 'Changer l\'image'),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _role,
+                items: const [
+                  DropdownMenuItem(value: 'directeur', child: Text('Directeur')),
+                  DropdownMenuItem(value: 'proviseur', child: Text('Proviseur')),
+                  DropdownMenuItem(value: 'vice_directeur', child: Text('Vice-Directeur')),
+                ],
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Rôle administratif',
+                ),
+                onChanged: (v) => setState(() => _role = v),
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                title: const Text('Définir comme signature par défaut'),
+                value: _isDefault,
+                onChanged: (v) => setState(() => _isDefault = v ?? false),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Annuler'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState?.validate() ?? false) {
+              Navigator.of(context).pop({
+                'name': _nameController.text,
+                'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
+                'imagePath': _imagePath,
+                'role': _role,
+                'isDefault': _isDefault,
+              });
+            }
+          },
+          child: const Text('Enregistrer'),
+        ),
+      ],
+    );
+  }
+}
+
 class _SignatureDialogState extends State<_SignatureDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -842,6 +1244,7 @@ class _SignatureDialogState extends State<_SignatureDialog> {
                   DropdownMenuItem(value: null, child: Text('Aucun rôle')),
                   DropdownMenuItem(value: 'titulaire', child: Text('Titulaire')),
                   DropdownMenuItem(value: 'directeur', child: Text('Directeur')),
+                  DropdownMenuItem(value: 'proviseur', child: Text('Proviseur')),
                   DropdownMenuItem(value: 'vice_directeur', child: Text('Vice-Directeur')),
                 ],
                 onChanged: (value) => setState(() => _selectedRole = value),
@@ -1110,6 +1513,7 @@ class _AssignmentModalState extends State<_AssignmentModal>
             ),
             items: [
               const DropdownMenuItem(value: null, child: Text('Sélectionner une classe')),
+              const DropdownMenuItem(value: 'GLOBAL', child: Text('Aucune classe (global)')),
               ...widget.classes.map((classItem) {
                 final uniqueValue = '${classItem.name}_${classItem.academicYear}';
                 return DropdownMenuItem(
@@ -1195,23 +1599,16 @@ class _AssignmentModalState extends State<_AssignmentModal>
             ),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: _selectedClass,
-            decoration: const InputDecoration(
-              labelText: 'Classe',
-              border: OutlineInputBorder(),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
             ),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('Sélectionner une classe')),
-              ...widget.classes.map((classItem) {
-                final uniqueValue = '${classItem.name}_${classItem.academicYear}';
-                return DropdownMenuItem(
-                  value: uniqueValue,
-                  child: Text('${classItem.name} (${classItem.academicYear})'),
-                );
-              }).toList(),
-            ],
-            onChanged: (value) => setState(() => _selectedClass = value),
+            child: const Text(
+              'Le cachet de l\'établissement est global et s\'applique à tous les documents.',
+              style: TextStyle(fontSize: 12),
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -1248,7 +1645,7 @@ class _AssignmentModalState extends State<_AssignmentModal>
              _selectedSignatureId != null;
     } else {
       // Cachets tab
-      return _selectedClass != null && _selectedCachetId != null;
+      return _selectedCachetId != null; // cachet global, pas de classe
     }
   }
 
@@ -1260,7 +1657,9 @@ class _AssignmentModalState extends State<_AssignmentModal>
       );
       
       String? associatedClass;
-      if (_selectedClass != null && _selectedClass!.contains('_')) {
+      if (_selectedClass == 'GLOBAL') {
+        associatedClass = null;
+      } else if (_selectedClass != null && _selectedClass!.contains('_')) {
         associatedClass = _selectedClass!.split('_')[0];
       } else if (_selectedClass != null) {
         associatedClass = _selectedClass;
@@ -1284,13 +1683,6 @@ class _AssignmentModalState extends State<_AssignmentModal>
         (c) => c.id == _selectedCachetId,
       );
       
-      String? associatedClass;
-      if (_selectedClass != null && _selectedClass!.contains('_')) {
-        associatedClass = _selectedClass!.split('_')[0];
-      } else if (_selectedClass != null) {
-        associatedClass = _selectedClass;
-      }
-
       Navigator.of(context).pop({
         'signatureId': cachet.id,
         'signatureName': cachet.name,
@@ -1298,7 +1690,7 @@ class _AssignmentModalState extends State<_AssignmentModal>
         'imagePath': cachet.imagePath,
         'description': cachet.description,
         'createdAt': cachet.createdAt,
-        'associatedClass': associatedClass,
+        'associatedClass': null, // global
         'associatedRole': 'directeur',
         'staffId': null,
         'isDefault': _setAsDefault,

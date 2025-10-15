@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:school_manager/utils/snackbar.dart';
 import 'package:intl/intl.dart';
 import 'package:school_manager/services/auth_service.dart';
+import 'package:school_manager/services/safe_mode_service.dart';
 
 class StudentProfilePage extends StatefulWidget {
   final Student student;
@@ -1610,6 +1611,15 @@ class _StudentProfilePageState extends State<StudentProfilePage>
                           children: [
                             ElevatedButton.icon(
                               onPressed: () async {
+                                // Respecter le mode coffre fort (afficher snackbar comme dans GradesPage)
+                                if (!SafeModeService.instance.isActionAllowed()) {
+                                  showSnackBar(
+                                    context,
+                                    SafeModeService.instance.getBlockedActionMessage(),
+                                    isError: true,
+                                  );
+                                  return;
+                                }
                                 final info = await loadSchoolInfo();
                                 final studentClass = await _dbService
                                     .getClassByName(widget.student.className);

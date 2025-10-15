@@ -20,6 +20,7 @@ class _AuditPageState extends State<AuditPage> {
   final DatabaseService _db = DatabaseService();
   final TextEditingController _searchUser = TextEditingController();
   String? _selectedCategory;
+  String? _selectedUser; // Filtre par utilisateur exact
   String _sortOrder = 'desc'; // 'desc' (Plus récent) ou 'asc' (Plus ancien)
   String? _statusFilter; // null: tous, 'success', 'failure'
   DateTime? _selectedDate; // Filtre par date (journée)
@@ -29,6 +30,7 @@ class _AuditPageState extends State<AuditPage> {
   Map<String, String> _studentNameById = {};
   final Set<int> _expandedLogs = <int>{};
   String _searchQuery = '';
+  List<String> _usernames = [];
 
   // Libellés FR pour les catégories et actions d'audit
   final Map<String, String> _categoryLabels = const {
@@ -46,6 +48,8 @@ class _AuditPageState extends State<AuditPage> {
     'expense': 'Dépense',
     'class_course': 'Cours de classe',
     'settings': 'Paramètres',
+    'signatures': 'Signatures & Cachets',
+    'safe_mode': 'Mode coffre fort',
     'export': 'Export',
     'data': 'Données',
     'error': 'Erreur',
@@ -66,6 +70,8 @@ class _AuditPageState extends State<AuditPage> {
     'expense',
     'class_course',
     'settings',
+    'signatures',
+    'safe_mode',
     'export',
     'data',
     'error',
@@ -251,18 +257,35 @@ class _AuditPageState extends State<AuditPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final cat = _selectedCategory; // null => toutes catégories
-    // Charger sans filtre par utilisateur, la recherche est appliquée côté client
-    final logs = await _db.getAuditLogs(category: cat, limit: 1000);
+    // Charger avec filtre serveur sur l'utilisateur si sélectionné
+    final logs = await _db.getAuditLogs(
+      category: cat,
+      username: (_selectedUser != null && _selectedUser!.isNotEmpty)
+          ? _selectedUser
+          : null,
+      limit: 1000,
+    );
     // Charger les élèves pour mapper ID -> Nom
     List<Student> students = [];
     try {
       students = await _db.getStudents();
     } catch (_) {}
+    // Charger les utilisateurs pour dropdown
+    List<Map<String, Object?>> users = [];
+    try {
+      users = await _db.getAllUserRows();
+    } catch (_) {}
+    final usernames = <String>{
+      for (final r in users)
+        if ((r['username'] as String?) != null) (r['username'] as String)
+    }.toList()
+      ..sort();
     final map = <String, String>{ for (final s in students) s.id: s.name };
     if (!mounted) return;
     setState(() {
       _logs = logs;
       _studentNameById = map;
+      _usernames = usernames;
       _loading = false;
     });
   }
@@ -425,37 +448,39 @@ class _AuditPageState extends State<AuditPage> {
                     ],
                     onChanged: (v) => setState(() => _selectedCategory = v),
                   ),
+                  // Utilisateur
+                  DropdownButton<String?>(
+                    value: _selectedUser,
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Tous les utilisateurs'),
+                      ),
+                      ..._usernames.map(
+                        (u) => DropdownMenuItem<String?>(value: u, child: Text(u)),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      setState(() => _selectedUser = v);
+                      _load();
+                    },
+                  ),
                   // Statut
                   DropdownButton<String?>(
                     value: _statusFilter,
                     items: const [
-                      DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('Tous les statuts'),
-                      ),
-                      DropdownMenuItem<String?>(
-                        value: 'success',
-                        child: Text('Réussi'),
-                      ),
-                      DropdownMenuItem<String?>(
-                        value: 'failure',
-                        child: Text('Échec'),
-                      ),
+                      DropdownMenuItem<String?>(value: null, child: Text('Tous les statuts')),
+                      DropdownMenuItem<String?>(value: 'success', child: Text('Succès')),
+                      DropdownMenuItem<String?>(value: 'failure', child: Text('Échec')),
                     ],
                     onChanged: (v) => setState(() => _statusFilter = v),
                   ),
-                  // Tri
+                  // Ordre
                   DropdownButton<String>(
                     value: _sortOrder,
                     items: const [
-                      DropdownMenuItem<String>(
-                        value: 'desc',
-                        child: Text('Plus récent'),
-                      ),
-                      DropdownMenuItem<String>(
-                        value: 'asc',
-                        child: Text('Plus ancien'),
-                      ),
+                      DropdownMenuItem<String>(value: 'desc', child: Text('Plus récent')),
+                      DropdownMenuItem<String>(value: 'asc', child: Text('Plus ancien')),
                     ],
                     onChanged: (v) => setState(() => _sortOrder = v ?? 'desc'),
                   ),
@@ -566,7 +591,7 @@ class _AuditPageState extends State<AuditPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        Icons.security,
+                        Icons.receipt_long,
                         color: Colors.white,
                         size: isDesktop ? 32 : 24,
                       ),
@@ -661,6 +686,7 @@ class _AuditPageState extends State<AuditPage> {
   void _resetFilters() {
     setState(() {
       _selectedCategory = null;
+      _selectedUser = null;
       _statusFilter = null;
       _sortOrder = 'desc';
       _searchUser.clear();

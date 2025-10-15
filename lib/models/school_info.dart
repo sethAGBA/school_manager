@@ -16,6 +16,7 @@ class SchoolInfo {
   final String? republicMotto;
   final String? educationDirection;
   final String? inspection;
+  final String? paymentsAdminRole; // 'directeur' ou 'proviseur' (pour reçus)
 
   SchoolInfo({
     required this.name,
@@ -31,6 +32,7 @@ class SchoolInfo {
     this.republicMotto,
     this.educationDirection,
     this.inspection,
+    this.paymentsAdminRole,
   });
 
   factory SchoolInfo.fromMap(Map<String, dynamic> map) {
@@ -48,6 +50,7 @@ class SchoolInfo {
       republicMotto: map['republicMotto'],
       educationDirection: map['educationDirection'],
       inspection: map['inspection'],
+      paymentsAdminRole: map['paymentsAdminRole'],
     );
   }
 
@@ -66,6 +69,7 @@ class SchoolInfo {
       'republicMotto': republicMotto,
       'educationDirection': educationDirection,
       'inspection': inspection,
+      'paymentsAdminRole': paymentsAdminRole,
     };
   }
 }

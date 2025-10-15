@@ -975,6 +975,7 @@ class DatabaseService {
       'republicMotto TEXT',
       'educationDirection TEXT',
       'inspection TEXT',
+      'paymentsAdminRole TEXT',
     ];
 
     for (final columnDef in newColumns) {

@@ -25,15 +25,32 @@ class SignatureAssignmentService {
   }
 
   /// Récupère la signature par défaut pour un rôle et une classe
+  /// Si className est vide, considère les signatures "globales" (associatedClass null ou vide)
   Future<Signature?> getDefaultSignatureForClassAndRole(String className, String role) async {
     try {
       final signatures = await _dbService.getAllSignatures();
-      return signatures.firstWhere(
-        (s) => s.associatedClass == className && 
-               s.associatedRole == role && 
+      final normalized = className.trim();
+      // 1) Chercher une correspondance stricte classe+role par défaut
+      final exact = signatures.firstWhere(
+        (s) => ((s.associatedClass ?? '').trim() == normalized) &&
+               s.associatedRole == role &&
                s.isDefault == true,
         orElse: () => Signature.empty(),
       );
+      if (exact.id.isNotEmpty) return exact;
+
+      // 2) Si classe vide => fallback sur signature globale (associatedClass null/"")
+      if (normalized.isEmpty) {
+        final global = signatures.firstWhere(
+          (s) => ((s.associatedClass == null) || (s.associatedClass?.trim().isEmpty ?? true)) &&
+                 s.associatedRole == role &&
+                 s.isDefault == true,
+          orElse: () => Signature.empty(),
+        );
+        if (global.id.isNotEmpty) return global;
+      }
+
+      return Signature.empty();
     } catch (e) {
       return null;
     }
@@ -46,19 +63,82 @@ class SignatureAssignmentService {
 
   /// Récupère la signature du directeur
   Future<Signature?> getDirecteurSignature() async {
-    return await getDefaultSignatureForClassAndRole('', 'directeur');
+    // Essayer d'abord la signature globale (classe vide), sinon n'importe quelle signature par défaut pour le rôle
+    final exact = await getDefaultSignatureForClassAndRole('', 'directeur');
+    if (exact != null && exact.id.isNotEmpty) return exact;
+    try {
+      final signatures = await _dbService.getAllSignatures();
+      final anyDefault = signatures.firstWhere(
+        (s) => s.associatedRole == 'directeur' && s.isDefault == true,
+        orElse: () => Signature.empty(),
+      );
+      return anyDefault.id.isNotEmpty ? anyDefault : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Récupère la signature du proviseur
+  Future<Signature?> getProviseurSignature() async {
+    final exact = await getDefaultSignatureForClassAndRole('', 'proviseur');
+    if (exact != null && exact.id.isNotEmpty) return exact;
+    try {
+      final signatures = await _dbService.getAllSignatures();
+      final anyDefault = signatures.firstWhere(
+        (s) => s.associatedRole == 'proviseur' && s.isDefault == true,
+        orElse: () => Signature.empty(),
+      );
+      return anyDefault.id.isNotEmpty ? anyDefault : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Récupère la signature par défaut pour un rôle global (sans classe)
+  Future<Signature?> getDefaultSignatureByRole(String role) async {
+    final res = await getDefaultSignatureForClassAndRole('', role);
+    if (res != null && res.id.isNotEmpty) return res;
+    try {
+      final signatures = await _dbService.getAllSignatures();
+      final anyDefault = signatures.firstWhere(
+        (s) => s.associatedRole == role && s.isDefault == true,
+        orElse: () => Signature.empty(),
+      );
+      return anyDefault.id.isNotEmpty ? anyDefault : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Récupère le cachet du directeur
   Future<Signature?> getDirecteurCachet() async {
     try {
       final signatures = await _dbService.getAllSignatures();
-      return signatures.firstWhere(
-        (s) => s.associatedRole == 'directeur' && 
-               s.type == 'cachet' && 
-               s.isDefault == true,
+      // 1) Préférence: cachet par défaut de rôle 'directeur' (global ou classe vide)
+      final preferred = signatures.firstWhere(
+        (s) => s.type == 'cachet' &&
+               s.isDefault == true &&
+               s.associatedRole == 'directeur' &&
+               ((s.associatedClass == null) || (s.associatedClass?.trim().isEmpty ?? true)),
         orElse: () => Signature.empty(),
       );
+      if (preferred.id.isNotEmpty) return preferred;
+
+      // 2) Fallback: tout cachet par défaut global, quel que soit le rôle
+      final globalDefault = signatures.firstWhere(
+        (s) => s.type == 'cachet' &&
+               s.isDefault == true &&
+               ((s.associatedClass == null) || (s.associatedClass?.trim().isEmpty ?? true)),
+        orElse: () => Signature.empty(),
+      );
+      if (globalDefault.id.isNotEmpty) return globalDefault;
+
+      // 3) Dernier recours: n'importe quel cachet par défaut
+      final anyDefault = signatures.firstWhere(
+        (s) => s.type == 'cachet' && s.isDefault == true,
+        orElse: () => Signature.empty(),
+      );
+      return anyDefault.id.isNotEmpty ? anyDefault : null;
     } catch (e) {
       return null;
     }
@@ -80,7 +160,7 @@ class SignatureAssignmentService {
 
       // Si on définit comme signature par défaut, retirer le statut par défaut des autres signatures
       if (setAsDefault) {
-        await _removeDefaultStatusForClassAndRole(className, role);
+        await _removeDefaultStatusForClassAndRole(className, role, type: signature.type);
       }
 
       final updatedSignature = signature.copyWith(
@@ -98,14 +178,15 @@ class SignatureAssignmentService {
   }
 
   /// Retire le statut par défaut des autres signatures pour une classe et un rôle
-  Future<void> _removeDefaultStatusForClassAndRole(String className, String role) async {
+  Future<void> _removeDefaultStatusForClassAndRole(String className, String role, {required String type}) async {
     try {
       final signatures = await _dbService.getAllSignatures();
-      final signaturesToUpdate = signatures.where(
-        (s) => s.associatedClass == className && 
-               s.associatedRole == role && 
-               s.isDefault == true,
-      );
+      final normalized = className.trim();
+      final signaturesToUpdate = signatures.where((s) {
+        final sClass = (s.associatedClass ?? '').trim();
+        final sameScope = normalized.isEmpty ? sClass.isEmpty : sClass == normalized;
+        return sameScope && s.associatedRole == role && s.type == type && s.isDefault == true;
+      });
 
       for (final signature in signaturesToUpdate) {
         final updatedSignature = signature.copyWith(

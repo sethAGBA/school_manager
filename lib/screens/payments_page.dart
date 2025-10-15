@@ -16,6 +16,8 @@ import 'package:school_manager/models/school_info.dart';
 import 'package:school_manager/services/database_service.dart';
 import 'package:school_manager/services/pdf_service.dart';
 import 'package:open_file/open_file.dart';
+import 'package:school_manager/services/safe_mode_service.dart';
+import 'package:school_manager/utils/snackbar.dart';
 import 'package:school_manager/screens/students/widgets/custom_dialog.dart';
 import 'package:school_manager/screens/students/widgets/form_field.dart';
 import 'package:school_manager/utils/academic_year.dart';
@@ -1495,6 +1497,11 @@ class _PaymentsPageState extends State<PaymentsPage>
     ThemeData theme, {
     bool saveOnly = false,
   }) async {
+    // Respecter le mode coffre fort: afficher un SnackBar (comme dans GradesPage)
+    if (!SafeModeService.instance.isActionAllowed()) {
+      showSnackBar(context, SafeModeService.instance.getBlockedActionMessage(), isError: true);
+      return;
+    }
     if (student == null) return;
 
     final classe = _classesByName[student.className];

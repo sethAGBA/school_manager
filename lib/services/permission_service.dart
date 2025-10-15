@@ -15,6 +15,8 @@ class PermissionService {
     'view_license',
     'view_subjects',
     'view_finance_inventory',
+    'view_audits',
+    'view_signatures',
     'manage_safe_mode',
   };
 
@@ -44,7 +46,12 @@ class PermissionService {
     try {
       final data = json.decode(jsonStr);
       if (data is List) {
-        return data.map((e) => e.toString()).toSet();
+        final set = data.map((e) => e.toString()).toSet();
+        // Normalisation rétrocompatible
+        if (set.contains('view_audit_log')) {
+          set.add('view_audits');
+        }
+        return set;
       }
     } catch (_) {}
     return defaultForRole(role);
