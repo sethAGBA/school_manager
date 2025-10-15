@@ -80,6 +80,8 @@ class _TimetablePageState extends State<TimetablePage>
   bool _clearBeforeGen = false;
   bool _isGenerating = false;
   bool _saturateAll = false;
+  bool _capTwoHourBlocksWeekly = true;
+  Set<String> _excludedFromTwoHourCap = <String>{};
   // Block sizing settings
   final TextEditingController _blockDefaultCtrl = TextEditingController(text: '2');
   final TextEditingController _threeHourThresholdCtrl = TextEditingController(text: '1.5');
@@ -165,6 +167,8 @@ class _TimetablePageState extends State<TimetablePage>
     _blockDefaultCtrl.text = (await ttp.loadBlockDefaultSlots()).toString();
     _threeHourThresholdCtrl.text = (await ttp.loadThreeHourThreshold()).toString();
     _optionalMaxMinutesCtrl.text = (await ttp.loadOptionalMaxMinutes()).toString();
+    _capTwoHourBlocksWeekly = await ttp.loadCapTwoHourBlocksWeekly();
+    _excludedFromTwoHourCap = await ttp.loadTwoHourCapExcludedSubjects();
 
     setState(() {
       // initialiser la sélection de classe/enseignant si nécessaire
@@ -766,6 +770,49 @@ class _TimetablePageState extends State<TimetablePage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Switch(
+                    value: _capTwoHourBlocksWeekly,
+                    onChanged: (v) async {
+                      setState(() => _capTwoHourBlocksWeekly = v);
+                      await ttp.saveCapTwoHourBlocksWeekly(v);
+                    },
+                  ),
+                  const Text('Limiter à 1 bloc de 2h / semaine (par matière)'),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                ),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Text('Exclusions bloc 2h :'),
+                    ..._subjects.map((c) => FilterChip(
+                          label: Text(c.name),
+                          selected: _excludedFromTwoHourCap.contains(c.name),
+                          onSelected: (sel) async {
+                            setState(() {
+                              if (sel) {
+                                _excludedFromTwoHourCap.add(c.name);
+                              } else {
+                                _excludedFromTwoHourCap.remove(c.name);
+                              }
+                            });
+                            await ttp.saveTwoHourCapExcludedSubjects(_excludedFromTwoHourCap);
+                          },
+                        )),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Switch(
                     value: _clearBeforeGen,
                     onChanged: (v) => setState(() => _clearBeforeGen = v),
                   ),
@@ -833,6 +880,8 @@ class _TimetablePageState extends State<TimetablePage>
     await ttp.saveBlockDefaultSlots(int.tryParse(_blockDefaultCtrl.text) ?? 2);
     await ttp.saveThreeHourThreshold(double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5);
     await ttp.saveOptionalMaxMinutes(int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120);
+    await ttp.saveCapTwoHourBlocksWeekly(_capTwoHourBlocksWeekly);
+    await ttp.saveTwoHourCapExcludedSubjects(_excludedFromTwoHourCap);
     // Also persist generated slots for consistency
     final slots = _buildSlotsFromSegments();
     await ttp.saveSlots(slots);
@@ -849,34 +898,44 @@ class _TimetablePageState extends State<TimetablePage>
       await _saveAutoGenPrefs();
       final slots = List<String>.from(_timeSlots);
       int total = 0;
-      for (final cls in _classes) {
-        int created = 0;
-        if (_saturateAll) {
-          created = await _scheduling.autoSaturateForClass(
-            targetClass: cls,
-            daysOfWeek: _daysOfWeek,
-            timeSlots: slots,
-            breakSlots: _breakSlots,
-            clearExisting: _clearBeforeGen,
-            optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
-          );
-        } else {
-          created = await _scheduling.autoGenerateForClass(
-            targetClass: cls,
-            daysOfWeek: _daysOfWeek,
-            timeSlots: slots,
-            breakSlots: _breakSlots,
-            clearExisting: _clearBeforeGen,
-            sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
-            enforceTeacherWeeklyHours: true,
-            teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
-            classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
-            subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
-            blockDefaultSlots: int.tryParse(_blockDefaultCtrl.text) ?? 2,
-            threeHourThreshold: double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5,
-            optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
-          );
-        }
+          for (final cls in _classes) {
+            int created = 0;
+            if (_saturateAll) {
+              created = await _scheduling.autoSaturateForClass(
+                targetClass: cls,
+                daysOfWeek: _daysOfWeek,
+                timeSlots: slots,
+                breakSlots: _breakSlots,
+                clearExisting: _clearBeforeGen,
+                optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+                morningStart: _morningStartCtrl.text.trim(),
+                morningEnd: _morningEndCtrl.text.trim(),
+                afternoonStart: _afternoonStartCtrl.text.trim(),
+                afternoonEnd: _afternoonEndCtrl.text.trim(),
+              );
+            } else {
+              created = await _scheduling.autoGenerateForClass(
+                targetClass: cls,
+                daysOfWeek: _daysOfWeek,
+                timeSlots: slots,
+                breakSlots: _breakSlots,
+                clearExisting: _clearBeforeGen,
+                sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
+                enforceTeacherWeeklyHours: true,
+                teacherMaxPerDay: int.tryParse(_teacherMaxPerDayCtrl.text) ?? 0,
+                classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
+                subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
+                blockDefaultSlots: int.tryParse(_blockDefaultCtrl.text) ?? 2,
+                threeHourThreshold: double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5,
+                optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+                limitTwoHourBlocksPerWeek: _capTwoHourBlocksWeekly,
+                excludedFromWeeklyTwoHourCap: _excludedFromTwoHourCap,
+                morningStart: _morningStartCtrl.text.trim(),
+                morningEnd: _morningEndCtrl.text.trim(),
+                afternoonStart: _afternoonStartCtrl.text.trim(),
+                afternoonEnd: _afternoonEndCtrl.text.trim(),
+              );
+            }
         total += created;
       }
       if (mounted) {
@@ -927,6 +986,8 @@ class _TimetablePageState extends State<TimetablePage>
             classMaxPerDay: int.tryParse(_classMaxPerDayCtrl.text) ?? 0,
             subjectMaxPerDay: int.tryParse(_subjectMaxPerDayCtrl.text) ?? 0,
             optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+            limitTwoHourBlocksPerWeek: _capTwoHourBlocksWeekly,
+            excludedFromWeeklyTwoHourCap: _excludedFromTwoHourCap,
           );
         }
         total += created;
@@ -968,6 +1029,10 @@ class _TimetablePageState extends State<TimetablePage>
               breakSlots: _breakSlots,
               clearExisting: _clearBeforeGen,
               optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+              morningStart: _morningStartCtrl.text.trim(),
+              morningEnd: _morningEndCtrl.text.trim(),
+              afternoonStart: _afternoonStartCtrl.text.trim(),
+              afternoonEnd: _afternoonEndCtrl.text.trim(),
             )
           : await _scheduling.autoGenerateForClass(
               targetClass: cls,
@@ -983,6 +1048,12 @@ class _TimetablePageState extends State<TimetablePage>
               blockDefaultSlots: int.tryParse(_blockDefaultCtrl.text) ?? 2,
               threeHourThreshold: double.tryParse(_threeHourThresholdCtrl.text) ?? 1.5,
               optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+              limitTwoHourBlocksPerWeek: _capTwoHourBlocksWeekly,
+              excludedFromWeeklyTwoHourCap: _excludedFromTwoHourCap,
+              morningStart: _morningStartCtrl.text.trim(),
+              morningEnd: _morningEndCtrl.text.trim(),
+              afternoonStart: _afternoonStartCtrl.text.trim(),
+              afternoonEnd: _afternoonEndCtrl.text.trim(),
             );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2153,6 +2224,8 @@ class _TimetablePageState extends State<TimetablePage>
       classMaxPerDay: classMaxPerDay == 0 ? null : classMaxPerDay,
       subjectMaxPerDay: subjectMaxPerDay == 0 ? null : subjectMaxPerDay,
       optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+      limitTwoHourBlocksPerWeek: _capTwoHourBlocksWeekly,
+      excludedFromWeeklyTwoHourCap: _excludedFromTwoHourCap,
     );
     await _loadData();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -2329,6 +2402,8 @@ class _TimetablePageState extends State<TimetablePage>
       subjectMaxPerDay: subjectMaxPerDay == 0 ? null : subjectMaxPerDay,
       classMaxPerDay: classMaxPerDay == 0 ? null : classMaxPerDay,
       optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+      limitTwoHourBlocksPerWeek: _capTwoHourBlocksWeekly,
+      excludedFromWeeklyTwoHourCap: _excludedFromTwoHourCap,
     );
     await _loadData();
     ScaffoldMessenger.of(context).showSnackBar(

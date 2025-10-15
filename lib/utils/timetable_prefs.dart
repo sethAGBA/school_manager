@@ -12,6 +12,8 @@ const _kSessionMinutesKey = 'timetable_session_minutes';
 const _kBlockDefaultSlotsKey = 'timetable_block_default_slots';
 const _kThreeHourThresholdKey = 'timetable_three_hour_threshold';
 const _kOptionalMaxMinutesKey = 'timetable_optional_max_minutes';
+const _kCapTwoHourBlocksWeeklyKey = 'timetable_cap_two_hour_blocks_weekly';
+const _kTwoHourCapExcludedSubjectsKey = 'timetable_two_hour_cap_excluded_subjects';
 
 const List<String> kDefaultDays = [
   'Lundi',
@@ -159,4 +161,28 @@ Future<int> loadOptionalMaxMinutes() async {
 Future<void> saveOptionalMaxMinutes(int minutes) async {
   final p = await SharedPreferences.getInstance();
   await p.setInt(_kOptionalMaxMinutesKey, minutes);
+}
+
+Future<bool> loadCapTwoHourBlocksWeekly() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getBool(_kCapTwoHourBlocksWeeklyKey) ?? true;
+}
+
+Future<void> saveCapTwoHourBlocksWeekly(bool value) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setBool(_kCapTwoHourBlocksWeeklyKey, value);
+}
+
+Future<Set<String>> loadTwoHourCapExcludedSubjects() async {
+  final p = await SharedPreferences.getInstance();
+  final s = p.getString(_kTwoHourCapExcludedSubjectsKey);
+  if (s == null || s.isEmpty) return <String>{};
+  final data = jsonDecode(s);
+  if (data is List) return data.map<String>((e) => e.toString()).toSet();
+  return <String>{};
+}
+
+Future<void> saveTwoHourCapExcludedSubjects(Set<String> subjects) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setString(_kTwoHourCapExcludedSubjectsKey, jsonEncode(subjects.toList()));
 }

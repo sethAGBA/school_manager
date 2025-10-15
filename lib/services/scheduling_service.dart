@@ -70,6 +70,12 @@ class SchedulingService {
     int blockDefaultSlots = 2,
     double threeHourThreshold = 1.5,
     int optionalMaxMinutes = 120,
+    bool limitTwoHourBlocksPerWeek = true,
+    Set<String> excludedFromWeeklyTwoHourCap = const <String>{},
+    String? morningStart,
+    String? morningEnd,
+    String? afternoonStart,
+    String? afternoonEnd,
   }) async {
     final computedYear = targetClass.academicYear.isNotEmpty
         ? targetClass.academicYear
@@ -184,28 +190,55 @@ class SchedulingService {
     final Map<String, int> targetSessions = {};
     final Map<String, int> optionalMinutes = {}; // subject -> minutes placed
     // optionalMaxMinutes limite par semaine pour matières optionnelles
-    // Weight by coefficients: need = round((coeff/avgCoeff) * sessionsPerSubject)
+    // Répartition proportionnelle aux coefficients: le plus gros coeff a plus d'heures
     final coeffs = await db.getClassSubjectCoefficients(targetClass.name, computedYear);
-    double sumCoeff = 0;
-    int countCoeff = 0;
-    for (final c in subjects) {
-      if (isOptional(c) || isEPS(c.name)) continue;
-      final w = coeffs[c.name] ?? 1.0;
-      sumCoeff += w;
-      countCoeff++;
+    final coreSubjects = subjects.where((c) => !isOptional(c) && !isEPS(c.name)).toList();
+    double sumW = 0;
+    for (final c in coreSubjects) {
+      sumW += (coeffs[c.name] ?? 1.0);
     }
-    final avgCoeff = (countCoeff > 0 && sumCoeff > 0) ? (sumCoeff / countCoeff) : 1.0;
+    // Baseline: chaque matière non optionnelle a au moins 1 séance
+    final int baseTotal = (sessionsPerSubject * coreSubjects.length).clamp(0, 10000);
+    // Distribution de base (1 par matière)
+    final Map<String, int> alloc = { for (final c in coreSubjects) c.name: 1 };
+    int remaining = (baseTotal - coreSubjects.length).clamp(0, 10000);
+    if (remaining > 0 && sumW > 0) {
+      // Parts proportionnelles + plus grands restes
+      final Map<String, double> raw = {
+        for (final c in coreSubjects)
+          c.name: ((coeffs[c.name] ?? 1.0) / sumW) * remaining
+      };
+      int distributed = 0;
+      // Appliquer floor
+      for (final c in coreSubjects) {
+        final f = raw[c.name]!.floor();
+        if (f > 0) {
+          alloc[c.name] = (alloc[c.name] ?? 0) + f;
+          distributed += f;
+        }
+      }
+      // Distribuer les restes aux plus gros restes d'abord
+      final remainders = coreSubjects
+          .map((c) => MapEntry(c.name, raw[c.name]! - raw[c.name]!.floor()))
+          .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      int left = remaining - distributed;
+      int idx = 0;
+      while (left > 0 && idx < remainders.length) {
+        alloc[remainders[idx].key] = (alloc[remainders[idx].key] ?? 0) + 1;
+        left--;
+        idx++;
+      }
+    }
+    // Remplir targetSessions avec allocations calculées
     for (final c in subjectsOrder) {
       if (isOptional(c)) {
-        targetSessions[c.name] = 2; // cap by 2h; actual cap enforced by minutes
+        targetSessions[c.name] = 2; // cap 2h (effectif contraint par optionalMinutes)
         optionalMinutes[c.name] = 0;
       } else if (isEPS(c.name)) {
-        targetSessions[c.name] = 2; // two 1h sessions on different days
+        targetSessions[c.name] = 2; // deux séances courtes
       } else {
-        final w = coeffs[c.name] ?? 1.0;
-        final scaled = (w / (avgCoeff <= 0 ? 1.0 : avgCoeff)) * sessionsPerSubject;
-        final need = scaled.round().clamp(1, 1000);
-        targetSessions[c.name] = need;
+        targetSessions[c.name] = (alloc[c.name] ?? 1).clamp(1, 1000);
       }
     }
 
@@ -222,30 +255,25 @@ class SchedulingService {
     final Set<String> epsDaysUsed = {};
 
     int created = 0;
+    // Compteur des blocs de 2h par matière pour la semaine (cap global)
+    final Map<String, int> twoHourBlocksCount = {};
     // Greedy placement: iterate subjects, place target sessions scanning shuffled days/timeSlots.
     for (final course in subjectsOrder) {
       final subj = course.name;
       final teacher = findTeacherFor(subj)?.name ?? '';
-      final need = (targetSessions[subj] ?? sessionsPerSubject).clamp(0, 1000);
-      int placed = 0;
+      final int need = (targetSessions[subj] ?? sessionsPerSubject).clamp(0, 1000);
+      int placedHours = 0;
       outer:
       for (final day in daysOrder) {
         // EPS: ensure different days if possible
         if (isEPS(subj) && epsDaysUsed.contains(day) && epsDaysUsed.length < daysOrder.length) {
           continue;
         }
-        // Determine block size: 1h for EPS, else 2h default or 3h if coeff high
-        int desiredBlock = blockDefaultSlots.clamp(1, 3);
-        final wSubj = coeffs[subj] ?? 1.0;
-        if (isEPS(subj)) desiredBlock = 1;
-        else if (wSubj >= avgCoeff * threeHourThreshold) {
-          // For subjects with more than 3 hours, use 2-hour blocks
-          final totalHours = need;
-          if (totalHours > 3) {
-            desiredBlock = 2; // Force 2-hour blocks for subjects > 3h
-          } else {
-            desiredBlock = 3;
-          }
+        // Blocs réalistes: EPS=1h, sinon 2h consécutives/jour si plusieurs heures à placer
+        final int remainingHours = (need - placedHours).clamp(0, 1000);
+        int desiredBlock = 1;
+        if (!isEPS(subj)) {
+          desiredBlock = remainingHours >= 2 ? 2 : 1;
         }
 
       // Traverse slots sorted by start time to ensure true contiguity
@@ -264,13 +292,30 @@ class SchedulingService {
           final slotMin = _slotMinutes(start, end);
           // Determine actual block for optional cap
           int blockSlots = desiredBlock;
+          // Cap hebdo: au plus un bloc 2h par matière
+          if (limitTwoHourBlocksPerWeek && blockSlots == 2 && !excludedFromWeeklyTwoHourCap.contains(subj)) {
+            final used = twoHourBlocksCount[subj] ?? 0;
+            if (used >= 1) blockSlots = 1;
+          }
           if (isOptional(course)) {
             final remaining = optionalMaxMinutes - (optionalMinutes[subj] ?? 0);
             blockSlots = remaining >= (2 * slotMin) ? min(2, desiredBlock) : 1;
           }
+          // Ne pas dépasser les heures restantes cette semaine ni le cap par jour
+          blockSlots = min(blockSlots, remainingHours);
           // Pre-check availability for contiguous block
           int totalBlockMin = 0;
           bool canPlace = true;
+          // Cap par jour pour la matière: max 2 créneaux si matière chargée, sinon 1
+          final int currentSubjCount = (classSubjectDaily[day]?[subj] ?? 0);
+          final int perDaySubjectCap = !isEPS(subj) && remainingHours >= 2 ? 2 : 1;
+          if (currentSubjCount >= perDaySubjectCap) {
+            canPlace = false;
+          }
+          // Clamp block to what's allowed remaining today
+          blockSlots = min(blockSlots, perDaySubjectCap - currentSubjCount);
+          if (blockSlots <= 0) { canPlace = false; }
+          int baseSeg = -1; // 0=morning, 1=afternoon, -1=unknown
           for (int k = 0; k < blockSlots; k++) {
             final idx = si + k;
             if (idx >= sortedSlots.length) { canPlace = false; break; }
@@ -280,6 +325,18 @@ class SchedulingService {
             final st = p.first;
             final en = p.length > 1 ? p[1] : p.first;
             final m = _slotMinutes(st, en);
+          // Restriction: rester dans le même segment (matin/après-midi) si défini
+          if (morningStart != null && morningEnd != null && afternoonStart != null && afternoonEnd != null) {
+            final t = _parseHHmm(st);
+            final mStart = _parseHHmm(morningStart);
+            final mEnd = _parseHHmm(morningEnd);
+            final aStart = _parseHHmm(afternoonStart);
+            final aEnd = _parseHHmm(afternoonEnd);
+            int seg = -1;
+            if (t >= mStart && t < mEnd) seg = 0; else if (t >= aStart && t < aEnd) seg = 1;
+            if (baseSeg == -1) baseSeg = seg;
+            if (seg != -1 && baseSeg != -1 && seg != baseSeg) { canPlace = false; break; }
+          }
           totalBlockMin += m;
           if (hasClassConflict(day, st)) { canPlace = false; break; }
           if (teacher.isNotEmpty && ((teacherBusyAll[teacher]?.contains('$day|$st') ?? false) || hasTeacherConflict(teacher, day, st) || (teacherUnavail[teacher]?.contains('$day|$st') == true))) { canPlace = false; break; }
@@ -298,6 +355,8 @@ class SchedulingService {
             final cntT = tDay[day] ?? 0;
             if (cntT + (k + 1) > teacherMaxPerDay) { canPlace = false; break; }
           }
+          // Respecter le clamp appliqué plus haut
+          if (k + 1 > blockSlots) { canPlace = false; break; }
         }
           // Optional cap
           if (isOptional(course) && (optionalMinutes[subj] ?? 0) + totalBlockMin > optionalMaxMinutes) {
@@ -348,77 +407,12 @@ class SchedulingService {
               optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + m;
             }
           }
-          placed++;
-          if (isEPS(subj)) epsDaysUsed.add(day);
-          
-          // For subjects with more than 3 hours, if we've placed 2-hour blocks and have remaining hours,
-          // we need to place them on a different day
-          final totalHours = need;
-          if (totalHours > 3 && placed >= (totalHours ~/ 2) * 2 && placed < need) {
-            // We have remaining hours, try to place them on a different day
-            final remainingHours = need - placed;
-            if (remainingHours > 0) {
-              // Try to find a different day for remaining hours
-              for (final otherDay in daysOrder) {
-                if (otherDay == day) continue; // Skip the same day
-                if (isEPS(subj) && epsDaysUsed.contains(otherDay)) continue;
-                
-                // Try to place remaining hours on this other day
-                for (int si2 = 0; si2 < sortedSlots.length; si2++) {
-                  final slot2 = sortedSlots[si2];
-                  if (breakSlots.contains(slot2)) continue;
-                  final parts2 = slot2.split(' - ');
-                  final start2 = parts2.first;
-                  final end2 = parts2.length > 1 ? parts2[1] : parts2.first;
-                  
-                  if (hasClassConflict(otherDay, start2)) continue;
-                  if (teacher.isNotEmpty && hasTeacherConflict(teacher, otherDay, start2)) continue;
-                  if (teacher.isNotEmpty && (teacherUnavail[teacher]?.contains('$otherDay|$start2') == true)) continue;
-                  
-                  // Place the remaining hour
-                  final entry2 = TimetableEntry(
-                    subject: subj,
-                    teacher: teacher,
-                    className: targetClass.name,
-                    academicYear: computedYear,
-                    dayOfWeek: otherDay,
-                    startTime: start2,
-                    endTime: end2,
-                    room: '',
-                  );
-                  await db.insertTimetableEntry(entry2);
-                  
-                  // Update the current entries list to avoid future conflicts
-                  current = await db.getTimetableEntries(
-                    className: targetClass.name,
-                    academicYear: computedYear,
-                  );
-                  
-                  // Update all counters like in the main logic
-                  final m2 = _slotMinutes(start2, end2);
-                  if (teacher.isNotEmpty) {
-                    teacherLoad[teacher] = (teacherLoad[teacher] ?? 0) + m2;
-                    teacherDaily[teacher]![otherDay] = (teacherDaily[teacher]![otherDay] ?? 0) + 1;
-                    teacherBusyAll.putIfAbsent(teacher, () => <String>{}).add('$otherDay|$start2');
-                  }
-                  classDailyCount[otherDay] = (classDailyCount[otherDay] ?? 0) + 1;
-                  final byS2 = classSubjectDaily[otherDay] ?? <String,int>{};
-                  byS2[subj] = (byS2[subj] ?? 0) + 1;
-                  classSubjectDaily[otherDay] = byS2;
-                  
-                  created++;
-                  placed++;
-                  if (isOptional(course)) {
-                    optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + m2;
-                  }
-                  break; // Only place one remaining hour per day
-                }
-                if (placed >= need) break;
-              }
-            }
+          placedHours += blockSlots;
+          if (blockSlots == 2 && limitTwoHourBlocksPerWeek) {
+            twoHourBlocksCount[subj] = (twoHourBlocksCount[subj] ?? 0) + 1;
           }
-          
-          if (placed >= need) break outer;
+          if (isEPS(subj)) epsDaysUsed.add(day);
+          if (placedHours >= need) break outer;
         }
       }
     }
@@ -436,6 +430,10 @@ class SchedulingService {
     Set<String> breakSlots = const {},
     bool clearExisting = false,
     int optionalMaxMinutes = 120,
+    String? morningStart,
+    String? morningEnd,
+    String? afternoonStart,
+    String? afternoonEnd,
   }) async {
     final computedYear = targetClass.academicYear.isNotEmpty
         ? targetClass.academicYear
@@ -510,7 +508,8 @@ class SchedulingService {
     int created = 0;
     int idx = subjOrder.isNotEmpty ? rng.nextInt(subjOrder.length) : 0;
     for (final day in daysOrder) {
-      for (final slot in slotsOrder) {
+      for (int si = 0; si < slotsOrder.length; si++) {
+        final slot = slotsOrder[si];
         if (breakSlots.contains(slot)) continue;
         final start = slot.split(' - ').first;
         final key = '$day|$start';
@@ -562,6 +561,71 @@ class SchedulingService {
         created++;
         if (optionalMinutes.containsKey(subj)) {
           optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + slotMin;
+        }
+
+        // Tenter de créer un bloc de 2h consécutif pour les classes (hors pauses/EPS), dans le même segment
+        final isEPSsubj = subj.toLowerCase().contains('eps') || subj.toLowerCase().contains('sport') || subj.toLowerCase().contains('éducation physique') || subj.toLowerCase().contains('education physique');
+        if (!isEPSsubj) {
+          final int nextIdx = si + 1;
+          if (nextIdx < slotsOrder.length) {
+            final nextSlot = slotsOrder[nextIdx];
+            if (!breakSlots.contains(nextSlot)) {
+              final nStart = nextSlot.split(' - ').first;
+              final nKey = '$day|$nStart';
+              if (!classBusy.contains(nKey)) {
+                // Respecter disponibilité enseignant si défini
+                bool teacherOk = true;
+                if (teacherName.isNotEmpty) {
+                  final busy = teacherBusy[teacherName] ?? const <String>{};
+                  final un = teacherUnavail[teacherName] ?? const <String>{};
+                  if (busy.contains(nKey) || un.contains(nKey)) teacherOk = false;
+                }
+                // Vérifier segment (matin/après-midi) si défini
+                bool sameSegment = true;
+                if (morningStart != null && morningEnd != null && afternoonStart != null && afternoonEnd != null) {
+                  int segOf(String hhmm) {
+                    final t = _parseHHmm(hhmm);
+                    final mStart = _parseHHmm(morningStart);
+                    final mEnd = _parseHHmm(morningEnd);
+                    final aStart = _parseHHmm(afternoonStart);
+                    final aEnd = _parseHHmm(afternoonEnd);
+                    if (t >= mStart && t < mEnd) return 0;
+                    if (t >= aStart && t < aEnd) return 1;
+                    return -1;
+                  }
+                  final seg0 = segOf(start);
+                  final seg1 = segOf(nStart);
+                  if (seg0 != -1 && seg1 != -1 && seg0 != seg1) sameSegment = false;
+                }
+                if (teacherOk && sameSegment) {
+                  final nParts = nextSlot.split(' - ');
+                  final nEnd = nParts.length > 1 ? nParts[1] : nParts.first;
+                  final entry2 = TimetableEntry(
+                    subject: subj,
+                    teacher: teacherName,
+                    className: targetClass.name,
+                    academicYear: computedYear,
+                    dayOfWeek: day,
+                    startTime: nParts.first,
+                    endTime: nEnd,
+                    room: '',
+                  );
+                  await db.insertTimetableEntry(entry2);
+                  classBusy.add(nKey);
+                  if (teacherName.isNotEmpty) {
+                    teacherBusy.putIfAbsent(teacherName, () => <String>{}).add(nKey);
+                  }
+                  created++;
+                  if (optionalMinutes.containsKey(subj)) {
+                    final nMin = _slotMinutes(nParts.first, nEnd);
+                    optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + nMin;
+                  }
+                  // Sauter le slot suivant car consommé pour le bloc
+                  si = nextIdx;
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -700,6 +764,8 @@ class SchedulingService {
     int? classMaxPerDay,
     int? subjectMaxPerDay,
     int optionalMaxMinutes = 120,
+    bool limitTwoHourBlocksPerWeek = true,
+    Set<String> excludedFromWeeklyTwoHourCap = const <String>{},
   }) async {
     final computedYear = await getCurrentAcademicYear();
     if (clearExisting) {
