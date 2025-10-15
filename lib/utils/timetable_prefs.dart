@@ -14,6 +14,10 @@ const _kThreeHourThresholdKey = 'timetable_three_hour_threshold';
 const _kOptionalMaxMinutesKey = 'timetable_optional_max_minutes';
 const _kCapTwoHourBlocksWeeklyKey = 'timetable_cap_two_hour_blocks_weekly';
 const _kTwoHourCapExcludedSubjectsKey = 'timetable_two_hour_cap_excluded_subjects';
+const _kGridZoomKey = 'timetable_grid_zoom';
+const _kLeftPanelWidthKey = 'timetable_left_panel_width';
+const _kShowSummariesKey = 'timetable_show_summaries';
+const _kShowClassListKey = 'timetable_show_class_list';
 
 const List<String> kDefaultDays = [
   'Lundi',
@@ -185,4 +189,51 @@ Future<Set<String>> loadTwoHourCapExcludedSubjects() async {
 Future<void> saveTwoHourCapExcludedSubjects(Set<String> subjects) async {
   final p = await SharedPreferences.getInstance();
   await p.setString(_kTwoHourCapExcludedSubjectsKey, jsonEncode(subjects.toList()));
+}
+
+// UI preferences
+Future<double> loadGridZoom() async {
+  final p = await SharedPreferences.getInstance();
+  final v = p.getDouble(_kGridZoomKey);
+  if (v != null && v > 0.2 && v < 5.0) return v;
+  // Backward compatibility if stored as string
+  final s = p.getString(_kGridZoomKey);
+  final parsed = s != null ? double.tryParse(s) : null;
+  if (parsed != null && parsed > 0.2 && parsed < 5.0) return parsed;
+  return 1.0;
+}
+
+Future<void> saveGridZoom(double zoom) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setDouble(_kGridZoomKey, zoom);
+}
+
+Future<double> loadLeftPanelWidth() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getDouble(_kLeftPanelWidthKey) ?? 200.0;
+}
+
+Future<void> saveLeftPanelWidth(double width) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setDouble(_kLeftPanelWidthKey, width);
+}
+
+Future<bool> loadShowSummaries() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getBool(_kShowSummariesKey) ?? false;
+}
+
+Future<void> saveShowSummaries(bool value) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setBool(_kShowSummariesKey, value);
+}
+
+Future<bool> loadShowClassList() async {
+  final p = await SharedPreferences.getInstance();
+  return p.getBool(_kShowClassListKey) ?? true;
+}
+
+Future<void> saveShowClassList(bool value) async {
+  final p = await SharedPreferences.getInstance();
+  await p.setBool(_kShowClassListKey, value);
 }

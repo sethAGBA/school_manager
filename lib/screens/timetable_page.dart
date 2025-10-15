@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:school_manager/constants/colors.dart';
 
 import 'package:school_manager/services/database_service.dart';
@@ -82,6 +83,12 @@ class _TimetablePageState extends State<TimetablePage>
   bool _saturateAll = false;
   bool _capTwoHourBlocksWeekly = true;
   Set<String> _excludedFromTwoHourCap = <String>{};
+  // Affichage
+  bool _showSummaries = false; // résumés masqués par défaut pour maximiser l'espace
+  bool _showClassList = true;  // panneau de classes visible par défaut
+  bool _fullscreen = false;    // plein écran désactivé par défaut
+  double _gridZoom = 1.0;      // zoom de la grille (1.0 = 100%)
+  double _leftPanelWidth = 200.0; // largeur panneau classes
   // Block sizing settings
   final TextEditingController _blockDefaultCtrl = TextEditingController(text: '2');
   final TextEditingController _threeHourThresholdCtrl = TextEditingController(text: '1.5');
@@ -94,6 +101,8 @@ class _TimetablePageState extends State<TimetablePage>
   final ScrollController _tableVScrollCtrl = ScrollController();
   final ScrollController _tableHScrollCtrl = ScrollController();
   late TabController _tabController;
+  late FocusNode _kbFocus;
+
 
   @override
   void initState() {
@@ -102,6 +111,17 @@ class _TimetablePageState extends State<TimetablePage>
     super.initState();
     _scheduling = SchedulingService(_dbService);
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {});
+      if (_tabController.index == 1) {
+        _kbFocus.requestFocus();
+      }
+    });
+    _kbFocus = FocusNode(debugLabel: 'timetable_keyboard');
+    if (_tabController.index == 1) {
+      // Donner le focus aux raccourcis clavier en vue emploi du temps
+      _kbFocus.requestFocus();
+    }
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
@@ -169,6 +189,11 @@ class _TimetablePageState extends State<TimetablePage>
     _optionalMaxMinutesCtrl.text = (await ttp.loadOptionalMaxMinutes()).toString();
     _capTwoHourBlocksWeekly = await ttp.loadCapTwoHourBlocksWeekly();
     _excludedFromTwoHourCap = await ttp.loadTwoHourCapExcludedSubjects();
+    // UI prefs
+    _showSummaries = await ttp.loadShowSummaries();
+    _showClassList = await ttp.loadShowClassList();
+    _gridZoom = await ttp.loadGridZoom();
+    _leftPanelWidth = await ttp.loadLeftPanelWidth();
 
     setState(() {
       // initialiser la sélection de classe/enseignant si nécessaire
@@ -250,6 +275,7 @@ class _TimetablePageState extends State<TimetablePage>
     _classListScrollCtrl.dispose();
     _tableVScrollCtrl.dispose();
     _tableHScrollCtrl.dispose();
+    _kbFocus.dispose();
     super.dispose();
   }
 
@@ -260,9 +286,16 @@ class _TimetablePageState extends State<TimetablePage>
     final theme = Theme.of(context);
 
     return Scaffold(
+      floatingActionButton: (_tabController.index == 1)
+          ? FloatingActionButton.small(
+              tooltip: _fullscreen ? 'Quitter le plein écran' : 'Plein écran',
+              onPressed: () => setState(() => _fullscreen = !_fullscreen),
+              child: Icon(_fullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
+            )
+          : null,
       body: Column(
         children: [
-          _buildHeader(context, isDarkMode, isDesktop),
+          if (!_fullscreen) _buildHeader(context, isDarkMode, isDesktop),
           Container(
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Container(
@@ -316,9 +349,34 @@ class _TimetablePageState extends State<TimetablePage>
                   child: _buildAutoGenPanel(context),
                 ),
                 // Tab 2: tableau + filtres + exports + palette
-                Column(
+                RawKeyboardListener(
+                  focusNode: _kbFocus,
+                  onKey: (RawKeyEvent e) {
+                    if (_tabController.index != 1) return;
+                    if (e is! RawKeyDownEvent) return;
+                    final k = e.logicalKey;
+                    if (k == LogicalKeyboardKey.equal ||
+                        k == LogicalKeyboardKey.add ||
+                        k == LogicalKeyboardKey.numpadAdd) {
+                      setState(() { _gridZoom = (_gridZoom + 0.1).clamp(0.6, 2.0); });
+                      ttp.saveGridZoom(_gridZoom);
+                    } else if (k == LogicalKeyboardKey.minus ||
+                        k == LogicalKeyboardKey.numpadSubtract) {
+                      setState(() { _gridZoom = (_gridZoom - 0.1).clamp(0.6, 2.0); });
+                      ttp.saveGridZoom(_gridZoom);
+                    } else if (k == LogicalKeyboardKey.keyF) {
+                      setState(() { _fullscreen = !_fullscreen; });
+                    } else if (k == LogicalKeyboardKey.digit0) {
+                      setState(() { _gridZoom = 1.0; _showClassList = true; _showSummaries = false; });
+                      ttp.saveGridZoom(_gridZoom);
+                      ttp.saveShowClassList(_showClassList);
+                      ttp.saveShowSummaries(_showSummaries);
+                    }
+                  },
+                  child: Column(
                   children: [
-                    Padding(
+                    if (!_fullscreen)
+                      Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
                         children: [
@@ -431,60 +489,100 @@ class _TimetablePageState extends State<TimetablePage>
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
                               ),
+                              const SizedBox(width: 12),
+                              _buildViewControls(context),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          if (_isClassView) _buildClassSubjectHoursSummary(context),
+                          if (_isClassView && _showSummaries) _buildClassSubjectHoursSummary(context),
+                          if (_isClassView && _showSummaries) _buildClassTeacherHoursSummary(context),
+                          if (_isClassView && _showSummaries) _buildClassDayHoursSummary(context),
+                          if (!_isClassView && _showSummaries) _buildTeacherHoursSummary(context),
+                          if (!_isClassView && _showSummaries) _buildTeacherDayHoursSummary(context),
                           if (_isClassView) _buildSubjectPalette(context),
                         ],
                       ),
                     ),
                     Expanded(
-                      child: Row(
+                      child: Stack(
                         children: [
-                          SizedBox(
-                            width: 200,
-                            child: Scrollbar(
-                              controller: _classListScrollCtrl,
-                              thumbVisibility: true,
-                              child: ListView.builder(
+                          Row(
+                            children: [
+                              if (_showClassList && !_fullscreen)
+                                SizedBox(
+                                  width: _leftPanelWidth,
+                              child: Scrollbar(
                                 controller: _classListScrollCtrl,
-                                itemCount: _classes.length,
-                                itemBuilder: (context, index) {
-                                  final aClass = _classes[index];
-                                  return ListTile(
-                                    title: Text(_classLabel(aClass), style: theme.textTheme.bodyMedium),
-                                    selected: _classKey(aClass) == _selectedClassKey,
-                                    onTap: () => setState(() => _selectedClassKey = _classKey(aClass)),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Scrollbar(
-                              controller: _tableVScrollCtrl,
-                              thumbVisibility: true,
-                              child: SingleChildScrollView(
-                                controller: _tableVScrollCtrl,
-                                scrollDirection: Axis.vertical,
-                                child: Scrollbar(
-                                  controller: _tableHScrollCtrl,
-                                  thumbVisibility: true,
-                                  notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
-                                  child: SingleChildScrollView(
-                                    controller: _tableHScrollCtrl,
-                                    scrollDirection: Axis.horizontal,
-                                    child: _buildTimetableGrid(context),
-                                  ),
+                                thumbVisibility: true,
+                                child: ListView.builder(
+                                  controller: _classListScrollCtrl,
+                                  itemCount: _classes.length,
+                                  itemBuilder: (context, index) {
+                                    final aClass = _classes[index];
+                                    return ListTile(
+                                      title: Text(_classLabel(aClass), style: theme.textTheme.bodyMedium),
+                                      selected: _classKey(aClass) == _selectedClassKey,
+                                      onTap: () => setState(() => _selectedClassKey = _classKey(aClass)),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
+                          if (_showClassList && !_fullscreen)
+                            MouseRegion(
+                              cursor: SystemMouseCursors.resizeColumn,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.translucent,
+                                onHorizontalDragUpdate: (details) {
+                                  setState(() {
+                                    _leftPanelWidth = (_leftPanelWidth + details.delta.dx).clamp(120.0, 420.0);
+                                  });
+                                  ttp.saveLeftPanelWidth(_leftPanelWidth);
+                                },
+                                child: Container(
+                                  width: 6,
+                                  height: double.infinity,
+                                  color: theme.dividerColor.withOpacity(0.3),
+                                ),
+                              ),
+                            ),
+                              Expanded(
+                                child: Scrollbar(
+                                  controller: _tableVScrollCtrl,
+                                  thumbVisibility: true,
+                                  child: SingleChildScrollView(
+                                    controller: _tableVScrollCtrl,
+                                    scrollDirection: Axis.vertical,
+                                    child: Scrollbar(
+                                      controller: _tableHScrollCtrl,
+                                      thumbVisibility: true,
+                                      notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+                                      child: SingleChildScrollView(
+                                        controller: _tableHScrollCtrl,
+                                        scrollDirection: Axis.horizontal,
+                                        child: _buildTimetableGrid(context),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                          if (_fullscreen)
+                            Positioned(
+                              top: 8,
+                              right: 16,
+                              child: Opacity(
+                                opacity: 0.95,
+                                child: _buildViewControls(context),
+                              ),
+                            ),
                         ],
                       ),
                     ),
                   ],
+                ),
+                // Close RawKeyboardListener
                 ),
               ],
             ),
@@ -564,6 +662,523 @@ class _TimetablePageState extends State<TimetablePage>
           ),
         );
       },
+    );
+  }
+
+  Future<Map<String, int>> _computeClassTeacherMinutes(Class cls) async {
+    final Map<String, int> minutes = {};
+    for (final e in _timetableEntries) {
+      if (e.className == cls.name && e.academicYear == cls.academicYear) {
+        if ((e.teacher).isEmpty) continue;
+        final start = _toMin(e.startTime);
+        final end = _toMin(e.endTime);
+        final diff = (end > start) ? (end - start) : 0;
+        minutes[e.teacher] = (minutes[e.teacher] ?? 0) + diff;
+      }
+    }
+    return minutes;
+  }
+
+  Widget _buildClassTeacherHoursSummary(BuildContext context) {
+    final cls = _selectedClass();
+    if (cls == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return FutureBuilder<Map<String, int>>(
+      future: _computeClassTeacherMinutes(cls),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final data = snap.data!;
+        if (data.isEmpty) return const SizedBox.shrink();
+        String fmtHours(int minutes) {
+          final h = minutes / 60.0;
+          if ((h - h.round()).abs() < 1e-6) return '${h.round()}h';
+          return '${h.toStringAsFixed(1)}h';
+        }
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: data.entries.map((e) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.successGreen.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.person, size: 14, color: AppColors.successGreen),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${e.key}: ${fmtHours(e.value)}',
+                      style: const TextStyle(
+                        color: AppColors.successGreen,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Map<String, int>> _computeClassDayMinutes(Class cls) async {
+    final Map<String, int> minutes = {};
+    for (final e in _timetableEntries) {
+      if (e.className == cls.name && e.academicYear == cls.academicYear) {
+        final start = _toMin(e.startTime);
+        final end = _toMin(e.endTime);
+        final diff = (end > start) ? (end - start) : 0;
+        minutes[e.dayOfWeek] = (minutes[e.dayOfWeek] ?? 0) + diff;
+      }
+    }
+    return minutes;
+  }
+
+  Widget _buildClassDayHoursSummary(BuildContext context) {
+    final cls = _selectedClass();
+    if (cls == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return FutureBuilder<Map<String, int>>(
+      future: _computeClassDayMinutes(cls),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final data = snap.data!;
+        if (data.isEmpty) return const SizedBox.shrink();
+        String fmtHours(int minutes) {
+          final h = minutes / 60.0;
+          if ((h - h.round()).abs() < 1e-6) return '${h.round()}h';
+          return '${h.toStringAsFixed(1)}h';
+        }
+        final totalMinutes = data.values.fold<int>(0, (a, b) => a + b);
+        final chips = <Widget>[];
+        chips.add(Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.primaryBlue.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.summarize, size: 14, color: AppColors.primaryBlue),
+              const SizedBox(width: 6),
+              Text(
+                'Total: ${fmtHours(totalMinutes)}',
+                style: const TextStyle(
+                  color: AppColors.primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ));
+        final ordered = _daysOfWeek
+            .where((d) => data.containsKey(d))
+            .map((d) => MapEntry(d, data[d]!))
+            .toList();
+        chips.addAll(ordered.map((e) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today, size: 14, color: AppColors.primaryBlue),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${e.key}: ${fmtHours(e.value)}',
+                    style: const TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            )));
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: chips,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Map<String, int>> _computeTeacherClassMinutes(String teacherName) async {
+    final Map<String, int> minutes = {};
+    for (final e in _timetableEntries) {
+      if (e.teacher == teacherName) {
+        final start = _toMin(e.startTime);
+        final end = _toMin(e.endTime);
+        final diff = (end > start) ? (end - start) : 0;
+        minutes[e.className] = (minutes[e.className] ?? 0) + diff;
+      }
+    }
+    return minutes;
+  }
+
+  Widget _buildTeacherHoursSummary(BuildContext context) {
+    final teacherName = _selectedTeacherFilter;
+    if (teacherName == null || teacherName.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return FutureBuilder<Map<String, int>>(
+      future: _computeTeacherClassMinutes(teacherName),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final data = snap.data!;
+        if (data.isEmpty) return const SizedBox.shrink();
+        String fmtHours(int minutes) {
+          final h = minutes / 60.0;
+          if ((h - h.round()).abs() < 1e-6) return '${h.round()}h';
+          return '${h.toStringAsFixed(1)}h';
+        }
+        final totalMinutes = data.values.fold<int>(0, (a, b) => a + b);
+        final chips = <Widget>[];
+        chips.add(Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.successGreen.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.summarize, size: 14, color: AppColors.successGreen),
+              const SizedBox(width: 6),
+              Text(
+                'Total: ${fmtHours(totalMinutes)}',
+                style: const TextStyle(
+                  color: AppColors.successGreen,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ));
+        chips.addAll(data.entries.map((e) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.class_, size: 14, color: AppColors.primaryBlue),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${e.key}: ${fmtHours(e.value)}',
+                    style: const TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            )));
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: chips,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Map<String, int>> _computeTeacherDayMinutes(String teacherName) async {
+    final Map<String, int> minutes = {};
+    for (final e in _timetableEntries) {
+      if (e.teacher == teacherName) {
+        final start = _toMin(e.startTime);
+        final end = _toMin(e.endTime);
+        final diff = (end > start) ? (end - start) : 0;
+        minutes[e.dayOfWeek] = (minutes[e.dayOfWeek] ?? 0) + diff;
+      }
+    }
+    return minutes;
+  }
+
+  Widget _buildTeacherDayHoursSummary(BuildContext context) {
+    final teacherName = _selectedTeacherFilter;
+    if (teacherName == null || teacherName.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return FutureBuilder<Map<String, int>>(
+      future: _computeTeacherDayMinutes(teacherName),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final data = snap.data!;
+        if (data.isEmpty) return const SizedBox.shrink();
+        String fmtHours(int minutes) {
+          final h = minutes / 60.0;
+          if ((h - h.round()).abs() < 1e-6) return '${h.round()}h';
+          return '${h.toStringAsFixed(1)}h';
+        }
+        final totalMinutes = data.values.fold<int>(0, (a, b) => a + b);
+        final chips = <Widget>[];
+        chips.add(Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.primaryBlue.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.summarize, size: 14, color: AppColors.primaryBlue),
+              const SizedBox(width: 6),
+              Text(
+                'Total: ${fmtHours(totalMinutes)}',
+                style: const TextStyle(
+                  color: AppColors.primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ));
+        final ordered = _daysOfWeek
+            .where((d) => data.containsKey(d))
+            .map((d) => MapEntry(d, data[d]!))
+            .toList();
+        chips.addAll(ordered.map((e) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today, size: 14, color: AppColors.primaryBlue),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${e.key}: ${fmtHours(e.value)}',
+                    style: const TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            )));
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: chips,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildViewControls(BuildContext context) {
+    final theme = Theme.of(context);
+    Color bg(bool sel) => sel
+        ? theme.colorScheme.primary.withOpacity(0.12)
+        : theme.colorScheme.surfaceVariant.withOpacity(0.5);
+    Color fg(bool sel) => sel
+        ? theme.colorScheme.primary
+        : theme.iconTheme.color?.withOpacity(0.9) ?? Colors.black87;
+
+    Widget controlIcon({
+      required IconData icon,
+      required String tooltip,
+      required bool selected,
+      required VoidCallback onTap,
+    }) {
+      return Tooltip(
+        message: tooltip,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: bg(selected),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
+            ),
+            child: Icon(icon, size: 18, color: fg(selected)),
+          ),
+        ),
+      );
+    }
+
+    final zoomBox = Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            icon: const Icon(Icons.remove, size: 18),
+            tooltip: 'Zoom -',
+            onPressed: () {
+              setState(() {
+                _gridZoom = (_gridZoom - 0.1).clamp(0.6, 2.0);
+              });
+              ttp.saveGridZoom(_gridZoom);
+            },
+          ),
+          const SizedBox(width: 4),
+          PopupMenuButton<double>(
+            tooltip: 'Niveau de zoom',
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(value: 0.75, child: Text('75%')),
+              PopupMenuItem(value: 1.0, child: Text('100%')),
+              PopupMenuItem(value: 1.25, child: Text('125%')),
+              PopupMenuItem(value: 1.5, child: Text('150%')),
+              PopupMenuItem(value: 1.75, child: Text('175%')),
+              PopupMenuItem(value: 2.0, child: Text('200%')),
+            ],
+            onSelected: (v) {
+              setState(() => _gridZoom = v);
+              ttp.saveGridZoom(_gridZoom);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
+              ),
+              child: Text('${(_gridZoom * 100).round()}%', style: theme.textTheme.bodySmall),
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            icon: const Icon(Icons.add, size: 18),
+            tooltip: 'Zoom +',
+            onPressed: () {
+              setState(() {
+                _gridZoom = (_gridZoom + 0.1).clamp(0.6, 2.0);
+              });
+              ttp.saveGridZoom(_gridZoom);
+            },
+          ),
+        ],
+      ),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          zoomBox,
+          Container(
+            width: 1,
+            height: 24,
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            color: theme.dividerColor.withOpacity(0.3),
+          ),
+          controlIcon(
+            icon: Icons.restart_alt,
+            tooltip: 'Réinitialiser (zoom 100%, réafficher liste et résumés masqués)',
+            selected: false,
+            onTap: () {
+              setState(() { _gridZoom = 1.0; _showClassList = true; _showSummaries = false; });
+              ttp.saveGridZoom(_gridZoom);
+              ttp.saveShowClassList(_showClassList);
+              ttp.saveShowSummaries(_showSummaries);
+            },
+          ),
+          const SizedBox(width: 6),
+          controlIcon(
+            icon: _showSummaries ? Icons.summarize : Icons.summarize_outlined,
+            tooltip: _showSummaries ? 'Masquer les résumés' : 'Afficher les résumés',
+            selected: _showSummaries,
+            onTap: () {
+              setState(() => _showSummaries = !_showSummaries);
+              ttp.saveShowSummaries(_showSummaries);
+            },
+          ),
+          const SizedBox(width: 6),
+          controlIcon(
+            icon: _showClassList ? Icons.view_sidebar : Icons.view_sidebar_outlined,
+            tooltip: _showClassList ? 'Masquer la liste des classes' : 'Afficher la liste des classes',
+            selected: _showClassList,
+            onTap: () {
+              setState(() => _showClassList = !_showClassList);
+              ttp.saveShowClassList(_showClassList);
+            },
+          ),
+          const SizedBox(width: 6),
+          controlIcon(
+            icon: _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+            tooltip: _fullscreen ? 'Quitter le plein écran' : 'Plein écran',
+            selected: _fullscreen,
+            onTap: () => setState(() => _fullscreen = !_fullscreen),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1759,20 +2374,24 @@ class _TimetablePageState extends State<TimetablePage>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final leftGutter = 90.0;
-        final topGutter = 20.0;
+        final leftGutter = 90.0 * _gridZoom;
+        final topGutter = 20.0 * _gridZoom;
         // Provide finite dimensions even when unconstrained (inside scroll views)
-        const double defaultCol = 160.0;
-        const double defaultRow = 64.0;
+        const double baseCol = 160.0;
+        const double baseRow = 64.0;
         final rowCount = boundaries.length - 1;
-        final calcGridWidth = constraints.hasBoundedWidth
-            ? (constraints.maxWidth - leftGutter).clamp(0.0, double.infinity)
-            : defaultCol * _daysOfWeek.length;
-        final calcGridHeight = constraints.hasBoundedHeight
-            ? (constraints.maxHeight - topGutter).clamp(0.0, double.infinity)
-            : defaultRow * (rowCount > 0 ? rowCount : 1);
-        final colWidth = (calcGridWidth / _daysOfWeek.length);
-        final rowHeight = (calcGridHeight / (rowCount > 0 ? rowCount : 1));
+        final bool bw = constraints.hasBoundedWidth;
+        final bool bh = constraints.hasBoundedHeight;
+        final double colWidth = bw
+            ? ((constraints.maxWidth - (leftGutter)).clamp(0.0, double.infinity) /
+                    _daysOfWeek.length) *
+                _gridZoom
+            : (baseCol * _gridZoom);
+        final double rowHeight = bh
+            ? ((constraints.maxHeight - (topGutter)).clamp(0.0, double.infinity) /
+                    (rowCount > 0 ? rowCount : 1)) *
+                _gridZoom
+            : (baseRow * _gridZoom);
         final stackWidth = leftGutter + colWidth * _daysOfWeek.length;
         final stackHeight =
             topGutter + rowHeight * (rowCount > 0 ? rowCount : 1);
