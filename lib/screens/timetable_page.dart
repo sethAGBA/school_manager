@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui' show FontFeature;
 import 'package:school_manager/constants/colors.dart';
 
 import 'package:school_manager/services/database_service.dart';
@@ -449,44 +450,69 @@ class _TimetablePageState extends State<TimetablePage>
                                   ),
                                 ),
                               const SizedBox(width: 16),
-                              ElevatedButton.icon(
-                                onPressed: _showAddEditTimetableEntryDialog,
-                                icon: const Icon(Icons.add),
-                                label: const Text('Ajouter un cours'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryBlue,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              Tooltip(
+                                message: 'Ajouter un cours à l\'emploi du temps',
+                                child: ElevatedButton.icon(
+                                  onPressed: _showAddEditTimetableEntryDialog,
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Ajouter un cours'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryBlue,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
+                              if (!_isClassView)
+                                Tooltip(
+                                  message: 'Indisponibilités de l\'enseignant sélectionné',
+                                  child: ElevatedButton.icon(
+                                    onPressed: _showTeacherUnavailabilityDialog,
+                                    icon: const Icon(Icons.event_busy),
+                                    label: const Text('Indisponibilités'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF6D28D9),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              ElevatedButton.icon(
-                                onPressed: () => _exportTimetableToPdf(exportBy: _isClassView ? 'class' : 'teacher'),
-                                icon: const Icon(Icons.picture_as_pdf),
-                                label: const Text('Exporter PDF'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              Tooltip(
+                                message: 'Exporter la vue actuelle (classe/enseignant) en PDF',
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _exportTimetableToPdf(exportBy: _isClassView ? 'class' : 'teacher'),
+                                  icon: const Icon(Icons.picture_as_pdf),
+                                  label: const Text('Exporter PDF'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 16),
-                              ElevatedButton.icon(
-                                onPressed: () => _exportTimetableToExcel(exportBy: _isClassView ? 'class' : 'teacher'),
-                                icon: const Icon(Icons.grid_on),
-                                label: const Text('Exporter Excel'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              Tooltip(
+                                message: 'Exporter la vue actuelle (classe/enseignant) en Excel',
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _exportTimetableToExcel(exportBy: _isClassView ? 'class' : 'teacher'),
+                                  icon: const Icon(Icons.grid_on),
+                                  label: const Text('Exporter Excel'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -2663,8 +2689,8 @@ class _TimetablePageState extends State<TimetablePage>
           }
         }
 
-        // Render entries as positioned blocks
-        for (final e in entries) {
+    // Render entries as positioned blocks
+    for (final e in entries) {
           final dayIndex = _daysOfWeek.indexOf(e.dayOfWeek);
           if (dayIndex < 0) continue;
           final sIdx = indexFor(e.startTime);
@@ -2689,29 +2715,124 @@ class _TimetablePageState extends State<TimetablePage>
               overflow: TextOverflow.ellipsis,
             ),
           );
-          children.add(
-            Positioned(
-              left: leftGutter + dayIndex * colWidth + 2,
-              top: top,
-              width: colWidth - 4,
-              height: height > 28 ? height : 28,
-              child: Draggable<TimetableEntry>(
-                data: e,
-                feedback: Material(color: Colors.transparent, child: content),
-                childWhenDragging: Opacity(opacity: 0.4, child: content),
-                child: GestureDetector(
-                  onTap: () => _showAddEditTimetableEntryDialog(entry: e),
-                  child: content,
-                ),
+      children.add(
+        Positioned(
+          left: leftGutter + dayIndex * colWidth + 2,
+          top: top,
+          width: colWidth - 4,
+          height: height > 28 ? height : 28,
+          child: Draggable<TimetableEntry>(
+            data: e,
+            feedback: Material(color: Colors.transparent, child: content),
+            childWhenDragging: Opacity(opacity: 0.4, child: content),
+            child: GestureDetector(
+              onTap: () => _showAddEditTimetableEntryDialog(entry: e),
+              child: content,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Empty-state overlay with quick actions when no entries
+    if (entries.isEmpty) {
+      Widget actionButton({required IconData icon, required String label, required VoidCallback onPressed, Color? color}) {
+        return ElevatedButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 18),
+          label: Text(label),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color ?? theme.colorScheme.primary,
+            foregroundColor: Colors.white,
+          ),
+        );
+      }
+      children.add(
+        Positioned.fill(
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              constraints: const BoxConstraints(maxWidth: 560),
+              decoration: BoxDecoration(
+                color: theme.cardColor.withOpacity(0.96),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(color: theme.shadowColor.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(Icons.calendar_today, color: theme.colorScheme.primary, size: 28),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Aucun cours à afficher',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _isClassView
+                        ? 'Ajoutez un cours pour la classe sélectionnée, ou utilisez la génération automatique.'
+                        : 'Ajoutez un cours pour l\'enseignant sélectionné, ou utilisez la génération automatique.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      actionButton(
+                        icon: Icons.add,
+                        label: 'Ajouter un cours',
+                        onPressed: () {
+                          Navigator.of(context).popUntil((_) => true); // ensure overlay closes if opened elsewhere
+                          _showAddEditTimetableEntryDialog();
+                        },
+                      ),
+                      actionButton(
+                        icon: Icons.auto_mode,
+                        label: 'Auto‑générer',
+                        color: Colors.green,
+                        onPressed: () async {
+                          if (_isClassView) {
+                            await _autoGenerateForSelectedClass();
+                          } else {
+                            await _autoGenerateForSelectedTeacher();
+                          }
+                        },
+                      ),
+                      actionButton(
+                        icon: Icons.tune,
+                        label: 'Paramètres',
+                        color: Colors.orange,
+                        onPressed: () {
+                          setState(() { _tabController.index = 0; });
+                        },
+                      ),
+                      actionButton(
+                        icon: Icons.help_outline,
+                        label: 'Aide',
+                        color: theme.colorScheme.secondary,
+                        onPressed: _showTimetableHelp,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          );
-        }
+          ),
+        ),
+      );
+    }
 
-        return SizedBox(
-          width: stackWidth.isFinite ? stackWidth : null,
-          height: stackHeight.isFinite ? stackHeight : null,
-          child: Stack(children: children),
+    return SizedBox(
+      width: stackWidth.isFinite ? stackWidth : null,
+      height: stackHeight.isFinite ? stackHeight : null,
+      child: Stack(children: children),
         );
       },
     );
@@ -3375,25 +3496,58 @@ class _TimetablePageState extends State<TimetablePage>
                   ),
                 ],
               ),
-              // Removed quick actions and notification icon for simplicity, can be added later if needed
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: theme.cardColor,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: theme.dividerColor.withOpacity(0.2),
+                      ),
                     ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.notifications_outlined,
-                  color: theme.iconTheme.color,
-                  size: 20,
-                ),
+                    child: Icon(
+                      Icons.notifications_outlined,
+                      color: theme.iconTheme.color,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Help icon opens a top-right modal with info & shortcuts
+                  GestureDetector(
+                    onTap: _showTimetableHelp,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: theme.dividerColor.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.help_outline,
+                        color: theme.iconTheme.color,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -3859,6 +4013,562 @@ class _TimetablePageState extends State<TimetablePage>
             ),
         ],
       ),
+    );
+  }
+
+  void _showTimetableHelp() {
+    final theme = Theme.of(context);
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Aide',
+      barrierColor: Colors.black.withOpacity(0.3),
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (context, anim1, anim2) {
+        Widget kbd(String label) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceVariant.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+            ),
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          );
+        }
+
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                margin: const EdgeInsets.only(top: 16, right: 16, left: 16),
+                padding: const EdgeInsets.all(0),
+                constraints: BoxConstraints(
+                  maxWidth: 520,
+                  minWidth: 320,
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border:
+                      Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.shadowColor.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with accent
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context).colorScheme.secondary,
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          topRight: Radius.circular(16),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.help_outline, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Aide — Emploi du temps',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            tooltip: 'Fermer',
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Sections descriptives des éléments de l'écran
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.switch_account, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Vue et filtres', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('• Bascule Classe/Enseignant: change la perspective d\'affichage.'),
+                          Text('• Sélecteur Classe/Enseignant: filtre la vue actuelle selon la sélection.'),
+                          Text('• Recherche: filtre en direct (classe, enseignant, matière, salle).'),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.build_circle, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Barre d\'actions', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('• Ajouter un cours: ouvre la fenêtre de création/édition.'),
+                          Text('• Exporter PDF/Excel: exporte la vue filtrée (classe/enseignant).'),
+                          Text('• Zoom: ajuster l\'échelle de la grille; Réinitialiser: revenir à 100%.'),
+                          Text('• Résumés: afficher/masquer les pastilles de cumul (matières, professeurs, jours).'),
+                          Text('• Liste des classes: afficher/masquer le panneau latéral; redimensionnable.'),
+                          Text('• Plein écran: maximise l\'espace visible (barre d\'outils accessible en haut‑droite).'),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.grid_on, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Grille d\'emploi du temps', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('• Colonnes = jours, lignes = créneaux; les pauses sont grisées.'),
+                          Text('• Glisser‑déposer un cours pour le déplacer; la durée reste constante.'),
+                          Text('• Conflits détectés: salle occupée, indisponibilité enseignant, chevauchements.'),
+                          Text('• Couleur matière: repère visuel cohérent avec la Palette.'),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.summarize, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Résumés (pastilles)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('• Classe: cumul par matière et par professeur (hebdo).'),
+                          Text('• Classe & Enseignant: cumul par jour.'),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.palette_outlined, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Palette des matières', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('• Glisser une matière vers la grille pour ajouter un cours au créneau.'),
+                          Text('• L\'enseignant proposé dépend des affectations matière/classe.'),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.view_sidebar, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Panneau des classes', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('• Liste des classes (vue Classe) — clic pour changer de classe.'),
+                          Text('• Redimension: glisser la barre verticale; masquable via la barre d\'outils.'),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.auto_mode, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Auto‑génération & indisponibilités', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('• Onglet Paramètres: configurer jours, créneaux, pauses et générer pour classes/enseignants.'),
+                          Text('• Vue Enseignant: Indisponibilités pour marquer les créneaux non disponibles.'),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(color: theme.dividerColor.withOpacity(0.3)),
+                    ),
+                    // Fin des sections descriptives
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                      child: Text(
+                        'Cet écran permet de créer et gérer les emplois du temps par classe et par enseignant. '
+                        'Utilisez la barre d’outils pour zoomer, passer en plein écran, afficher les résumés, ou masquer la liste des classes.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceVariant.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.rocket_launch, size: 18),
+                                const SizedBox(width: 6),
+                                Text('Guide rapide', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            // Rangée 1: vrais boutons principaux
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                // Ajouter un cours (même style que l'en-tête)
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () { Navigator.of(context).pop(); _showAddEditTimetableEntryDialog(); },
+                                      icon: const Icon(Icons.add, color: Colors.white),
+                                      label: const Text('Ajouter un cours', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primaryBlue,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Créer rapidement un nouveau cours', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                                // Export PDF (même style que l'en-tête)
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () { Navigator.of(context).pop(); _exportTimetableToPdf(exportBy: _isClassView ? 'class' : 'teacher'); },
+                                      icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                                      label: const Text('Exporter PDF', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Exporter la vue en PDF', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                                // Export Excel (même style que l'en-tête)
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () { Navigator.of(context).pop(); _exportTimetableToExcel(exportBy: _isClassView ? 'class' : 'teacher'); },
+                                      icon: const Icon(Icons.grid_on, color: Colors.white),
+                                      label: const Text('Exporter Excel', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Exporter la vue en Excel', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            // Rangée 2: actions d'automatisation et de configuration
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        Navigator.of(context).pop();
+                                        if (_isClassView) {
+                                          await _autoGenerateForSelectedClass();
+                                        } else {
+                                          await _autoGenerateForSelectedTeacher();
+                                        }
+                                      },
+                                      icon: const Icon(Icons.auto_mode, color: Colors.white),
+                                      label: const Text('Auto‑générer', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.teal,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Remplir automatiquement sans conflit', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () { Navigator.of(context).pop(); setState(() { _tabController.index = 0; }); },
+                                      icon: const Icon(Icons.tune, color: Colors.white),
+                                      label: const Text('Paramètres', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.orange,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Configurer jours, créneaux, pauses', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                                if (!_isClassView)
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: () async { Navigator.of(context).pop(); await _showTeacherUnavailabilityDialog(); },
+                                        icon: const Icon(Icons.event_busy, color: Colors.white),
+                                        label: const Text('Indisponibilités', style: TextStyle(color: Colors.white)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.deepPurple,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text('Marquer les créneaux non disponibles', style: theme.textTheme.bodySmall),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            // Rangée 3: génération globale & nettoyage
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () async { Navigator.of(context).pop(); await _onGenerateForAllClasses(); },
+                                      icon: const Icon(Icons.apartment, color: Colors.white),
+                                      label: const Text('Générer toutes les classes', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primaryBlue,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Génération pour l’ensemble des classes', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () async { Navigator.of(context).pop(); await _onGenerateForAllTeachers(); },
+                                      icon: const Icon(Icons.groups, color: Colors.white),
+                                      label: const Text('Générer tous les enseignants', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.successGreen,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Génération pour tous les professeurs', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () async { Navigator.of(context).pop(); await _onClearTimetable(); },
+                                      icon: const Icon(Icons.clear_all, color: Colors.white),
+                                      label: const Text('Restaurer à vierge', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Supprimer tous les cours du tableau', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            // Aperçu des contrôles d'affichage réels
+                            Text('Contrôles d\'affichage', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 6),
+                            _buildViewControls(context),
+                            const SizedBox(height: 4),
+                            Text('Zoom, reset, résumés, liste des classes, plein écran', style: theme.textTheme.bodySmall),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(color: theme.dividerColor.withOpacity(0.3)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.keyboard, size: 18),
+                                    const SizedBox(width: 6),
+                                    Text('Raccourcis clavier', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 8,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    kbd('= / +'), Text('Zoom +', style: theme.textTheme.bodySmall),
+                                    kbd('-'), Text('Zoom −', style: theme.textTheme.bodySmall),
+                                    kbd('F'), Text('Plein écran', style: theme.textTheme.bodySmall),
+                                    kbd('0'), Text('Réinitialiser la vue', style: theme.textTheme.bodySmall),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.tips_and_updates, size: 18),
+                                    const SizedBox(width: 6),
+                                    Text('Astuces', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text('• Glisser la barre verticale pour redimensionner la liste des classes.'),
+                                    Text('• Les préférences d’affichage (zoom, liste, résumés) sont mémorisées.'),
+                                    Text('• En plein écran, la barre d’outils reste accessible en haut à droite.'),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
