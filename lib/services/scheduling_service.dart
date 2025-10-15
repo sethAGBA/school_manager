@@ -133,10 +133,14 @@ class SchedulingService {
 
     final Map<String, int> classDailyCount = {};
     final Map<String, Map<String, int>> classSubjectDaily = {};
+    // Track per-day slot starts for each subject to enforce adjacency
+    final Map<String, Set<String>> daySubjStarts = {};
     for (final e in current) {
       final bySubj = classSubjectDaily[e.dayOfWeek] ?? <String,int>{};
       bySubj[e.subject] = (bySubj[e.subject] ?? 0) + 1;
       classSubjectDaily[e.dayOfWeek] = bySubj;
+      final k = '${e.dayOfWeek}|${e.subject}';
+      (daySubjStarts[k] ??= <String>{}).add(e.startTime);
     }
     for (final e in current) {
       classDailyCount[e.dayOfWeek] = (classDailyCount[e.dayOfWeek] ?? 0) + 1;
@@ -283,6 +287,10 @@ class SchedulingService {
           int sb = _parseHHmm(b.split(' - ').first);
           return sa.compareTo(sb);
         });
+        final Map<String, int> slotIndexByStart = {
+          for (int i = 0; i < sortedSlots.length; i++)
+            sortedSlots[i].split(' - ').first: i
+        };
         for (int si = 0; si < sortedSlots.length; si++) {
           final slot = sortedSlots[si];
           if (breakSlots.contains(slot)) continue;
@@ -315,6 +323,24 @@ class SchedulingService {
           // Clamp block to what's allowed remaining today
           blockSlots = min(blockSlots, perDaySubjectCap - currentSubjCount);
           if (blockSlots <= 0) { canPlace = false; }
+          // Enforce adjacency: si une séance de cette matière existe déjà aujourd'hui,
+          // n'autoriser une autre séance que si elle est adjacente à un slot existant
+          if (canPlace) {
+            final k = '$day|$subj';
+            final starts = daySubjStarts[k] ?? const <String>{};
+            if (starts.isNotEmpty) {
+              final curIdx = slotIndexByStart[start] ?? -1;
+              bool adjacent = false;
+              for (final s in starts) {
+                final idx0 = slotIndexByStart[s] ?? -1;
+                if (idx0 != -1 && curIdx != -1 && (curIdx - idx0).abs() == 1) {
+                  adjacent = true;
+                  break;
+                }
+              }
+              if (!adjacent) canPlace = false;
+            }
+          }
           int baseSeg = -1; // 0=morning, 1=afternoon, -1=unknown
           for (int k = 0; k < blockSlots; k++) {
             final idx = si + k;
@@ -402,6 +428,8 @@ class SchedulingService {
             final byS = classSubjectDaily[day] ?? <String,int>{};
             byS[subj] = (byS[subj] ?? 0) + 1;
             classSubjectDaily[day] = byS;
+            final keyDaySubj = '$day|$subj';
+            (daySubjStarts[keyDaySubj] ??= <String>{}).add(st);
             created++;
             if (isOptional(course)) {
               optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + m;
@@ -483,11 +511,22 @@ class SchedulingService {
     );
     final Set<String> classBusy =
         classEntries.map((e) => '${e.dayOfWeek}|${e.startTime}').toSet();
+    // Track day/subject starts for adjacency during saturation
+    final Map<String, Set<String>> daySubjStarts = {};
+    for (final e in classEntries) {
+      (daySubjStarts['${e.dayOfWeek}|${e.subject}'] ??= <String>{}).add(e.startTime);
+    }
 
     // Shuffle orders deterministically per class to diversify
     final rng = Random(_hashSeed('${targetClass.name}|$computedYear|sat'));
     final daysOrder = _shuffled(daysOfWeek, rng);
-    final slotsOrder = _shuffled(timeSlots, Random(rng.nextInt(1 << 31)));
+    // Pour garantir la contiguïté, itérer les créneaux dans l'ordre chronologique
+    final List<String> sortedSlots = List<String>.from(timeSlots);
+    sortedSlots.sort((a, b) {
+      int sa = _parseHHmm(a.split(' - ').first);
+      int sb = _parseHHmm(b.split(' - ').first);
+      return sa.compareTo(sb);
+    });
     final subjOrder = _shuffled(subjects, Random(rng.nextInt(1 << 31)));
 
     // Optional cap tracking (per subject) by minutes (seeded from existing)
@@ -508,8 +547,12 @@ class SchedulingService {
     int created = 0;
     int idx = subjOrder.isNotEmpty ? rng.nextInt(subjOrder.length) : 0;
     for (final day in daysOrder) {
-      for (int si = 0; si < slotsOrder.length; si++) {
-        final slot = slotsOrder[si];
+      final Map<String, int> slotIndexByStart = {
+        for (int i = 0; i < sortedSlots.length; i++)
+          sortedSlots[i].split(' - ').first: i
+      };
+      for (int si = 0; si < sortedSlots.length; si++) {
+        final slot = sortedSlots[si];
         if (breakSlots.contains(slot)) continue;
         final start = slot.split(' - ').first;
         final key = '$day|$start';
@@ -543,6 +586,22 @@ class SchedulingService {
           break;
         }
 
+        // Enforce adjacency for same-day second hour for the same subject
+        final dayKeySubj = '$day|$subj';
+        final existingStarts = daySubjStarts[dayKeySubj] ?? const <String>{};
+        if (existingStarts.isNotEmpty) {
+          final curIdx = slotIndexByStart[start] ?? -1;
+          bool adjacent = false;
+          for (final s in existingStarts) {
+            final idx0 = slotIndexByStart[s] ?? -1;
+            if (idx0 != -1 && curIdx != -1 && (curIdx - idx0).abs() == 1) {
+              adjacent = true;
+              break;
+            }
+          }
+          if (!adjacent) continue; // skip non-adjacent second hour
+        }
+
         final entry = TimetableEntry(
           subject: subj,
           teacher: teacherName,
@@ -555,6 +614,7 @@ class SchedulingService {
         );
         await db.insertTimetableEntry(entry);
         classBusy.add(key);
+        (daySubjStarts[dayKeySubj] ??= <String>{}).add(parts.first);
         if (teacherName.isNotEmpty) {
           teacherBusy.putIfAbsent(teacherName, () => <String>{}).add(key);
         }
@@ -567,8 +627,8 @@ class SchedulingService {
         final isEPSsubj = subj.toLowerCase().contains('eps') || subj.toLowerCase().contains('sport') || subj.toLowerCase().contains('éducation physique') || subj.toLowerCase().contains('education physique');
         if (!isEPSsubj) {
           final int nextIdx = si + 1;
-          if (nextIdx < slotsOrder.length) {
-            final nextSlot = slotsOrder[nextIdx];
+          if (nextIdx < sortedSlots.length) {
+            final nextSlot = sortedSlots[nextIdx];
             if (!breakSlots.contains(nextSlot)) {
               final nStart = nextSlot.split(' - ').first;
               final nKey = '$day|$nStart';
