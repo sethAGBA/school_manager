@@ -544,8 +544,19 @@ class SchedulingService {
       }
     }
 
+    // Charger les coefficients de matières et minutes déjà placées (équité pondérée)
+    final coeffs = await db.getClassSubjectCoefficients(targetClass.name, computedYear);
+    final Map<String, double> weights = {
+      for (final c in subjects) c.name: (coeffs[c.name] ?? 1.0)
+    };
+    final Map<String, int> assignedMinutes = {};
+    for (final e in classEntries) {
+      assignedMinutes[e.subject] =
+          (assignedMinutes[e.subject] ?? 0) + _slotMinutes(e.startTime, e.endTime);
+    }
+
     int created = 0;
-    int idx = subjOrder.isNotEmpty ? rng.nextInt(subjOrder.length) : 0;
+    // Choix pondéré: priorité aux matières ayant le moins de minutes par poids
     for (final day in daysOrder) {
       final Map<String, int> slotIndexByStart = {
         for (int i = 0; i < sortedSlots.length; i++)
@@ -557,36 +568,71 @@ class SchedulingService {
         final start = slot.split(' - ').first;
         final key = '$day|$start';
         if (classBusy.contains(key)) continue; // already has an entry
-
-        // Choose subject in round-robin
-        final subj = subjOrder[idx % subjOrder.length].name;
-        idx++;
-
-        // Enforce optional cap per subject for this class
+        // Déterminer la fin et la durée du créneau
         final parts = slot.split(' - ');
         final end = parts.length > 1 ? parts[1] : parts.first;
         final slotMin = _slotMinutes(parts.first, end);
-        if (optionalMinutes.containsKey(subj)) {
-          final used = optionalMinutes[subj] ?? 0;
-          if (used + slotMin > optionalMaxMinutes) continue;
-        }
 
-        // Find teacher without conflict/unavailability
+        // Construire une liste de candidats triée par (minutes attribuées / poids) croissant
+        final List<String> candidateSubjects =
+            subjOrder.map((c) => c.name).toList(growable: false);
+        candidateSubjects.sort((a, b) {
+          final wa = (weights[a] ?? 1.0);
+          final wb = (weights[b] ?? 1.0);
+          final ma = (assignedMinutes[a] ?? 0);
+          final mb = (assignedMinutes[b] ?? 0);
+          final da = wa > 0 ? (ma / wa) : ma.toDouble();
+          final dbv = wb > 0 ? (mb / wb) : mb.toDouble();
+          return da.compareTo(dbv);
+        });
+
+        String? subj;
         String teacherName = '';
-        final shuffledCands = _shuffled(
-          candidatesFor(subj),
-          Random(_hashSeed('${targetClass.name}|$computedYear|$day|$start|$subj')),
-        );
-        for (final cand in shuffledCands) {
-          final busy = teacherBusy[cand.name] ?? const <String>{};
-          final un = teacherUnavail[cand.name] ?? const <String>{};
-          if (busy.contains(key)) continue;
-          if (un.contains(key)) continue;
-          teacherName = cand.name;
+        for (final candSubj in candidateSubjects) {
+          // Limite optionnelle par minutes/semaine
+          if (optionalMinutes.containsKey(candSubj)) {
+            final used = optionalMinutes[candSubj] ?? 0;
+            if (used + slotMin > optionalMaxMinutes) {
+              continue;
+            }
+          }
+          // Respect adjacency if there is already a session of this subject today
+          final existingStarts = daySubjStarts['$day|$candSubj'] ?? const <String>{};
+          if (existingStarts.isNotEmpty) {
+            final curIdx = slotIndexByStart[start] ?? -1;
+            bool adjacent = false;
+            for (final s in existingStarts) {
+              final idx0 = slotIndexByStart[s] ?? -1;
+              if (idx0 != -1 && curIdx != -1 && (curIdx - idx0).abs() == 1) {
+                adjacent = true;
+                break;
+              }
+            }
+            if (!adjacent) {
+              continue;
+            }
+          }
+          // Trouver un enseignant disponible (si aucun, laisser vide)
+          final shuffledCands = _shuffled(
+            candidatesFor(candSubj),
+            Random(_hashSeed('${targetClass.name}|$computedYear|$day|$start|$candSubj')),
+          );
+          String tName = '';
+          for (final cand in shuffledCands) {
+            final busy = teacherBusy[cand.name] ?? const <String>{};
+            final un = teacherUnavail[cand.name] ?? const <String>{};
+            if (busy.contains(key)) continue;
+            if (un.contains(key)) continue;
+            tName = cand.name;
+            break;
+          }
+          subj = candSubj;
+          teacherName = tName;
           break;
         }
+        if (subj == null) continue;
 
-        // Enforce adjacency for same-day second hour for the same subject
+        // Enforce adjacency for same-day second hour for the same subject (double-check)
         final dayKeySubj = '$day|$subj';
         final existingStarts = daySubjStarts[dayKeySubj] ?? const <String>{};
         if (existingStarts.isNotEmpty) {
@@ -619,6 +665,7 @@ class SchedulingService {
           teacherBusy.putIfAbsent(teacherName, () => <String>{}).add(key);
         }
         created++;
+        assignedMinutes[subj] = (assignedMinutes[subj] ?? 0) + slotMin;
         if (optionalMinutes.containsKey(subj)) {
           optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + slotMin;
         }
@@ -676,9 +723,10 @@ class SchedulingService {
                     teacherBusy.putIfAbsent(teacherName, () => <String>{}).add(nKey);
                   }
                   created++;
+                  final addMin = _slotMinutes(nParts.first, nEnd);
+                  assignedMinutes[subj] = (assignedMinutes[subj] ?? 0) + addMin;
                   if (optionalMinutes.containsKey(subj)) {
-                    final nMin = _slotMinutes(nParts.first, nEnd);
-                    optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + nMin;
+                    optionalMinutes[subj] = (optionalMinutes[subj] ?? 0) + addMin;
                   }
                   // Sauter le slot suivant car consommé pour le bloc
                   si = nextIdx;
