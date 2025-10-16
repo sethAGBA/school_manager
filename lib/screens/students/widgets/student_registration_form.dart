@@ -41,10 +41,11 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
 
   String _generateMatricule() {
     const length = 6;
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const digits = '0123456789';
     final random = Random();
-    return String.fromCharCodes(Iterable.generate(
-        length, (_) => chars.codeUnitAt(random.nextInt(chars.length))));
+    return String.fromCharCodes(
+      Iterable.generate(length, (_) => digits.codeUnitAt(random.nextInt(digits.length))),
+    );
   }
 
   final TextEditingController _studentIdController = TextEditingController();
@@ -334,9 +335,9 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
             ? null
             : _medicalInfoController.text,
         photoPath: photoPath,
-        matricule: _matriculeController.text.isEmpty
+        matricule: _matriculeController.text.trim().isEmpty
             ? null
-            : _matriculeController.text,
+            : _matriculeController.text.replaceAll(RegExp(r'\D'), ''),
       );
       try {
         if (widget.student != null) {
@@ -396,6 +397,13 @@ class _StudentRegistrationFormState extends State<StudentRegistrationForm> {
               controller: _matriculeController,
               labelText: 'Numéro matricule',
               hintText: 'Entrez le numéro matricule (optionnel)',
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                final v = (value ?? '').trim();
+                if (v.isEmpty) return null; // optionnel
+                if (!RegExp(r'^\d+$').hasMatch(v)) return 'Le matricule doit être numérique';
+                return null;
+              },
             ),
             CustomFormField(
               controller: _studentNameController,

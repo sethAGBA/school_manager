@@ -1247,7 +1247,7 @@ class PdfService {
 
                       return [
                         (i + 1).toString(),
-                        (student.matricule ?? ''),
+                        ((student.matricule ?? '').replaceAll(RegExp(r'[^0-9]'), '')),
                         '${student.firstName} ${student.lastName}'.trim(),
                         student.gender == 'M' ? 'M' : 'F',
                         statusLetter,
