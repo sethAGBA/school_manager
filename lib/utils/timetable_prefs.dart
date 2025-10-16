@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _kDaysKey = 'timetable_days';
 const _kSlotsKey = 'timetable_slots';
 const _kBreakSlotsKey = 'timetable_break_slots';
+const _kClassBreakSlotsMapKey = 'timetable_class_break_slots_map';
 const _kMorningStartKey = 'timetable_morning_start';
 const _kMorningEndKey = 'timetable_morning_end';
 const _kAfternoonStartKey = 'timetable_afternoon_start';
@@ -79,6 +80,46 @@ Future<Set<String>> loadBreakSlots() async {
 Future<void> saveBreakSlots(Set<String> breaks) async {
   final p = await SharedPreferences.getInstance();
   await p.setString(_kBreakSlotsKey, jsonEncode(breaks.toList()));
+}
+
+// Per-class break slots mapping
+Future<Map<String, Set<String>>> loadClassBreakSlotsMap() async {
+  final p = await SharedPreferences.getInstance();
+  final s = p.getString(_kClassBreakSlotsMapKey);
+  if (s == null || s.isEmpty) return <String, Set<String>>{};
+  try {
+    final raw = jsonDecode(s);
+    if (raw is Map<String, dynamic>) {
+      final out = <String, Set<String>>{};
+      raw.forEach((k, v) {
+        if (v is List) {
+          out[k] = v.map<String>((e) => e.toString()).toSet();
+        }
+      });
+      return out;
+    }
+  } catch (_) {}
+  return <String, Set<String>>{};
+}
+
+Future<void> saveClassBreakSlotsMap(Map<String, Set<String>> map) async {
+  final p = await SharedPreferences.getInstance();
+  final enc = <String, List<String>>{};
+  map.forEach((k, v) => enc[k] = v.toList());
+  await p.setString(_kClassBreakSlotsMapKey, jsonEncode(enc));
+}
+
+Future<void> saveClassBreaksForClasses(Set<String> classKeys, Set<String> breaks) async {
+  final current = await loadClassBreakSlotsMap();
+  for (final key in classKeys) {
+    current[key] = Set<String>.from(breaks);
+  }
+  await saveClassBreakSlotsMap(current);
+}
+
+Future<Set<String>> loadBreakSlotsForClass(String classKey) async {
+  final map = await loadClassBreakSlotsMap();
+  return map[classKey] ?? <String>{};
 }
 
 Future<String> loadMorningStart() async {

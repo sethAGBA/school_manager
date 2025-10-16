@@ -68,6 +68,7 @@ class _TimetablePageState extends State<TimetablePage>
 
   final List<String> _timeSlots = List.of(ttp.kDefaultSlots);
   Set<String> _breakSlots = <String>{};
+  Map<String, Set<String>> _classBreakSlotsMap = <String, Set<String>>{};
   // Auto-generation settings
   final TextEditingController _morningStartCtrl = TextEditingController();
   final TextEditingController _morningEndCtrl = TextEditingController();
@@ -178,12 +179,14 @@ class _TimetablePageState extends State<TimetablePage>
     final prefDays = await ttp.loadDays();
     final prefSlots = await ttp.loadSlots();
     final prefBreaks = await ttp.loadBreakSlots();
+    final classBreaksMap = await ttp.loadClassBreakSlotsMap();
     _daysOfWeek
       ..clear()
       ..addAll(prefDays);
     _timeSlots
       ..clear()
       ..addAll(prefSlots);
+    _classBreakSlotsMap = classBreaksMap;
     _breakSlots = prefBreaks;
 
     // Load auto-gen prefs
@@ -215,6 +218,12 @@ class _TimetablePageState extends State<TimetablePage>
         }
       }
 
+      // Apply per-class break override if present
+      if (_selectedClassKey != null &&
+          _classBreakSlotsMap.containsKey(_selectedClassKey)) {
+        _breakSlots = Set<String>.from(_classBreakSlotsMap[_selectedClassKey]!);
+      }
+
       if (_selectedTeacherFilter == null && _teachers.isNotEmpty) {
         _selectedTeacherFilter = _teachers.first.name;
       }
@@ -236,6 +245,21 @@ class _TimetablePageState extends State<TimetablePage>
     // Démarrer le tour guidé si première fois
     if (!_tourSeen) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _startTimetableTour());
+    }
+  }
+
+  Future<void> _onSelectClassKey(String? key) async {
+    setState(() => _selectedClassKey = key);
+    if (key == null) return;
+    // Refresh break slots based on per-class override
+    final map = _classBreakSlotsMap.isEmpty
+        ? await ttp.loadClassBreakSlotsMap()
+        : _classBreakSlotsMap;
+    if (map.containsKey(key)) {
+      setState(() => _breakSlots = Set<String>.from(map[key]!));
+    } else {
+      final global = await ttp.loadBreakSlots();
+      setState(() => _breakSlots = global);
     }
   }
 
@@ -441,7 +465,7 @@ class _TimetablePageState extends State<TimetablePage>
                                                 child: Text(_classLabel(cls), style: theme.textTheme.bodyMedium),
                                               ))
                                           .toList(),
-                                      onChanged: (v) => setState(() => _selectedClassKey = v),
+                                      onChanged: (v) => _onSelectClassKey(v),
                                     ),
                                   ),
                                 )
@@ -597,7 +621,7 @@ class _TimetablePageState extends State<TimetablePage>
                                         return ListTile(
                                           title: Text(_classLabel(aClass), style: theme.textTheme.bodyMedium),
                                           selected: _classKey(aClass) == _selectedClassKey,
-                                          onTap: () => setState(() => _selectedClassKey = _classKey(aClass)),
+                                          onTap: () => _onSelectClassKey(_classKey(aClass)),
                                         );
                                       },
                                     ),
@@ -1319,6 +1343,15 @@ class _TimetablePageState extends State<TimetablePage>
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const Spacer(),
+              Tooltip(
+                message: 'Éditer jours, créneaux et pauses (par classe ou global)',
+                child: OutlinedButton.icon(
+                  onPressed: _showEditGridDialog,
+                  icon: const Icon(Icons.schedule),
+                  label: const Text('Éditer jours / créneaux / pauses'),
+                ),
+              ),
+              const SizedBox(width: 8),
               if (_isGenerating) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
             ],
           ),
@@ -1611,15 +1644,18 @@ class _TimetablePageState extends State<TimetablePage>
     try {
       await _saveAutoGenPrefs();
       final slots = List<String>.from(_timeSlots);
+      final classBreaksMap = await ttp.loadClassBreakSlotsMap();
       int total = 0;
           for (final cls in _classes) {
+            final classKey = _classKey(cls);
+            final effectiveBreaks = classBreaksMap[classKey] ?? _breakSlots;
             int created = 0;
             if (_saturateAll) {
               created = await _scheduling.autoSaturateForClass(
                 targetClass: cls,
                 daysOfWeek: _daysOfWeek,
                 timeSlots: slots,
-                breakSlots: _breakSlots,
+                breakSlots: effectiveBreaks,
                 clearExisting: _clearBeforeGen,
                 optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
                 morningStart: _morningStartCtrl.text.trim(),
@@ -1632,7 +1668,7 @@ class _TimetablePageState extends State<TimetablePage>
                 targetClass: cls,
                 daysOfWeek: _daysOfWeek,
                 timeSlots: slots,
-                breakSlots: _breakSlots,
+                breakSlots: effectiveBreaks,
                 clearExisting: _clearBeforeGen,
                 sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
                 enforceTeacherWeeklyHours: true,
@@ -1675,15 +1711,29 @@ class _TimetablePageState extends State<TimetablePage>
     try {
       await _saveAutoGenPrefs();
       final slots = List<String>.from(_timeSlots);
+      final classBreaksMap = await ttp.loadClassBreakSlotsMap();
       int total = 0;
       for (final t in _teachers) {
+        // Construire l'union des pauses des classes de cet enseignant (année courante)
+        final currentYear = await getCurrentAcademicYear();
+        final Set<String> effectiveBreaks = Set<String>.from(_breakSlots);
+        for (final className in t.classes) {
+          final cls = _classes.firstWhere(
+            (c) => c.name == className && c.academicYear == currentYear,
+            orElse: () => Class(name: className, academicYear: currentYear),
+          );
+          final key = _classKey(cls);
+          if (classBreaksMap.containsKey(key)) {
+            effectiveBreaks.addAll(classBreaksMap[key]!);
+          }
+        }
         int created = 0;
         if (_saturateAll) {
           created = await _scheduling.autoSaturateForTeacher(
             teacher: t,
             daysOfWeek: _daysOfWeek,
             timeSlots: slots,
-            breakSlots: _breakSlots,
+            breakSlots: effectiveBreaks,
             clearExisting: _clearBeforeGen,
             optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
           );
@@ -1692,7 +1742,7 @@ class _TimetablePageState extends State<TimetablePage>
             teacher: t,
             daysOfWeek: _daysOfWeek,
             timeSlots: slots,
-            breakSlots: _breakSlots,
+            breakSlots: effectiveBreaks,
             clearExisting: _clearBeforeGen,
             sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
             enforceTeacherWeeklyHours: true,
@@ -1735,12 +1785,17 @@ class _TimetablePageState extends State<TimetablePage>
     setState(() => _isGenerating = true);
     try {
       await _saveAutoGenPrefs();
+      final currentYear = await getCurrentAcademicYear();
+      final classKey = _classKey(cls);
+      final classBreaksMap = await ttp.loadClassBreakSlotsMap();
+      final Set<String> effectiveBreaks =
+          classBreaksMap[classKey] ?? _breakSlots;
       final created = _saturateAll
           ? await _scheduling.autoSaturateForClass(
               targetClass: cls,
               daysOfWeek: _daysOfWeek,
               timeSlots: List<String>.from(_timeSlots),
-              breakSlots: _breakSlots,
+              breakSlots: effectiveBreaks,
               clearExisting: _clearBeforeGen,
               optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
               morningStart: _morningStartCtrl.text.trim(),
@@ -1752,7 +1807,7 @@ class _TimetablePageState extends State<TimetablePage>
               targetClass: cls,
               daysOfWeek: _daysOfWeek,
               timeSlots: List<String>.from(_timeSlots),
-              breakSlots: _breakSlots,
+              breakSlots: effectiveBreaks,
               clearExisting: _clearBeforeGen,
               sessionsPerSubject: int.tryParse(_sessionsPerSubjectCtrl.text) ?? 1,
               enforceTeacherWeeklyHours: true,
@@ -3027,11 +3082,15 @@ class _TimetablePageState extends State<TimetablePage>
     if (confirmed != true) return;
 
     // After dialog closes, run generation
+    // Use per-class breaks if configured
+    final classKey = _classKey(cls);
+    final map = await ttp.loadClassBreakSlotsMap();
+    final effectiveBreaks = map[classKey] ?? _breakSlots;
     final created = await _scheduling.autoGenerateForClass(
       targetClass: cls,
       daysOfWeek: _daysOfWeek,
       timeSlots: _timeSlots,
-      breakSlots: _breakSlots,
+      breakSlots: effectiveBreaks,
       clearExisting: clearExisting,
       sessionsPerSubject: sessionsPerSubject,
       teacherMaxPerDay: teacherMaxPerDay == 0 ? null : teacherMaxPerDay,
@@ -3204,21 +3263,44 @@ class _TimetablePageState extends State<TimetablePage>
       );
     } catch (_) {}
 
-    final created = await _scheduling.autoGenerateForTeacher(
-      teacher: teacher,
-      daysOfWeek: _daysOfWeek,
-      timeSlots: _timeSlots,
-      breakSlots: _breakSlots,
-      clearExisting: clearExisting,
-      sessionsPerSubject: sessionsPerSubject,
-      teacherMaxPerDay: teacherMaxPerDay == 0 ? null : teacherMaxPerDay,
-      teacherWeeklyHours: weeklyHours,
-      subjectMaxPerDay: subjectMaxPerDay == 0 ? null : subjectMaxPerDay,
-      classMaxPerDay: classMaxPerDay == 0 ? null : classMaxPerDay,
-      optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
-      limitTwoHourBlocksPerWeek: _capTwoHourBlocksWeekly,
-      excludedFromWeeklyTwoHourCap: _excludedFromTwoHourCap,
-    );
+    // Construire l'union des pauses des classes de cet enseignant
+    final currentYear = await getCurrentAcademicYear();
+    final classBreaksMap = await ttp.loadClassBreakSlotsMap();
+    final Set<String> effectiveBreaks = Set<String>.from(_breakSlots);
+    for (final className in teacher.classes) {
+      final cls = _classes.firstWhere(
+        (c) => c.name == className && c.academicYear == currentYear,
+        orElse: () => Class(name: className, academicYear: currentYear),
+      );
+      final key = _classKey(cls);
+      if (classBreaksMap.containsKey(key)) {
+        effectiveBreaks.addAll(classBreaksMap[key]!);
+      }
+    }
+    final created = _saturateAll
+        ? await _scheduling.autoSaturateForTeacher(
+            teacher: teacher,
+            daysOfWeek: _daysOfWeek,
+            timeSlots: _timeSlots,
+            breakSlots: effectiveBreaks,
+            clearExisting: clearExisting,
+            optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+          )
+        : await _scheduling.autoGenerateForTeacher(
+            teacher: teacher,
+            daysOfWeek: _daysOfWeek,
+            timeSlots: _timeSlots,
+            breakSlots: effectiveBreaks,
+            clearExisting: clearExisting,
+            sessionsPerSubject: sessionsPerSubject,
+            teacherMaxPerDay: teacherMaxPerDay == 0 ? null : teacherMaxPerDay,
+            teacherWeeklyHours: weeklyHours,
+            subjectMaxPerDay: subjectMaxPerDay == 0 ? null : subjectMaxPerDay,
+            classMaxPerDay: classMaxPerDay == 0 ? null : classMaxPerDay,
+            optionalMaxMinutes: int.tryParse(_optionalMaxMinutesCtrl.text) ?? 120,
+            limitTwoHourBlocksPerWeek: _capTwoHourBlocksWeekly,
+            excludedFromWeeklyTwoHourCap: _excludedFromTwoHourCap,
+          );
     await _loadData();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -3375,6 +3457,28 @@ class _TimetablePageState extends State<TimetablePage>
                             ),
                           )
                           .toList(),
+                    ),
+
+                    const SizedBox(height: 12),
+                    Text(
+                      'Appliquer ces pauses aux classes',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    _ClassMultiSelect(
+                      allClasses: _classes,
+                      selectedDefault: _selectedClassKey != null
+                          ? {_selectedClassKey!}
+                          : <String>{},
+                      toKey: _classKey,
+                      onApply: (selectedKeys) async {
+                        await ttp.saveClassBreaksForClasses(selectedKeys, breaks);
+                        // Reload mapping locally
+                        final map = await ttp.loadClassBreakSlotsMap();
+                        setState(() {
+                          _classBreakSlotsMap = map;
+                        });
+                      },
                     ),
                   ],
                 ),
@@ -5050,6 +5154,138 @@ class _TimetablePageState extends State<TimetablePage>
       await file.writeAsBytes(bytes);
       OpenFile.open(file.path);
     }
+  }
+}
+
+class _ClassMultiSelect extends StatefulWidget {
+  final List<Class> allClasses;
+  final Set<String> selectedDefault;
+  final String Function(Class) toKey;
+  final Future<void> Function(Set<String> selectedKeys) onApply;
+  const _ClassMultiSelect({
+    Key? key,
+    required this.allClasses,
+    required this.selectedDefault,
+    required this.toKey,
+    required this.onApply,
+  }) : super(key: key);
+
+  @override
+  State<_ClassMultiSelect> createState() => _ClassMultiSelectState();
+}
+
+class _ClassMultiSelectState extends State<_ClassMultiSelect> {
+  late Set<String> _selected;
+  bool _asc = true;
+  String _search = '';
+  final ScrollController _scrollCtrl = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = Set<String>.from(widget.selectedDefault);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    List<Class> items = List<Class>.from(widget.allClasses);
+    if (_search.isNotEmpty) {
+      items = items
+          .where((c) =>
+              c.name.toLowerCase().contains(_search.toLowerCase()) ||
+              (c.academicYear).toLowerCase().contains(_search.toLowerCase()))
+          .toList();
+    }
+    items.sort((a, b) => _asc
+        ? a.name.compareTo(b.name)
+        : b.name.compareTo(a.name));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Rechercher une classe…',
+                  isDense: true,
+                ),
+                onChanged: (v) => setState(() => _search = v.trim()),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Trier',
+              onPressed: () => setState(() => _asc = !_asc),
+              icon: Icon(_asc ? Icons.sort_by_alpha : Icons.sort),
+            ),
+            TextButton(
+              onPressed: () => setState(() => _selected =
+                  widget.allClasses.map(widget.toKey).toSet()),
+              child: const Text('Tout sélectionner'),
+            ),
+            TextButton(
+              onPressed: () => setState(() => _selected.clear()),
+              child: const Text('Tout désélectionner'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 180,
+          child: Scrollbar(
+            controller: _scrollCtrl,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _scrollCtrl,
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final c = items[index];
+                final key = widget.toKey(c);
+                return CheckboxListTile(
+                  value: _selected.contains(key),
+                  onChanged: (v) {
+                    setState(() {
+                      if (v == true) {
+                        _selected.add(key);
+                      } else {
+                        _selected.remove(key);
+                      }
+                    });
+                  },
+                  title: Text('${c.name} (${c.academicYear})',
+                      style: theme.textTheme.bodyMedium),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                );
+              },
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              await widget.onApply(_selected);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Pauses appliquées aux classes sélectionnées.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            icon: const Icon(Icons.playlist_add_check),
+            label: const Text('Appliquer'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 }
 

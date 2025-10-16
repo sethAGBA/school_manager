@@ -946,32 +946,44 @@ class PdfService {
     final schoolInfo = await dbService.getSchoolInfo();
     final currentAcademicYear = await getCurrentAcademicYear();
 
+    final String footerDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
     pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(24),
-        build: (context) {
-          return pw.Stack(
-            children: [
-              // Logo en filigrane en arrière-plan
-              if (schoolInfo?.logoPath != null &&
+      pw.MultiPage(
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(24),
+          buildBackground: (schoolInfo?.logoPath != null &&
                   File(schoolInfo!.logoPath!).existsSync())
-                pw.Positioned.fill(
-                  child: pw.Center(
+              ? (context) => pw.FullPage(
+                    ignoreMargins: true,
                     child: pw.Opacity(
                       opacity: 0.06,
                       child: pw.Image(
                         pw.MemoryImage(
                           File(schoolInfo.logoPath!).readAsBytesSync(),
                         ),
-                        width: 400,
+                        fit: pw.BoxFit.cover,
                       ),
                     ),
-                  ),
-                ),
-              // Contenu principal
-              pw.Column(
-                children: [
+                  )
+              : null,
+        ),
+        footer: (context) => pw.Column(
+          children: [
+            pw.Container(height: 0.8, color: PdfColors.blueGrey300),
+            pw.SizedBox(height: 4),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Date: ' + footerDate, style: pw.TextStyle(font: times, fontSize: 8)),
+                pw.Text('Page ' + context.pageNumber.toString() + '/' + context.pagesCount.toString(),
+                    style: pw.TextStyle(font: times, fontSize: 8)),
+              ],
+            ),
+          ],
+        ),
+        build: (context) {
+          return [
                   // En-tête administratif
                   if (schoolInfo != null) ...[
                     pw.Row(
@@ -1057,102 +1069,43 @@ class PdfService {
                     ),
                     pw.SizedBox(height: 8),
                   ],
-                  // Header avec logo et informations de l'école
-                  pw.Container(
-                    padding: const pw.EdgeInsets.all(16),
-                    decoration: pw.BoxDecoration(
-                      color: light,
-                      borderRadius: pw.BorderRadius.circular(8),
-                      border: pw.Border.all(color: accent, width: 1),
-                    ),
-                    child: pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        if (schoolInfo?.logoPath != null &&
-                            File(schoolInfo!.logoPath!).existsSync())
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.only(right: 16),
-                            child: pw.Image(
-                              pw.MemoryImage(
-                                File(schoolInfo.logoPath!).readAsBytesSync(),
-                              ),
-                              width: 60,
-                              height: 60,
+                  // En-tête harmonisé (comme le relevé de notes): logo centré + nom d'établissement en majuscules + séparateur
+                  if (schoolInfo != null) ...[
+                    if ((schoolInfo!.logoPath ?? '').isNotEmpty &&
+                        File(schoolInfo!.logoPath!).existsSync())
+                      pw.Center(
+                        child: pw.Container(
+                          height: 40,
+                          width: 40,
+                          child: pw.Image(
+                            pw.MemoryImage(
+                              File(schoolInfo.logoPath!).readAsBytesSync(),
                             ),
-                          ),
-                        pw.Expanded(
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Text(
-                                schoolInfo?.name ?? 'École',
-                                style: pw.TextStyle(
-                                  font: timesBold,
-                                  fontSize: 20,
-                                  color: accent,
-                                  fontWeight: pw.FontWeight.bold,
-                                ),
-                              ),
-                              pw.SizedBox(height: 4),
-                              pw.Text(
-                                schoolInfo?.address ?? '',
-                                style: pw.TextStyle(
-                                  font: times,
-                                  fontSize: 11,
-                                  color: primary,
-                                ),
-                              ),
-                              pw.SizedBox(height: 4),
-                              pw.Text(
-                                'Année académique: $currentAcademicYear  -  Généré le: ' +
-                                  DateFormat(
-                                    'dd/MM/yyyy HH:mm',
-                                  ).format(DateTime.now()),
-                                style: pw.TextStyle(
-                                  font: times,
-                                  fontSize: 10,
-                                  color: primary,
-                                ),
-                              ),
-                              if ((schoolInfo?.email ?? '').isNotEmpty)
-                                pw.Text(
-                                  'Email : ${schoolInfo!.email}',
-                                  style: pw.TextStyle(
-                                    font: times,
-                                    fontSize: 10,
-                                    color: primary,
-                                  ),
-                                ),
-                              if ((schoolInfo?.website ?? '').isNotEmpty)
-                                pw.Text(
-                                  'Site web : ${schoolInfo!.website}',
-                                  style: pw.TextStyle(
-                                    font: times,
-                                    fontSize: 10,
-                                    color: primary,
-                                  ),
-                                ),
-                              if ((schoolInfo?.telephone ?? '').isNotEmpty)
-                                pw.Text(
-                                  'Téléphone : ${schoolInfo!.telephone}',
-                                  style: pw.TextStyle(
-                                    font: times,
-                                    fontSize: 10,
-                                    color: primary,
-                                  ),
-                                ),
-                            ],
+                            fit: pw.BoxFit.contain,
                           ),
                         ),
-                      ],
+                      ),
+                    pw.SizedBox(height: 4),
+                    pw.Center(
+                      child: pw.Text(
+                        ((schoolInfo!.name ?? '')).toUpperCase(),
+                        style: pw.TextStyle(
+                          font: timesBold,
+                          fontSize: 14,
+                          color: primary,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
-                  pw.SizedBox(height: 20),
+                    pw.SizedBox(height: 6),
+                    pw.Divider(color: PdfColors.blueGrey300),
+                    pw.SizedBox(height: 8),
+                  ],
 
                   // Titre principal
                   pw.Container(
                     padding: const pw.EdgeInsets.symmetric(
-                      vertical: 12,
+                      vertical: 8,
                       horizontal: 16,
                     ),
                     decoration: pw.BoxDecoration(
@@ -1163,7 +1116,7 @@ class PdfService {
                       'Liste des élèves de la classe de ${sorted.isNotEmpty ? sorted.first['classe']?.name ?? 'classe' : 'classe'}',
                       style: pw.TextStyle(
                         font: timesBold,
-                        fontSize: 18,
+                        fontSize: 14,
                         color: PdfColors.white,
                         fontWeight: pw.FontWeight.bold,
                       ),
@@ -1320,10 +1273,7 @@ class PdfService {
                     ),
                     cellPadding: const pw.EdgeInsets.all(8),
                   ),
-                ],
-              ),
-            ],
-          );
+          ];
         },
       ),
     );
@@ -1494,19 +1444,7 @@ class PdfService {
                               ),
                               pw.SizedBox(height: 4),
                               pw.Text(
-                                schoolInfo?.address ?? '',
-                                style: pw.TextStyle(
-                                  font: times,
-                                  fontSize: 11,
-                                  color: primary,
-                                ),
-                              ),
-                              pw.SizedBox(height: 4),
-                              pw.Text(
-                                'Année académique: $currentAcademicYear  -  Généré le: ' +
-                                    DateFormat(
-                                      'dd/MM/yyyy HH:mm',
-                                    ).format(DateTime.now()),
+                                'Année académique: $currentAcademicYear',
                                 style: pw.TextStyle(
                                   font: times,
                                   fontSize: 10,

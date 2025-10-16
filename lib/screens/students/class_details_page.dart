@@ -3010,12 +3010,21 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
         range.cellStyle = headerStyle;
         sheet.autoFitColumn(c);
       }
-
-      setHeader(col++, 'ID_Eleve');
-      setHeader(col++, 'Nom');
-      setHeader(col++, 'Classe');
-      setHeader(col++, 'Annee');
-      setHeader(col++, 'Periode');
+      // Colonnes d'identification et infos élèves
+      final int idCol = col; setHeader(col++, 'ID_Eleve');
+      final int matriculeCol = col; setHeader(col++, 'Matricule');
+      final int nameCol = col; setHeader(col++, 'Nom Prénom');
+      final int classCol = col; setHeader(col++, 'Classe');
+      final int yearCol = col; setHeader(col++, 'Annee');
+      final int periodCol = col; setHeader(col++, 'Periode');
+      final int sexCol = col; setHeader(col++, 'Sexe');
+      final int statusCol = col; setHeader(col++, 'Statut');
+      // Notes de classe (3 cellules), moyenne, et note de composition
+      final int note1Col = col; setHeader(col++, 'Notes de classe');
+      final int note2Col = col; setHeader(col++, '');
+      final int note3Col = col; setHeader(col++, '');
+      final int avgClassCol = col; setHeader(col++, 'Moyenne Classe');
+      final int compNoteCol = col; setHeader(col++, 'Note Composition');
       // Colonnes dynamiques Devoir(s) (valeurs uniquement)
       final List<int> devoirCols = [];
       for (int i = 0; i < devCount; i++) {
@@ -3032,27 +3041,54 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
         setHeader(cCol, '$label [$subjectName]');
         compCols.add(cCol);
       }
+      // Fusionner l'entête des 3 colonnes de notes de classe
+      try {
+        final mergeRange = sheet.getRangeByIndex(1, note1Col, 1, note3Col);
+        mergeRange.merge();
+        mergeRange.cellStyle = headerStyle;
+        sheet.autoFitColumn(note1Col);
+      } catch (_) {}
+      // Observations en dernière colonne
+      final int obsCol = col; setHeader(col++, 'Observations');
 
-      final Map<String, double> subjectCoeffs = await _dbService
-          .getClassSubjectCoefficients(_nameController.text, _yearController.text);
-      final double coeffMatiere = subjectCoeffs[subjectName] ?? 1;
+      // Conserver compat: aucun préremplissage devoir/composition
 
       for (int i = 0; i < _students.length; i++) {
         final row = i + 2;
         final s = _students[i];
-        sheet.getRangeByIndex(row, 1).setText(s.id);
-        sheet.getRangeByIndex(row, 2).setText(s.name);
-        sheet.getRangeByIndex(row, 3).setText(_nameController.text);
-        sheet.getRangeByIndex(row, 4).setText(_yearController.text);
-        sheet.getRangeByIndex(row, 5).setText(selectedTerm);
-
-        // aucune préremplissage pour devoir/comp: l'utilisateur saisit uniquement les notes
-        // Pas de colonnes prof/app/moyClasse dans ce modèle simplifié
+        // Identifiants et infos
+        sheet.getRangeByIndex(row, idCol).setText(s.id);
+        sheet.getRangeByIndex(row, matriculeCol).setText(s.matricule ?? '');
+        sheet.getRangeByIndex(row, nameCol).setText('${s.lastName} ${s.firstName}'.trim());
+        sheet.getRangeByIndex(row, classCol).setText(_nameController.text);
+        sheet.getRangeByIndex(row, yearCol).setText(_yearController.text);
+        sheet.getRangeByIndex(row, periodCol).setText(selectedTerm);
+        sheet.getRangeByIndex(row, sexCol).setText(s.gender);
+        sheet.getRangeByIndex(row, statusCol).setText(s.status);
+        // Notes de classe et moyennes (saisie libre)
+        sheet.getRangeByIndex(row, note1Col).setText('');
+        sheet.getRangeByIndex(row, note2Col).setText('');
+        sheet.getRangeByIndex(row, note3Col).setText('');
+        sheet.getRangeByIndex(row, avgClassCol).setText('');
+        sheet.getRangeByIndex(row, compNoteCol).setText('');
+        
+        // Notes: aucune préremplissage pour devoir/comp: saisie utilisateur
+        // Observations (dernière colonne)
+        sheet.getRangeByIndex(row, obsCol).setText('');
       }
 
       final lastRow = (_students.isNotEmpty ? _students.length : 1) + 1;
-      // Validation 0-20 sur toutes colonnes de notes (devoirs + compositions)
-      for (final colIndex in [...devoirCols, ...compCols]) {
+      // Validation 0-20 sur colonnes de notes (devoirs + compositions + notes de classe + moyenne + comp. note)
+      final List<int> gradeCols = [
+        ...devoirCols,
+        ...compCols,
+        note1Col,
+        note2Col,
+        note3Col,
+        avgClassCol,
+        compNoteCol,
+      ];
+      for (final colIndex in gradeCols) {
         try {
           final dv = sheet.getRangeByIndex(2, colIndex, lastRow, colIndex).dataValidation;
           (dv as dynamic).allowType = 2; // decimal
@@ -3069,10 +3105,10 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       for (int c = 1; c <= col; c++) { sheet.autoFitColumn(c); }
 
       // Masquer les colonnes de métadonnées (ID, Classe, Annee, Periode)
-      try { (sheet as dynamic).hideColumn(1); } catch (_) { try { sheet.getRangeByIndex(1,1,1,1).columnWidth = 0; } catch (_) {} }
-      try { (sheet as dynamic).hideColumn(3); } catch (_) { try { sheet.getRangeByIndex(1,3,1,3).columnWidth = 0; } catch (_) {} }
-      try { (sheet as dynamic).hideColumn(4); } catch (_) { try { sheet.getRangeByIndex(1,4,1,4).columnWidth = 0; } catch (_) {} }
-      try { (sheet as dynamic).hideColumn(5); } catch (_) { try { sheet.getRangeByIndex(1,5,1,5).columnWidth = 0; } catch (_) {} }
+      try { (sheet as dynamic).hideColumn(idCol); } catch (_) { try { sheet.getRangeByIndex(1,idCol,1,idCol).columnWidth = 0; } catch (_) {} }
+      try { (sheet as dynamic).hideColumn(classCol); } catch (_) { try { sheet.getRangeByIndex(1,classCol,1,classCol).columnWidth = 0; } catch (_) {} }
+      try { (sheet as dynamic).hideColumn(yearCol); } catch (_) { try { sheet.getRangeByIndex(1,yearCol,1,yearCol).columnWidth = 0; } catch (_) {} }
+      try { (sheet as dynamic).hideColumn(periodCol); } catch (_) { try { sheet.getRangeByIndex(1,periodCol,1,periodCol).columnWidth = 0; } catch (_) {} }
 
       final bytes = workbook.saveAsStream();
       workbook.dispose();
@@ -3116,9 +3152,14 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
   ) async {
     try {
       final pdf = pw.Document();
-      final title = 'Modèle de saisie des notes';
+      final title = 'RELEVE DE NOTES DE CLASSE';
       final className = _nameController.text;
       final year = _yearController.text;
+      // Footer date (dd/MM/yyyy) + pagination
+      final _nowFooter = DateTime.now();
+      final _footerDate = '${_nowFooter.day.toString().padLeft(2, '0')}/'
+          '${_nowFooter.month.toString().padLeft(2, '0')}/'
+          '${_nowFooter.year}';
 
       // Charger coefficient matière et enseignant assigné
       final subjectCoeffs = await _dbService.getClassSubjectCoefficients(
@@ -3176,31 +3217,72 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       pdf.addPage(
         pw.MultiPage(
           pageTheme: _pageTheme,
+          footer: (context) => pw.Column(
+            children: [
+              pw.Container(height: 0.8, color: PdfColors.blueGrey300),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Date: ' + _footerDate, style: const pw.TextStyle(fontSize: 8)),
+                  pw.Text(
+                    'Page ${context.pageNumber}/${context.pagesCount}',
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                ],
+              ),
+            ],
+          ),
           build: (context) {
-            final headers = <String>['N°', 'Nom'];
-            for (int i = 0; i < devCount; i++) {
-              final String label = devCount == 1 ? 'Devoir' : 'Devoir ${i + 1}';
-              headers.add(label);
-            }
-            for (int i = 0; i < compCount; i++) {
-              final String label = compCount == 1 ? 'Composition' : 'Composition ${i + 1}';
-              headers.add(label);
-            }
+            // Entêtes: N°, Matricule, Nom Prénom, Sexe, Statut, (3 colonnes sans texte pour notes de classe),
+            // Moyenne de classe, Note composition, puis colonnes dynamiques et Observations en dernière colonne
+            final headers = <String>[
+              'N°',
+              'Matricule',
+              'Nom Prénom',
+              'Sexe',
+              'Statut',
+              '', // Notes de classe (col 1)
+              '', // Notes de classe (col 2)
+              '', // Notes de classe (col 3)
+              'Moyenne Classe',
+              'Note Composition',
+            ];
+            // (Colonnes Devoir/Composition supprimées à la demande)
+            headers.add('Observations');
             final rows = <List<String>>[];
             for (int i = 0; i < _students.length; i++) {
               final s = _students[i];
               final row = <String>[
                 (i + 1).toString(),
-                s.name,
+                (s.matricule ?? ''),
+                '${s.lastName} ${s.firstName}'.trim(),
+                s.gender,
+                s.status,
+                '', // Note Classe 1
+                '', // Note Classe 2
+                '', // Note Classe 3
+                '', // Moyenne Classe
+                '', // Note Composition
               ];
-              for (int j = 0; j < devCount; j++) {
-                row.add('');
-              }
-              for (int j = 0; j < compCount; j++) {
-                row.add('');
-              }
+              // (Pas de colonnes Devoir/Composition)
+              row.add(''); // Observations (à compléter) en dernière colonne
               rows.add(row);
             }
+
+            // Définir des largeurs flexibles pour aligner un label au-dessus des 3 colonnes de notes de classe
+            final List<int> columnFlex = []
+              ..addAll([6, 9, 20, 8, 10]) // N°, Matricule, Nom, Sexe, Statut
+              ..addAll([9, 9, 9]) // 3 colonnes de notes de classe
+              ..addAll([10, 10]) // Moyenne classe, Note composition
+              ..add(16); // Observations
+
+            final columnWidths = <int, pw.TableColumnWidth>{
+              for (int i = 0; i < headers.length; i++) i: pw.FlexColumnWidth(columnFlex[i].toDouble()),
+            };
+            final int _leftFlex = columnFlex.sublist(0, 5).fold(0, (p, e) => p + e);
+            final int _groupFlex = columnFlex[5] + columnFlex[6] + columnFlex[7];
+            final int _rightFlex = columnFlex.sublist(8).fold(0, (p, e) => p + e);
             // En-tête harmonisé (ministère / république)
             pw.Widget buildHeader() {
               final left = (schoolInfo?.ministry ?? '').trim();
@@ -3323,19 +3405,44 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                 ],
               ),
               pw.SizedBox(height: 10),
-              pw.Table.fromTextArray(
-                headers: headers,
-                data: rows,
-                headerStyle: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                ),
-                headerDecoration: const pw.BoxDecoration(
-                  color: PdfColors.blue50,
-                ),
-                cellStyle: const pw.TextStyle(fontSize: 9),
-                cellAlignment: pw.Alignment.centerLeft,
-                border: pw.TableBorder.all(color: PdfColors.blue100),
-                headerAlignment: pw.Alignment.center,
+              pw.Stack(
+                children: [
+                  pw.Table.fromTextArray(
+                    headers: headers,
+                    data: rows,
+                    headerStyle: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 8,
+                    ),
+                    headerDecoration: const pw.BoxDecoration(
+                      color: PdfColors.blue50,
+                    ),
+                    cellStyle: const pw.TextStyle(fontSize: 8),
+                    cellAlignment: pw.Alignment.centerLeft,
+                    border: pw.TableBorder.all(color: PdfColors.blue100),
+                    headerAlignment: pw.Alignment.center,
+                    columnWidths: columnWidths,
+                  ),
+                  // Overlay pour fusion visuelle de l'entête "Notes de classe"
+                  pw.Row(
+                    children: [
+                      pw.Expanded(flex: _leftFlex, child: pw.SizedBox()),
+                      pw.Expanded(
+                        flex: _groupFlex,
+                        child: pw.Container(
+                          height: 18,
+                          decoration: const pw.BoxDecoration(color: PdfColors.blue50),
+                          alignment: pw.Alignment.center,
+                          child: pw.Text(
+                            'Notes de classe',
+                            style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      pw.Expanded(flex: _rightFlex, child: pw.SizedBox()),
+                    ],
+                  ),
+                ],
               ),
               pw.SizedBox(height: 14),
               pw.Text('Remarques:'),
