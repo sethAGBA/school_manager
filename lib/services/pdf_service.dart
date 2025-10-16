@@ -975,7 +975,7 @@ class PdfService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Date: ' + footerDate, style: pw.TextStyle(font: times, fontSize: 8)),
+                pw.Text('Généré le: ' + footerDate, style: pw.TextStyle(font: times, fontSize: 8)),
                 pw.Text('Page ' + context.pageNumber.toString() + '/' + context.pagesCount.toString(),
                     style: pw.TextStyle(font: times, fontSize: 8)),
               ],
@@ -1212,7 +1212,7 @@ class PdfService {
                   ),
                   pw.SizedBox(height: 20),
 
-                  // Tableau simplifié pour liste de présence
+                  // Tableau simplifié pour liste de présence (avec Matricule)
                   pw.Table.fromTextArray(
                     cellStyle: pw.TextStyle(font: times, fontSize: 11),
                     headerStyle: pw.TextStyle(
@@ -1227,6 +1227,7 @@ class PdfService {
                     ),
                     headers: [
                       'N°',
+                      'Matricule',
                       'Nom complet',
                       'Sexe',
                       'Statut',
@@ -1246,6 +1247,7 @@ class PdfService {
 
                       return [
                         (i + 1).toString(),
+                        (student.matricule ?? ''),
                         '${student.firstName} ${student.lastName}'.trim(),
                         student.gender == 'M' ? 'M' : 'F',
                         statusLetter,
@@ -1254,18 +1256,20 @@ class PdfService {
                     }),
                     cellAlignment: pw.Alignment.centerLeft,
                     headerAlignments: {
-                      0: pw.Alignment.center,
-                      1: pw.Alignment.centerLeft,
-                      2: pw.Alignment.center,
-                      3: pw.Alignment.center,
-                      4: pw.Alignment.center,
+                      0: pw.Alignment.center,       // N°
+                      1: pw.Alignment.centerLeft,   // Matricule
+                      2: pw.Alignment.centerLeft,   // Nom complet
+                      3: pw.Alignment.center,       // Sexe
+                      4: pw.Alignment.center,       // Statut
+                      5: pw.Alignment.center,       // Présence
                     },
                     columnWidths: {
-                      0: const pw.FlexColumnWidth(0.8),
-                      1: const pw.FlexColumnWidth(3.5),
-                      2: const pw.FlexColumnWidth(1.2),
-                      3: const pw.FlexColumnWidth(1.5),
-                      4: const pw.FlexColumnWidth(3.0),
+                      0: const pw.FlexColumnWidth(0.8),  // N°
+                      1: const pw.FlexColumnWidth(2.0),  // Matricule
+                      2: const pw.FlexColumnWidth(3.5),  // Nom complet
+                      3: const pw.FlexColumnWidth(1.2),  // Sexe
+                      4: const pw.FlexColumnWidth(1.5),  // Statut
+                      5: const pw.FlexColumnWidth(3.0),  // Présence
                     },
                     border: pw.TableBorder.all(
                       color: PdfColors.grey300,

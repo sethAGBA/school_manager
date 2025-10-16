@@ -3224,7 +3224,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Date: ' + _footerDate, style: const pw.TextStyle(fontSize: 8)),
+                  pw.Text('Généré le: ' + _footerDate, style: const pw.TextStyle(fontSize: 8)),
                   pw.Text(
                     'Page ${context.pageNumber}/${context.pagesCount}',
                     style: const pw.TextStyle(fontSize: 8),
