@@ -3463,14 +3463,14 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Column(children: [
-                    pw.Text("Signature de l'enseignant"),
-                    pw.SizedBox(height: 28),
-                    pw.Container(width: 160, height: 0.8, color: PdfColors.blueGrey300),
-                  ]),
-                  pw.Column(children: [
-                    pw.Text("Cachet et signature de l'établissement"),
+                    pw.Text("Signature et nom de l'enseignant"),
                     pw.SizedBox(height: 28),
                     pw.Container(width: 200, height: 0.8, color: PdfColors.blueGrey300),
+                  ]),
+                  pw.Column(children: [
+                    pw.Text("Signature et nom du Chef d'établissement"),
+                    pw.SizedBox(height: 28),
+                    pw.Container(width: 220, height: 0.8, color: PdfColors.blueGrey300),
                   ]),
                 ],
               ),
