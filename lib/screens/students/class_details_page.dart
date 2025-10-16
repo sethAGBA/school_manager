@@ -3013,7 +3013,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       // Colonnes d'identification et infos élèves
       final int idCol = col; setHeader(col++, 'ID_Eleve');
       final int matriculeCol = col; setHeader(col++, 'Matricule');
-      final int nameCol = col; setHeader(col++, 'Nom Prénom');
+      final int nameCol = col; setHeader(col++, 'Nom et Prénom(s)');
       final int classCol = col; setHeader(col++, 'Classe');
       final int yearCol = col; setHeader(col++, 'Annee');
       final int periodCol = col; setHeader(col++, 'Periode');
@@ -3234,12 +3234,12 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
             ],
           ),
           build: (context) {
-            // Entêtes: N°, Matricule, Nom Prénom, Sexe, Statut, (3 colonnes sans texte pour notes de classe),
+            // Entêtes: N°, Matricule, Nom et Prénom(s), Sexe, Statut, (3 colonnes sans texte pour notes de classe),
             // Moyenne de classe, Note composition, puis colonnes dynamiques et Observations en dernière colonne
             final headers = <String>[
               'N°',
               'Matricule',
-              'Nom Prénom',
+              'Nom et Prénom(s)',
               'Sexe',
               'Statut',
               '', // Notes de classe (col 1)
@@ -3272,7 +3272,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
 
             // Définir des largeurs flexibles pour aligner un label au-dessus des 3 colonnes de notes de classe
             final List<int> columnFlex = []
-              ..addAll([6, 9, 20, 8, 10]) // N°, Matricule, Nom, Sexe, Statut
+              ..addAll([6, 9, 28, 8, 10]) // N°, Matricule, Nom (élargi), Sexe, Statut
               ..addAll([9, 9, 9]) // 3 colonnes de notes de classe
               ..addAll([10, 10]) // Moyenne classe, Note composition
               ..add(16); // Observations
@@ -3837,8 +3837,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
 
     final headers = [
       'ID',
-      'Prénom',
-      'Nom',
+      'Nom et Prénom(s)',
       'Date de Naissance',
       'Lieu de Naissance',
       'Genre',
@@ -3866,45 +3865,42 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
           .value = TextCellValue(student.id);
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: i + 1))
-          .value = TextCellValue(student.firstName);
+          .value = TextCellValue('${student.lastName} ${student.firstName}'.trim());
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: i + 1))
-          .value = TextCellValue(student.lastName);
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: i + 1))
           .value = TextCellValue(student.dateOfBirth);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: i + 1))
           .value = TextCellValue(student.placeOfBirth ?? '');
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: i + 1))
           .value = TextCellValue(student.gender);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: i + 1))
           .value = TextCellValue(student.address);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: i + 1))
           .value = TextCellValue(student.contactNumber);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: i + 1))
           .value = TextCellValue(student.email);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: i + 1))
           .value = TextCellValue(student.emergencyContact);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: i + 1))
           .value = TextCellValue(student.guardianName);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: i + 1))
           .value = TextCellValue(student.guardianContact);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: i + 1))
           .value = TextCellValue(student.status);
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 13, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: i + 1))
           .value = TextCellValue(student.medicalInfo ?? '');
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 14, rowIndex: i + 1))
+          .cell(CellIndex.indexByColumnRow(columnIndex: 13, rowIndex: i + 1))
           .value = TextCellValue(student.matricule ?? '');
     }
 
@@ -3912,6 +3908,8 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
       for (int i = 0; i < headers.length; i++) {
         sheet.setColumnWidth(i, 15);
       }
+      // Élargir la colonne Nom et Prénom(s)
+      sheet.setColumnWidth(1, 25);
 
       final bytes = excel.encode()!;
       final dirPath = await FilePicker.platform.getDirectoryPath(

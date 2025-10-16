@@ -1228,7 +1228,7 @@ class PdfService {
                     headers: [
                       'N°',
                       'Matricule',
-                      'Nom complet',
+                      'Nom et Prénom(s)',
                       'Sexe',
                       'Statut',
                       'Présence',
@@ -1258,7 +1258,7 @@ class PdfService {
                     headerAlignments: {
                       0: pw.Alignment.center,       // N°
                       1: pw.Alignment.centerLeft,   // Matricule
-                      2: pw.Alignment.centerLeft,   // Nom complet
+                      2: pw.Alignment.centerLeft,   // Nom Prénom(s)
                       3: pw.Alignment.center,       // Sexe
                       4: pw.Alignment.center,       // Statut
                       5: pw.Alignment.center,       // Présence
@@ -1266,7 +1266,7 @@ class PdfService {
                     columnWidths: {
                       0: const pw.FlexColumnWidth(0.8),  // N°
                       1: const pw.FlexColumnWidth(2.0),  // Matricule
-                      2: const pw.FlexColumnWidth(3.5),  // Nom complet
+                      2: const pw.FlexColumnWidth(4.6),  // Nom Prénom(s)
                       3: const pw.FlexColumnWidth(1.2),  // Sexe
                       4: const pw.FlexColumnWidth(1.5),  // Statut
                       5: const pw.FlexColumnWidth(3.0),  // Présence
@@ -2782,6 +2782,7 @@ class PdfService {
                   pw.Row(
                     children: [
                       pw.Expanded(
+                        flex: 2,
                         child: pw.Text(
                           'Nom : $nom',
                           style: pw.TextStyle(
@@ -2791,8 +2792,9 @@ class PdfService {
                         ),
                       ),
                       pw.Expanded(
+                        flex: 2,
                         child: pw.Text(
-                          'Prénom : $prenom',
+                          'Prénom(s) : $prenom',
                           style: pw.TextStyle(
                             font: timesBold,
                             color: mainColor,
@@ -2800,6 +2802,7 @@ class PdfService {
                         ),
                       ),
                       pw.Expanded(
+                        flex: 1,
                         child: pw.Text(
                           'Sexe : $sexe',
                           style: pw.TextStyle(
