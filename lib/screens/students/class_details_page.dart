@@ -3423,6 +3423,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                     border: pw.TableBorder.all(color: PdfColors.blue100),
                     headerAlignment: pw.Alignment.center,
                     columnWidths: columnWidths,
+                    headerCount: 0,
                   ),
                   pw.Row(
                     children: [
