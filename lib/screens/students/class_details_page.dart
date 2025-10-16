@@ -3405,6 +3405,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                 ],
               ),
               pw.SizedBox(height: 10),
+              // Revenir à l'overlay pour un seul intitulé "Notes de classe"
               pw.Stack(
                 children: [
                   pw.Table.fromTextArray(
@@ -3423,7 +3424,6 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                     headerAlignment: pw.Alignment.center,
                     columnWidths: columnWidths,
                   ),
-                  // Overlay pour fusion visuelle de l'entête "Notes de classe"
                   pw.Row(
                     children: [
                       pw.Expanded(flex: _leftFlex, child: pw.SizedBox()),
