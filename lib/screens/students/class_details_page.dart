@@ -3446,7 +3446,7 @@ class _ClassDetailsPageState extends State<ClassDetailsPage>
                 ],
               ),
               pw.SizedBox(height: 14),
-              pw.Text('Remarques:'),
+              pw.Text('Observations générales :'),
               pw.SizedBox(height: 6),
               pw.Container(height: 0.8, color: PdfColors.blueGrey300),
               pw.SizedBox(height: 6),
